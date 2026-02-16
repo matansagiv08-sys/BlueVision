@@ -1,0 +1,77 @@
+﻿<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueVision</title>
+
+    <link rel="stylesheet" href="./css/styles.css">
+    <script src="../JS/ajaxCalls.js"></script>
+    <script defer src="./js/app.js"></script>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+
+        <!-- Top Section -->
+        <div class="sidebar-top">
+            <button id="sidebarToggle" class="toggle-btn">☰</button>
+        </div>
+
+        <!-- Navigation (Moved to Top) -->
+        <nav class="sidebar-nav">
+            <a href="#/production/dashboard">
+                <span class="icon">🏭</span>
+                <span class="label">Production</span>
+            </a>
+            <a href="#/stock/home">
+                <span class="icon">📦</span>
+                <span class="label">Stock</span>
+            </a>
+            <a href="#/admin/home">
+                <span class="icon">⚙️</span>
+                <span class="label">Admin</span>
+            </a>
+        </nav>
+
+        <!-- User Section (Bottom) -->
+        <div class="sidebar-user">
+            <div class="user-avatar">ד</div>
+            <div class="user-info">
+                <div class="user-name">Dana</div>
+                <div class="user-role">Manager</div>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- Main Area -->
+    <div class="main">
+
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-inner">
+                <img src="./Images/BlueVisionLOGO.png" class="topbar-logo" alt="BlueVision" />
+
+                <div class="top-menu">
+                    <a href="#/production/dashboard" data-route>דוח ראשי</a>
+                    <a href="#/production/stock-check" data-route>בדיקת מלאי</a>
+                    <a href="#/production/projects" data-route>סטטוס פרויקטים</a>
+                </div>
+            </div>
+        </header>
+
+
+        <!-- Page Header -->
+        <section class="page-header">
+            <h1 id="pageTitle">דוח ראשי</h1>
+            <p id="pageSubtitle">סקירה כללית</p>
+        </section>
+
+        <main id="app"></main>
+
+    </div>
+
+</body>
+</html>

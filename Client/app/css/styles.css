@@ -1,0 +1,183 @@
+﻿* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+}
+
+body {
+    display: flex;
+    background: #f4f6f9;
+    color: #1a2b42;
+}
+
+/* =======================
+   SIDEBAR
+======================= */
+
+.sidebar {
+    width: 260px;
+    height: 100vh;
+    background: #0c2340;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 15px;
+    transition: width 0.3s ease;
+}
+
+    .sidebar.collapsed {
+        width: 80px;
+    }
+
+/* Logo top left */
+.sidebar-top {
+    margin-bottom: 40px;
+}
+
+.top-menu a.active {
+    background: #0c2340;
+    color: #fff;
+}
+
+
+.logo {
+    display: none;
+}
+/* optional, only if leftover */
+
+
+
+.toggle-btn {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 1000;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/* Navigation moved to top */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+    .sidebar-nav a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: #d1d9e6;
+        padding: 10px 12px;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+
+        .sidebar-nav a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+.icon {
+    font-size: 18px;
+}
+
+/* Hide labels when collapsed */
+.sidebar.collapsed .label {
+    display: none;
+}
+
+/* =======================
+   USER SECTION
+======================= */
+
+.sidebar-user {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #1e3a5f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Hide name + role when collapsed */
+.sidebar.collapsed .user-info {
+    display: none;
+}
+
+/* =======================
+   MAIN AREA
+======================= */
+
+.main {
+    flex: 1;
+    padding: 30px;
+}
+
+.topbar {
+    margin-bottom: 30px;
+}
+
+.topbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    direction: ltr; /* ensures logo stays on the left */
+}
+
+.topbar-logo {
+    height: 42px;
+    width: auto;
+}
+
+.top-menu {
+    display: flex;
+    gap: 15px;
+    direction: rtl;
+}
+
+    .top-menu a {
+        padding: 10px 18px;
+        border-radius: 20px;
+        text-decoration: none;
+        background: #e8edf3;
+        color: #1a2b42;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+        .top-menu a:hover {
+            background: #d6e2f1;
+        }
+
+.page-header {
+    margin-bottom: 30px;
+}
+
+    .page-header h1 {
+        font-size: 28px;
+        margin-bottom: 5px;
+    }
+
+    .page-header p {
+        color: #6b7c93;
+    }
+
+#app {
+    min-height: 300px;
+}
