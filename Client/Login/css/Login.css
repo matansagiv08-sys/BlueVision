@@ -1,0 +1,108 @@
+﻿/* ניקוי הגדרות */
+* {
+    box-sizing: border-box;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* צבע הרקע המדויק מהתמונה - כחלחל בהיר מאוד */
+.login-page {
+    background-color: #e6f0f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* הריבוע המרכזי */
+.login-card {
+    background-color: #ffffff;
+    width: 100%;
+    max-width: 420px;
+    padding: 50px 40px;
+    border-radius: 12px;
+    /* צל עדין ורחב כמו בתמונה */
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+    text-align: center;
+}
+
+.logo-container {
+    margin-bottom: 40px;
+}
+
+    .logo-container img {
+        max-width: 220px;
+    }
+
+/* שדות קלט */
+.form-group {
+    text-align: right;
+    margin-bottom: 25px;
+}
+
+    .form-group label {
+        display: block;
+        font-size: 15px;
+        color: #083a50;
+        margin-bottom: 8px;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #e1e8ee;
+        border-radius: 8px;
+        background-color: #fcfdfe;
+        font-size: 15px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+        /* יישור הפלייסהולדר לימין */
+        .form-group input::placeholder {
+            text-align: right;
+            color: #b1bcc7;
+        }
+
+        .form-group input:focus {
+            border-color: #0c4d6a;
+        }
+
+/* כפתור הכניסה - כחול פטרול כהה */
+.login-submit {
+    width: 100%;
+    padding: 14px;
+    background-color: #0a4d67;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.3s;
+}
+
+    .login-submit:hover {
+        background-color: #083a50;
+    }
+
+/* קישור בתחתית */
+.forgot-password {
+    margin-top: 30px;
+}
+
+    .forgot-password a {
+        color: #0c4d6a;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
