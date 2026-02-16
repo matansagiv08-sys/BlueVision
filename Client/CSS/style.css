@@ -1,0 +1,133 @@
+﻿/* --- משתנים גלובליים --- */
+:root {
+    --primary-blue: #0c4d6a;
+    --hover-blue: #083a50;
+    --bg-light: #e9f1f9;
+    --white: #ffffff;
+    --border-color: #dce4ec;
+    --text-main: #333;
+    --text-muted: #666;
+}
+
+/* --- הגדרות בסיס --- */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-main);
+    min-height: 100vh;
+}
+
+/* עיצוב גנרי לקישורים */
+a {
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+/* --- דף כניסה (Login) - עיצוב ספציפי --- */
+.login-page-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-card {
+    background-color: var(--white);
+    padding: 40px 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+    .login-card .logo-area {
+        margin-bottom: 30px;
+    }
+
+.input-group {
+    text-align: right;
+    margin-bottom: 20px;
+}
+
+    .input-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: var(--text-muted);
+    }
+
+    .input-group input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        box-sizing: border-box;
+        outline: none;
+    }
+
+        .input-group input:focus {
+            border-color: var(--primary-blue);
+        }
+
+.footer-links {
+    margin-top: 25px;
+}
+
+    .footer-links a {
+        color: var(--primary-blue);
+        font-size: 14px;
+    }
+
+/* --- רכיבי המערכת (Dashboard / Header) --- */
+.main-header {
+    background: var(--white);
+    padding: 10px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.header-logo img {
+    max-height: 45px;
+}
+
+.top-nav {
+    display: flex;
+    gap: 12px;
+}
+
+.nav-pill {
+    padding: 8px 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 25px;
+    color: var(--text-main);
+    font-size: 14px;
+}
+
+    .nav-pill.active {
+        background: var(--primary-blue);
+        color: var(--white);
+        border-color: var(--primary-blue);
+    }
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-text {
+    text-align: left;
+}
+
+.user-name {
+    font-weight: bold;
+    font-size: 14px;
+    display: block;
+}
+
+.user-role {
