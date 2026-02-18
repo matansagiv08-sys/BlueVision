@@ -765,8 +765,21 @@ body.mode-inventory .tab-inventory {
 .ps-project-meta {
     display: flex;
     align-items: center;
-    gap: 20px;
-    margin-right: auto;
+    gap: 18px;
+    width: 100%;
+}
+
+.ps-project-meta-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ps-project-meta-left {
+    margin-right: auto; /* דוחף את האחוז+בר לצד שמאל */
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
 
 .ps-deadline {
@@ -824,17 +837,24 @@ body.mode-inventory .tab-inventory {
 
 .ps-uav-row {
     position: relative;
-    padding: 20px 20px 20px 70px;
+    padding: 20px 70px 20px 20px; /* space on RIGHT for arrow */
     background: #f8fafc;
     border: 1px solid rgba(0,0,0,0.06);
     border-radius: 14px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 18px;
     transition: border-color 0.2s ease, background 0.2s ease;
     width: 100%;
 }
+
+    .ps-uav-row .ps-chev {
+        position: absolute;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
 
     .ps-uav-row.active {
         border-color: #0ea5b7;
@@ -843,10 +863,10 @@ body.mode-inventory .tab-inventory {
 
 /* UAV progress area */
 .ps-uav-left {
+    margin-right: auto; /* דוחף את האחוז+בר שמאלה */
     display: flex;
     align-items: center;
-    gap: 14px;
-    min-width: 300px;
+    gap: 12px;
 }
 
 .ps-uav-pct {
@@ -875,7 +895,6 @@ body.mode-inventory .tab-inventory {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-right: auto;
 }
 
 .ps-tag {

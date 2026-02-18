@@ -124,8 +124,6 @@ function initProjectsStatus() {
     renderProjectsList(projectsStatusMock);
 }
 
-
-
 /* =========================
    RENDER: Projects List
 ========================= */
@@ -134,33 +132,27 @@ function renderProjectsList(projects) {
     if (!list) return;
 
     list.innerHTML = projects.map(p => projectCardHtml(p)).join("");
-
-    // bind toggles
-    projects.forEach(p => {
-        const btn = document.querySelector(`[data-ps-project-toggle="${p.id}"]`);
-        if (btn) btn.addEventListener("click", () => toggleProject(p.id));
-    });
 }
 
 /* =========================
    TOGGLES
+   - Multiple projects can be open
+   - Multiple UAVs can be open (inside each project)
 ========================= */
 function toggleProject(projectId) {
     const card = document.getElementById(`ps-project-${projectId}`);
     const body = document.getElementById(`ps-project-body-${projectId}`);
-    const chev = document.querySelector(`[data-ps-project-toggle="${projectId}"] .ps-chev`);
+    const chev = card?.querySelector(".ps-project-head .ps-chev");
 
     if (!card || !body) return;
 
     const isOpen = body.classList.contains("open");
-    document.querySelectorAll(".ps-project-body.open").forEach(x => x.classList.remove("open"));
-    document.querySelectorAll(".ps-project-card.active").forEach(x => x.classList.remove("active"));
 
-    if (chev) {
-        document.querySelectorAll(".ps-chev").forEach(c => c.classList.remove("up"));
-    }
-
-    if (!isOpen) {
+    if (isOpen) {
+        body.classList.remove("open");
+        card.classList.remove("active");
+        if (chev) chev.classList.remove("up");
+    } else {
         body.classList.add("open");
         card.classList.add("active");
         if (chev) chev.classList.add("up");
@@ -169,19 +161,19 @@ function toggleProject(projectId) {
 
 function toggleUav(projectId, uavId) {
     const body = document.getElementById(`ps-uav-body-${projectId}-${uavId}`);
+    const row = document.getElementById(`ps-uav-row-${projectId}-${uavId}`);
     const chev = document.querySelector(`[data-ps-uav-toggle="${projectId}-${uavId}"] .ps-chev`);
+
     if (!body) return;
 
     const isOpen = body.classList.contains("open");
 
-    // close all UAV bodies inside this project
-    document.querySelectorAll(`#ps-project-body-${projectId} .ps-uav-body.open`).forEach(x => x.classList.remove("open"));
-    document.querySelectorAll(`#ps-project-body-${projectId} .ps-uav-row.active`).forEach(x => x.classList.remove("active"));
-    document.querySelectorAll(`#ps-project-body-${projectId} .ps-uav-row .ps-chev`).forEach(x => x.classList.remove("up"));
-
-    if (!isOpen) {
+    if (isOpen) {
+        body.classList.remove("open");
+        if (row) row.classList.remove("active");
+        if (chev) chev.classList.remove("up");
+    } else {
         body.classList.add("open");
-        const row = document.getElementById(`ps-uav-row-${projectId}-${uavId}`);
         if (row) row.classList.add("active");
         if (chev) chev.classList.add("up");
     }
@@ -196,8 +188,9 @@ function projectCardHtml(p) {
 
     return `
     <div class="ps-project-card" id="ps-project-${p.id}">
-      <button class="ps-project-head" type="button" data-ps-project-toggle="${p.id}">
-        <span class="ps-chev">˅</span>
+      <button class="ps-project-head" type="button"
+        data-ps-project-toggle="${p.id}"
+        onclick="toggleProject('${p.id}')">
 
         <div class="ps-project-title">
           <div class="ps-project-name">${escapeHtml(p.name)}</div>
@@ -205,16 +198,23 @@ function projectCardHtml(p) {
         </div>
 
         <div class="ps-project-meta">
-          ${statusPill}
-          <div class="ps-deadline">
-            <span class="ps-clock">🕒</span>
-            <span>דד ליין: ${escapeHtml(p.deadline)}</span>
+          <div class="ps-project-meta-right">
+            ${statusPill}
+            <div class="ps-deadline">
+              <span class="ps-clock">🕒</span>
+              <span>דד ליין: ${escapeHtml(p.deadline)}</span>
+            </div>
           </div>
-          <div class="ps-percent">${progress}%</div>
-          <div class="ps-progress">
-            <div class="ps-progress-bar" style="width:${progress}%"></div>
+
+          <div class="ps-project-meta-left">
+            <div class="ps-percent">${progress}%</div>
+            <div class="ps-progress">
+              <div class="ps-progress-bar" style="width:${progress}%"></div>
+            </div>
           </div>
         </div>
+
+        <span class="ps-chev">˅</span>
       </button>
 
       <div class="ps-project-body" id="ps-project-body-${p.id}">
@@ -235,7 +235,12 @@ function uavRowHtml(projectId, u) {
       <button class="ps-uav-row" id="ps-uav-row-${projectId}-${u.id}" type="button"
               data-ps-uav-toggle="${projectId}-${u.id}"
               onclick="toggleUav('${projectId}','${u.id}')">
-        <span class="ps-chev">⌄</span>
+
+        <div class="ps-uav-right">
+          <span class="ps-tag">${escapeHtml(u.model)}</span>
+          <span class="ps-uav-id">כטב"ם ${escapeHtml(u.id)}</span>
+          <span class="ps-uav-parts">${partsCount} חלקים</span>
+        </div>
 
         <div class="ps-uav-left">
           <span class="ps-uav-pct">${prog}%</span>
@@ -244,11 +249,7 @@ function uavRowHtml(projectId, u) {
           </div>
         </div>
 
-        <div class="ps-uav-right">
-          <span class="ps-tag">${escapeHtml(u.model)}</span>
-          <span class="ps-uav-id">כטב"ם ${escapeHtml(u.id)}</span>
-          <span class="ps-uav-parts">${partsCount} חלקים</span>
-        </div>
+        <span class="ps-chev">˅</span>
       </button>
 
       <div class="ps-uav-body" id="ps-uav-body-${projectId}-${u.id}">
