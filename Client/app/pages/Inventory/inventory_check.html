@@ -1,10 +1,16 @@
-﻿<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8" />
-    <title></title>
-</head>
-<body>
+﻿<div class="inventory-check-page">
+    <div class="check-header">
+        <div class="custom-slider-toggle">
+            <button class="slider-btn active" id="mode-uav" onclick="window.switchCheckMode('uav')">כטב"מים</button>
+            <button class="slider-btn" id="mode-body" onclick="window.switchCheckMode('body')">גופים</button>
+        </div>
+    </div>
+    <div id="check-rows-container"></div>
 
-</body>
-</html>
+    <div class="check-actions">
+        <button id="btn-calculate" class="btn-calculate" disabled onclick="window.navigateToResults()">חשב</button>
+        <button class="btn-add-row" onclick="window.addNewCheckRow()">
+            הוסף כטב"ם נוסף +
+        </button>
+    </div>
+</div>

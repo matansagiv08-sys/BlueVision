@@ -1018,5 +1018,295 @@ body.mode-inventory .tab-inventory {
 }
 
 
+/* =============================
+   Inventory check
+============================= */
+.inventory-check-page {
+    padding: 40px;
+    direction: rtl;
+    max-width: 1100px;
+    margin: 0 auto;
+}
 
+.check-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+    .check-header h2 {
+        color: #0c2340;
+        font-size: 2rem;
+        margin-bottom: 5px;
+    }
+
+    .check-header .sub-title {
+        color: #64748b;
+        margin-bottom: 25px;
+    }
+
+/* Toggle Switch */
+.toggle-container {
+    display: inline-flex;
+    background: #e2e8f0;
+    padding: 4px;
+    border-radius: 30px;
+}
+
+.toggle-btn {
+    border: none;
+    padding: 8px 35px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.3s;
+    background: transparent;
+    color: #475569;
+}
+
+    .toggle-btn.active {
+        background: #0c2340;
+        color: white;
+    }
+
+/* Row Cards */
+.check-row-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    margin-bottom: 15px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.row-content-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* האפקט כשהשורה מלאה */
+.check-row-card.row-complete {
+    border: 2px solid #22d3ee; /* טכלת */
+    background: #f0fdfa;
+}
+
+.input-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: right;
+}
+
+    .input-group label {
+        font-size: 0.8rem;
+        color: #94a3b8;
+    }
+
+.check-input {
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: white;
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.row-icon-box {
+    width: 50px;
+    height: 50px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
+
+.row-complete .row-icon-box {
+    background: #0c2340;
+    color: white;
+}
+
+.btn-delete-row {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 5px;
+    color: #ef4444;
+}
+
+/* Action Buttons */
+.check-actions {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 40px;
+}
+
+.btn-add-row {
+    background: white;
+    border: 1.5px solid #0c2340;
+    padding: 12px 30px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #0c2340;
+}
+
+.btn-calculate {
+    background: #0c2340;
+    color: white;
+    border: none;
+    padding: 12px 60px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+    .btn-calculate:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+    }
+
+#app, #content {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.inventory-check-page {
+    padding: 40px;
+    direction: rtl;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.check-header h1 {
+    color: #0c2340;
+    font-size: 28px;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.sub-title {
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* עיצוב הכרטיסיות כמו בתמונה */
+.check-row-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.row-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.input-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+    .input-group label {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+
+    .input-group input, .input-group select {
+        padding: 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fcfcfc;
+    }
+
+.row-icon {
+    width: 45px;
+    height: 45px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-calculate {
+    background: #0c2340;
+    color: white;
+    border: none;
+    padding: 12px 50px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* הצמדת הריבועים לצד המסך (ימין) */
+.side-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* הצמדה לימין בגלל RTL */
+    max-width: 800px;
+    margin-right: 20px; /* רווח מהקצה */
+}
+
+.check-row-card {
+    width: 100%; /* הריבוע יתפוס את כל רוחב המכולה המוצמדת */
+    max-width: 600px;
+}
+
+/* הצמדה לצד ימין */
+.side-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* מצמיד לימין בגלל ה-RTL */
+    width: 100%;
+    max-width: 900px;
+    margin-right: 0;
+}
+
+/* עיצוב הסליידר כמו בתמונה */
+.custom-slider-toggle {
+    display: flex;
+    background: #e2e8f0;
+    padding: 4px;
+    border-radius: 50px;
+    width: fit-content;
+    margin: 0 auto 30px auto; /* נשמור על הכותרות באמצע */
+}
+
+.slider-btn {
+    border: none;
+    padding: 10px 25px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    background: transparent;
+    color: #64748b;
+}
+
+    .slider-btn.active {
+        background: #0c2340;
+        color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+/* התאמת הכרטיסיות שייראו טוב בצד */
+.check-row-card {
+    width: 100%;
+    max-width: 700px;
+    margin-right: 0;
+}
 /*end of projects_status css*/
