@@ -46,8 +46,7 @@
                     <a href="#/inventory/inventory_check" data-route class="tab-inventory">בדיקת מלאי</a>
                     <a href="#/inventory/all_inventory" data-route class="tab-inventory">מלאי כולל</a>
                     <a href="#/inventory/orders_tracking" data-route class="tab-inventory">מעקב הזמנות רכש</a>
-                    <a href="#/inventory/main_dashboard" data-route class="tab-inventory">כמויות מעץ מוצר</a>
-                    <a href="#/inventory/main_dashboard" data-route class="tab-inventory">מלאי כולל</a>
+                    <a href="#/inventory/uav_BOM" data-route class="tab-inventory">כמויות מעץ מוצר</a> 
                 </div>
             </div>
         </header>
@@ -58,32 +57,7 @@
         </section>
 
         <main id="app"></main>
-        <div id="statusModal" class="modal-overlay" style="display:none;">
-            <div class="status-modal-v2">
-                <div class="status-header-blue">עדכון סטטוס תחנה</div>
-                <div class="modal-body">
-                    <div class="task-info-card"></div> <div class="status-selection-grid">
-                        <button class="status-opt-btn green-active">בוצע</button>
-                        <button class="status-opt-btn">בתהליך</button>
-                        <button class="status-opt-btn" style="color:red;">עצור כ"א</button>
-                        <button class="status-opt-btn" style="color:orange;">עצור הנדסית</button>
-                        <button class="status-opt-btn">אחר</button>
-                    </div>
 
-                    <div style="margin-top:15px;">
-                        <label style="display:block; font-size:0.8rem; margin-bottom:5px;">זמן סיום</label>
-                        <input type="datetime-local" class="modal-input">
-
-                        <label style="display:block; font-size:0.8rem; margin:10px 0 5px;">הערות</label>
-                        <textarea class="modal-input" style="height:60px;"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-save" onclick="closeStatusModal()">שמור</button>
-                    <button class="btn-cancel" onclick="closeStatusModal()">ביטול</button>
-                </div>
-            </div>
-        </div>
     </div>
 </body>
 </html>

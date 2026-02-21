@@ -189,3 +189,21 @@ document.getElementById("sidebarToggle")?.addEventListener("click", () => {
 ========================= */
 window.addEventListener("hashchange", loadRoute);
 window.addEventListener("load", loadRoute);
+
+// פונקציה לסגירת המודאל
+window.closeGenericModal = function () {
+    document.getElementById("genericModal").style.display = "none";
+};
+
+// הפעלת כפתור האישור כשמשהו משתנה
+function enableSubmitOnגhange() {
+    const modalBody = document.getElementById("modalBody");
+    const submitBtn = document.getElementById("modalSubmitBtn");
+
+    const inputs = modalBody.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        input.addEventListener('input', () => {
+            submitBtn.disabled = false;
+        });
+    });
+}

@@ -1,3 +1,19 @@
-﻿<div class="tasks-container">
-    <div id="tasks-board-container"></div>
+﻿<div class="tasks-board-page">
+    <div id="tasks-board-container">
+    </div>
+</div>
+
+<div id="genericModal" class="modal-overlay" onclick="window.closeGenericModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header-blue">
+            <h2 id="modalTitle">עדכון סטטוס תחנה</h2>
+            <button class="close-btn" onclick="window.closeGenericModal()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+</div>
+        <div id="modalBody" class="modal-body">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal btn-cancel" onclick="window.closeGenericModal()">ביטול</button>
+            <button id="modalSubmitBtn" class="btn-modal btn-save" disabled onclick="window.handleModalSubmit()">אישור</button>
+        </div>
+    </div>
 </div>

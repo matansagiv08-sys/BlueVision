@@ -182,20 +182,6 @@ body {
     min-height: 300px;
 }
 
-/* מודאל */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
-}
-
 .status-modal {
     background: white;
     width: 450px;
@@ -204,26 +190,41 @@ body {
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
 
+
 .modal-header {
-    background: #0c2340;
-    color: white;
-    padding: 15px;
+    background: #f8fafc; /* רקע אפרפר עדין לכותרת */
+    padding: 20px 25px;
+    border-bottom: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 .modal-body {
-    padding: 20px;
-    direction: rtl;
+    background: #ffffff; /* לבן מפורש לגוף המודאל */
+    padding: 30px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
 }
 
-.task-info-card {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    border: 1px solid #eef0f2;
+/* עיצוב שדות המידע בתוך המודאל */
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.info-item label {
+    font-size: 12px;
+    color: #64748b; /* צבע טקסט אפור לתווית */
+    font-weight: 500;
+}
+
+.info-item span {
+    font-size: 16px;
+    color: #0c2340; /* כחול כהה לתוכן */
+    font-weight: 700;
 }
 
 .task-name {
@@ -277,25 +278,6 @@ body {
     margin-top: 10px;
 }
 
-.btn-save {
-    flex: 1;
-    background: #0c2340;
-    color: white;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.btn-cancel {
-    flex: 1;
-    background: white;
-    border: 1px solid #dee2e6;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
 /* הסתרה כללית של הטאבים */
 .tab-production, .tab-inventory {
     display: none;
@@ -309,46 +291,6 @@ body.mode-production .tab-production {
 body.mode-inventory .tab-inventory {
     display: inline-block !important;
 }
-
-/* עיצוב כללי ללוח המשימות */
-.production-group {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    overflow: hidden;
-    margin-bottom: 20px;
-}
-
-.group-banner {
-    background: #0c2340; /* כחול כהה כמו בתמונה */
-    color: white;
-    text-align: center;
-    padding: 8px;
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
-.prod-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-}
-
-.prod-table th {
-    background: #f8f9fa;
-    padding: 12px 5px;
-    border-bottom: 2px solid #dee2e6;
-    color: #333;
-}
-
-.prod-table td {
-    padding: 10px 5px;
-    border-bottom: 1px solid #eee;
-    text-align: center;
-}
-
-.id-cell { color: #007bff; font-weight: bold; }
-.desc-cell { text-align: right; min-width: 200px; }
 
 /* כפתורי סטטוס - Status Pills */
 .status-pill {
@@ -614,22 +556,6 @@ body.mode-inventory .tab-inventory {
         color: #0c2340;
         font-size: 1rem;
     }
-
-/* מודאל סטטוס - שדרוג לכפתורים המעוגלים */
-.status-modal-v2 {
-    background: white;
-    width: 480px;
-    border-radius: 16px;
-    overflow: hidden;
-}
-
-.status-header-blue {
-    background: #0c2340;
-    color: white;
-    padding: 15px;
-    text-align: center;
-    font-weight: bold;
-}
 
 .status-selection-grid {
     display: grid;
@@ -1310,3 +1236,431 @@ body.mode-inventory .tab-inventory {
     margin-right: 0;
 }
 /*end of projects_status css*/
+
+/* =========================================
+   ALL INVENTORY & GENERIC TABLE SYSTEM
+   ========================================= */
+
+.all-inventory-page {
+    padding: 40px;
+    direction: rtl;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* סרגל כלים (Toolbar) */
+.inventory-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0; /* מחובר למכולה של הטבלה */
+    gap: 15px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+    border: 1px solid #e2e8f0;
+    border-bottom: none;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+}
+
+    .search-box input {
+        width: 100%;
+        padding: 10px 40px 10px 15px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        font-size: 14px;
+        outline: none;
+    }
+
+        .search-box input:focus {
+            border-color: #0c2340;
+        }
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.filter-group {
+    display: flex;
+    gap: 10px;
+}
+
+    .filter-group select {
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: white;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+.btn-sort {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #475569;
+    transition: 0.2s;
+}
+
+    .btn-sort:hover {
+        background: #e2e8f0;
+    }
+
+/* מכולת הטבלה */
+.table-container {
+    width: 100%;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+/* הטבלה הגנרית */
+/*.generic-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: right;
+    font-size: 14px;
+}
+
+    .generic-data-table thead {
+        background-color: #0c2340;*/ /* הכחול הכהה של ה-Sidebar */
+        /*color: white;*/ /* טקסט לבן שיהיה קריא */
+    /*}
+
+    .generic-data-table th {
+        padding: 15px 20px;
+        font-weight: 600;
+        color: white;*/ /* חשוב שהטקסט יהיה לבן */
+        /*font-size: 13px;
+        text-align: right;*/ /* יישור לימין */
+    /*}
+
+    .generic-data-table td {
+        padding: 15px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+
+    .generic-data-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .generic-data-table tr {
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+        .generic-data-table tr:hover {
+            background-color: #f8fafc;
+        }*/
+
+/* --- קומפוננטת טבלה גנרית אחידה --- */
+
+.table-container {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    overflow: hidden; /* שומר על הפינות המעוגלות */
+    margin-top: 20px;
+}
+
+.generic-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: right;
+    background-color: white;
+}
+
+    /* שורת הכותרת הכחולה */
+    .generic-data-table thead {
+        background-color: #0c2340; /* כחול כהה לוגו */
+    }
+
+    .generic-data-table th {
+        padding: 16px 20px;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+        border: none;
+    }
+
+    /* עיצוב השורות */
+    .generic-data-table td {
+        padding: 14px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+
+    /* שורה אחרונה ללא קו תחתון */
+    .generic-data-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* אפקט מעבר עכבר */
+    .generic-data-table tbody tr {
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+        .generic-data-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+/* התאמה לניידים - גלילה רוחבית אם הטבלה גדולה מדי */
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: auto;
+    }
+}
+
+/* תגים וסטטוסים */
+.badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-blue {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.badge-green {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.badge-red {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* מודאל (Modal) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(12, 35, 64, 0.6); /* כחול כהה שקוף */
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: white;
+    width: 90%;
+    max-width: 550px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+}
+
+.status-header-blue {
+    background: #0c2340;
+    color: white;
+    padding: 18px 25px;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.aircraft-section {
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-size: 20px;
+    color: #0c2340;
+    margin-bottom: 15px;
+    padding-right: 10px;
+    border-right: 4px solid #0c2340;
+}
+
+/* כפתורי הסטטוס הקטנים בתחנות */
+.status-pill {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+    .status-pill.gray {
+        color: #94a3b8;
+    }
+
+/* בר התקדמות קטן בתוך טבלה */
+.progress-bar-mini {
+    width: 60px;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    position: relative;
+}
+
+    .progress-bar-mini .fill {
+        height: 100%;
+        background: #16a34a;
+        border-radius: 10px;
+    }
+
+    .progress-bar-mini span {
+        font-size: 10px;
+        position: absolute;
+        right: -30px;
+        top: -4px;
+    }
+
+/* --- קומפוננטת מודאל גנרית אחידה (חלון קופץ) --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(12, 35, 64, 0.7);
+    display: none; /* נשלט ע"י JS */
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: white;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* כותרת כחולה אחידה */
+.modal-header-blue {
+    background: #0c2340;
+    color: white;
+    padding: 18px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header-blue h2 {
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+/* גוף המודאל - גריד של שדות */
+.modal-body {
+    padding: 25px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.info-item label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.info-item input, .info-item select, .info-item textarea {
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.info-item input:focus {
+    border-color: #0c2340;
+}
+
+/* פוטר וכפתורים */
+.modal-footer {
+    padding: 15px 25px;
+    background: #f8fafc;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.btn-modal {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-save {
+    background: #0c2340;
+    color: white;
+}
+
+.btn-save:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    color: #94a3b8;
+}
+
+.btn-cancel {
+    background: white;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.btn-cancel:hover {
+    background: #f1f5f9;
+}
