@@ -27,12 +27,13 @@ const mockData = [
 /* =========================
    ROUTES
    IMPORTANT:
-   - Each route has: file, js, init function name
+   - Each route can have: file, js, css, init, title, subtitle, mode
 ========================= */
 const routes = {
     "/production/tasks_board": {
         file: "./pages/production/tasks_board.html",
         js: "./pages/production/tasks_board.js",
+        css: "./pages/production/tasks_board.css",
         init: "initTasksBoard",
         title: "לוח משימות",
         subtitle: "מעקב אחר סטטוס תחנות ייצור לכל חלק",
@@ -41,6 +42,7 @@ const routes = {
     "/production/projects_status": {
         file: "./pages/production/projects_status.html",
         js: "./pages/production/projects_status.js",
+        css: "./pages/production/projects_status.css",
         init: "initProjectsStatus",
         title: "סטטוס פרויקטים",
         subtitle: "מעקב אחר התקדמות ייצור כטב\"מים בפרויקטים שונים",
@@ -49,6 +51,7 @@ const routes = {
     "/production/tasks_order": {
         file: "./pages/production/tasks_order.html",
         js: "./pages/production/tasks_order.js",
+        css: "./pages/production/tasks_order.css",
         init: "initTasksOrder",
         title: "ניהול סדר עבודה",
         subtitle: "",
@@ -57,6 +60,7 @@ const routes = {
     "/production/add_parts_to_production": {
         file: "./pages/production/add_parts_to_production.html",
         js: "./pages/production/add_parts_to_production.js",
+        css: "./pages/production/add_parts_to_production.css",
         init: "initAddPartsToProduction",
         title: "הוספת חלק לייצור",
         subtitle: "",
@@ -65,6 +69,7 @@ const routes = {
     "/production/monthly_dashboard": {
         file: "./pages/production/monthly_dashboard.html",
         js: "./pages/production/monthly_dashboard.js",
+        css: "./pages/production/monthly_dashboard.css",
         init: "initMonthlyDashboard",
         title: "דוח חודשי",
         subtitle: "",
@@ -74,6 +79,7 @@ const routes = {
     "/inventory/inventory_dashboard": {
         file: "./pages/inventory/inventory_dashboard.html",
         js: "./pages/inventory/inventory_dashboard.js",
+        css: "./pages/inventory/inventory_dashboard.css",
         init: "initInventoryDashboard",
         title: "דוח מלאי",
         subtitle: "סיכום סקירת מלאי כללי",
@@ -82,6 +88,7 @@ const routes = {
     "/inventory/inventory_check": {
         file: "./pages/inventory/inventory_check.html",
         js: "./pages/inventory/inventory_check.js",
+        css: "./pages/inventory/inventory_check.css",
         init: "initInventoryCheck",
         title: "בדיקת מלאי",
         subtitle: "חישוב חוסרי מלאי",
@@ -90,6 +97,7 @@ const routes = {
     "/inventory/all_inventory": {
         file: "./pages/inventory/all_inventory.html",
         js: "./pages/inventory/all_inventory.js",
+        css: "./pages/inventory/all_inventory.css",
         init: "initAllInventory",
         title: "מלאי כולל",
         subtitle: "",
@@ -98,6 +106,7 @@ const routes = {
     "/inventory/orders_tracking": {
         file: "./pages/inventory/orders_tracking.html",
         js: "./pages/inventory/orders_tracking.js",
+        css: "./pages/inventory/orders_tracking.css",
         init: "initOrdersTracking",
         title: "מעקב הזמנות רכש",
         subtitle: "",
@@ -117,7 +126,6 @@ function setActiveMenu(path) {
 /* Load a JS file once (prevents duplicates) */
 function loadScriptOnce(src) {
     return new Promise((resolve, reject) => {
-        // already loaded?
         if (document.querySelector(`script[data-dynamic="true"][src="${src}"]`)) {
             return resolve();
         }
@@ -129,6 +137,28 @@ function loadScriptOnce(src) {
         s.onload = () => resolve();
         s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
         document.body.appendChild(s);
+    });
+}
+
+/* Remove previous page CSS (so pages do not override each other) */
+function removeDynamicCss() {
+    document.querySelectorAll(`link[data-dynamic="true"]`).forEach(l => l.remove());
+}
+
+/* Load a CSS file once */
+function loadCssOnce(href) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`link[data-dynamic="true"][href="${href}"]`)) {
+            return resolve();
+        }
+
+        const l = document.createElement("link");
+        l.rel = "stylesheet";
+        l.href = href;
+        l.dataset.dynamic = "true";
+        l.onload = () => resolve();
+        l.onerror = () => reject(new Error(`Failed to load css: ${href}`));
+        document.head.appendChild(l);
     });
 }
 
@@ -159,17 +189,23 @@ async function loadRoute() {
         // 3) Switch mode (production/inventory)
         document.body.className = `mode-${route.mode}`;
 
-        // 4) Load page JS
+        // 4) Load page CSS (clean previous page css first)
+        removeDynamicCss();
+        if (route.css) {
+            await loadCssOnce(route.css);
+        }
+
+        // 5) Load page JS
         if (route.js) {
             await loadScriptOnce(route.js);
         }
 
-        // 5) Call init function if exists
+        // 6) Call init function if exists
         if (route.init && typeof window[route.init] === "function") {
             window[route.init]();
         }
 
-        // 6) Highlight top menu active tab
+        // 7) Highlight top menu active tab
         setActiveMenu(path);
 
     } catch (err) {
@@ -190,20 +226,8 @@ document.getElementById("sidebarToggle")?.addEventListener("click", () => {
 window.addEventListener("hashchange", loadRoute);
 window.addEventListener("load", loadRoute);
 
-// פונקציה לסגירת המודאל
+/* Close generic modal */
 window.closeGenericModal = function () {
-    document.getElementById("genericModal").style.display = "none";
+    const modal = document.getElementById("genericModal");
+    if (modal) modal.style.display = "none";
 };
-
-// הפעלת כפתור האישור כשמשהו משתנה
-function enableSubmitOnגhange() {
-    const modalBody = document.getElementById("modalBody");
-    const submitBtn = document.getElementById("modalSubmitBtn");
-
-    const inputs = modalBody.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-        input.addEventListener('input', () => {
-            submitBtn.disabled = false;
-        });
-    });
-}

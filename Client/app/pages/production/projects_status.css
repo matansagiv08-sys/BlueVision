@@ -1,0 +1,362 @@
+﻿/* =====================================================
+   PROJECTS STATUS PAGE
+   Moved from styles.css + fixes:
+   1) Right-side text closer to chevron + flush right
+   2) Force font inherit (buttons)
+===================================================== */
+
+/* Page wrapper */
+.projects-status-page {
+    width: min(1450px, 96%);
+    margin: 0 auto;
+    direction: rtl;
+}
+
+/* Projects list */
+.projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    margin-top: 20px;
+}
+
+/* =============================
+   PROJECT CARD
+============================= */
+
+.ps-project-card {
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+    .ps-project-card.active {
+        border: 2px solid #0ea5b7;
+        box-shadow: 0 12px 28px rgba(14, 165, 183, 0.18);
+    }
+
+/* Header (clickable area) */
+.ps-project-head {
+    position: relative;
+    width: 100%;
+    background: transparent;
+    border: none;
+    /* FIX: space should be on RIGHT for the chevron (not left) */
+    padding: 24px 70px 24px 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    /* FIX: make button use same font as rest of site */
+    font: inherit;
+    color: inherit;
+    /* FIX: ensure layout is RTL so title starts on right */
+    direction: rtl;
+    text-align: right;
+}
+
+/* Chevron – fixed right */
+.ps-chev {
+    position: absolute;
+    right: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.3rem;
+    color: #3a4a5f;
+    transition: transform 0.2s ease;
+}
+
+    .ps-chev.up {
+        transform: translateY(-50%) rotate(180deg);
+    }
+
+/* Project title area */
+.ps-project-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    /* prevent shrinking */
+    flex-shrink: 0;
+    /* give it more breathing room */
+    min-width: 220px;
+}
+
+.ps-project-name {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    white-space: nowrap;
+}
+
+.ps-project-sub {
+    font-size: 1rem;
+    color: #64748b;
+    margin-top: 4px;
+    white-space: nowrap;
+}
+
+/* Meta area (progress, deadline, pill) */
+.ps-project-meta {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    width: 100%;
+    flex-wrap: nowrap;
+}
+
+.ps-project-meta-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ps-project-meta-left {
+    /* FIX: logical margin so progress always goes to the far LEFT */
+    margin-inline-start: auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ps-deadline {
+    font-size: 1rem;
+    color: #334155;
+}
+
+.ps-percent {
+    font-weight: 700;
+    font-size: 1rem;
+    min-width: 50px;
+    text-align: center;
+    color: #0f172a;
+}
+
+/* Progress bar */
+.ps-progress {
+    width: 460px;
+    height: 12px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.ps-progress-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0ea5b7, #2563eb);
+}
+
+/* =============================
+   PROJECT BODY (Expanded)
+============================= */
+
+.ps-project-body {
+    display: none;
+    padding: 20px 20px 24px 20px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+    .ps-project-body.open {
+        display: block;
+    }
+
+/* =============================
+   UAV ROW
+============================= */
+
+.ps-uav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ps-uav-row {
+    position: relative;
+    padding: 20px 70px 20px 20px; /* space on RIGHT for arrow */
+    background: #f8fafc;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    width: 100%;
+    /* FIX: also force font inherit here */
+    font: inherit;
+    color: inherit;
+}
+
+    .ps-uav-row .ps-chev {
+        position: absolute;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .ps-uav-row.active {
+        border-color: #0ea5b7;
+        background: #f0fdff;
+    }
+
+/* UAV progress area */
+.ps-uav-left {
+    /* FIX: logical margin so this always goes to far LEFT */
+    margin-inline-start: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ps-uav-pct {
+    font-weight: 800;
+    font-size: 1rem;
+    min-width: 55px;
+}
+
+.ps-uav-progress {
+    width: 220px;
+    height: 12px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.ps-uav-progress-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0ea5b7, #2563eb);
+}
+
+/* UAV details */
+.ps-uav-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ps-tag {
+    background: #0ea5b7;
+    color: #ffffff;
+    font-weight: 800;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.9rem;
+}
+
+.ps-uav-id {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.ps-uav-parts {
+    font-size: 1rem;
+    color: #64748b;
+}
+
+/* =============================
+   UAV EXPANDED TABLE
+============================= */
+
+.ps-uav-body {
+    display: none;
+    margin-top: 12px;
+}
+
+    .ps-uav-body.open {
+        display: block;
+    }
+
+.ps-parts-tablewrap {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.ps-parts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+
+    .ps-parts-table thead th {
+        background: #f1f5f9;
+        font-weight: 800;
+        padding: 16px;
+        text-align: right;
+        color: #1e293b;
+    }
+
+    .ps-parts-table tbody td {
+        padding: 16px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        color: #1e293b;
+    }
+
+    .ps-parts-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+.ps-col-desc {
+    max-width: 420px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ps-link {
+    color: #2563eb;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+    .ps-link:hover {
+        text-decoration: underline;
+    }
+
+/* =============================
+   STATUS PILLS
+============================= */
+
+.ps-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    border: 1px solid transparent;
+}
+
+.ps-pill-good {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: rgba(21,128,61,0.25);
+}
+
+.ps-pill-bad {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: rgba(185,28,28,0.25);
+}
+
+.ps-pill-warn {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: rgba(194,65,12,0.25);
+}
+
+.ps-pill-info {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: rgba(3,105,161,0.25);
+}
+
