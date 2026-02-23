@@ -205,22 +205,6 @@ body.mode-inventory .tab-inventory {
     display: inline-block !important;
 }
 
-
-/* =============================
-   Inventory check
-============================= */
-/* (left as-is for now; we’ll move it when we get to inventory_check page) */
-
-/* =========================================
-   ALL INVENTORY & GENERIC TABLE SYSTEM
-   ========================================= */
-/* (left as-is for now; we’ll move it when we get to all_inventory page) */
-
-/* =====================================================
-   Generic modal system (later section)
-   (left as-is for now)
-===================================================== */
-
 /* =========================================
    SHARED COMPONENTS: Generic Table
 ========================================= */
@@ -267,7 +251,7 @@ body.mode-inventory .tab-inventory {
 
 
 /* =========================================
-   GENERIC BUTTONS - אחידות בכל האתר
+   GENERIC BUTTONS - אחידות כפתורים
 ========================================= */
 .btn-primary, .btn-save {
     background: #0c2340;
@@ -280,16 +264,16 @@ body.mode-inventory .tab-inventory {
     transition: all 0.2s ease;
 }
 
-    .btn-primary:hover, .btn-save:hover:not(:disabled) {
-        background: #162e4f;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
+.btn-primary:hover, .btn-save:hover:not(:disabled) {
+    background: #162e4f;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
 
-    .btn-primary:disabled, .btn-save:disabled {
-        background: #cbd5e1;
-        color: #94a3b8;
-        cursor: not-allowed;
-    }
+.btn-primary:disabled, .btn-save:disabled {
+    background: #cbd5e1;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
 
 .btn-secondary, .btn-cancel {
     background: white;
@@ -350,6 +334,101 @@ body.mode-inventory .tab-inventory {
     gap: 12px;
     border-top: 1px solid #e2e8f0;
 }
+
+/* =========================================
+   MODAL CONTENT STYLING (Inputs & Labels)
+========================================= */
+
+.modal-body {
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px; /* רווח אחיד בין שורה לשורה */
+}
+
+    /* עיצוב התוויות - קטן, כהה ומקצועי */
+    .modal-body label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #64748b; /* אפור סלייט */
+        margin-bottom: 6px;
+    }
+
+    /* עיצוב גנרי לשדות קלט, סלקט וטקסט */
+    .modal-body input,
+    .modal-body select,
+    .modal-body textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        color: #1e293b;
+        background: #f8fafc; /* רקע מעט אפרפר שיהיה הבדל מהדף */
+        transition: all 0.2s ease;
+    }
+
+        /* אפקט כשלוחצים על השדה */
+        .modal-body input:focus,
+        .modal-body select:focus {
+            outline: none;
+            border-color: #0ea5b7; /* הטורקיז של המערכת שלך */
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(14, 165, 183, 0.1);
+        }
+
+    /* שורה שמכילה מידע לקריאה בלבד */
+    .modal-body .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+
+/* בחירת סטטוס צבעונית בתוך המודאל */
+.status-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.tb-status-btn {
+    padding: 12px;
+    border: 2px solid #f1f5f9;
+    border-radius: 10px;
+    background: white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+    /* הצבעים כשנבחר (Active) */
+    .tb-status-btn[data-status="done"].active {
+        background: #dcfce7;
+        border-color: #22c55e;
+        color: #166534;
+    }
+
+    .tb-status-btn[data-status="progress"].active {
+        background: #e0f2fe;
+        border-color: #0ea5e9;
+        color: #075985;
+    }
+
+    .tb-status-btn[data-status="hold"].active {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+    }
+
+    .tb-status-btn[data-status="blocked"].active {
+        background: #fee2e2;
+        border-color: #ef4444;
+        color: #991b1b;
+    }
 
 
 /* =========================================

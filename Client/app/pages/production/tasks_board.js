@@ -42,7 +42,7 @@ function renderTasksBoard(data) {
             </thead>
             <tbody>
               ${grouped[type].map(item => `
-                <tr>
+                <tr onclick="window.openItemDetailsModal('${item.orderNum}')">
                   <td class="tb-col-order"><strong>${item.orderNum}</strong></td>
                   <td class="tb-col-part">${item.partNum}</td>
                   <td class="tb-col-desc">${item.description}</td>
@@ -171,3 +171,68 @@ function applyStatusToPill(pillEl, status) {
             break;
     }
 }
+
+window.openTaskModal = function (orderNum, stationName, currentStatus) {
+    const modal = document.getElementById("genericModal");
+    const modalBody = document.getElementById("modalBody");
+    const modalTitle = document.getElementById("modalTitle");
+
+    modalTitle.textContent = `עדכון סטטוס: ${stationName}`;
+
+    modalBody.innerHTML = `
+        <div class="info-row">
+            <span class="tb-label">פק"ע:</span> <span class="tb-val">${orderNum}</span>
+        </div>
+        <div class="status-options-grid">
+            <button class="tb-status-btn ${currentStatus === 'done' ? 'active' : ''}" data-status="done" onclick="window.selectModalStatus(this, 'done')">✅ בוצע</button>
+            <button class="tb-status-btn ${currentStatus === 'progress' ? 'active' : ''}" data-status="progress" data-status="progress" onclick="window.selectModalStatus(this, 'progress')">⏳ בתהליך</button>
+            <button class="tb-status-btn ${currentStatus === 'hold' ? 'active' : ''}" data-status="hold" onclick="window.selectModalStatus(this, 'hold')">🛑 עצור</button>
+            <button class="tb-status-btn ${currentStatus === 'blocked' ? 'active' : ''}" data-status="blocked" onclick="window.selectModalStatus(this, 'blocked')">⚠️ חסום</button>
+        </div>
+    `;
+    modal.style.display = "flex";
+};
+
+window.selectModalStatus = function (btn, status) {
+    document.querySelectorAll('.tb-status-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById("modalSubmitBtn").disabled = false;
+    window.selectedNewStatus = status;
+};
+
+window.openItemDetailsModal = function (orderNum) {
+    // כאן בדרך כלל שולפים את הנתונים לפי orderNum, כרגע נשתמש במוק
+    const modal = document.getElementById("genericModal");
+    const modalBody = document.getElementById("modalBody");
+    const modalTitle = document.getElementById("modalTitle");
+
+    modalTitle.textContent = "פרטי ייצור מלאים";
+
+    modalBody.innerHTML = `
+        <div class="field-group">
+            <label>מספר פק"ע</label>
+            <input type="text" value="${orderNum}" readonly style="background:#f1f5f9;">
+        </div>
+        <div class="field-group">
+            <label>מק"ט פריט</label>
+            <input type="text" value="WB-CW-001">
+        </div>
+        <div class="field-group">
+            <label>תיאור</label>
+            <textarea rows="2">Central wing structure - G2</textarea>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <div class="field-group" style="flex:1;">
+                <label>כמות</label>
+                <input type="number" value="2">
+            </div>
+            <div class="field-group" style="flex:1;">
+                <label>תאריך יעד</label>
+                <input type="date" value="2025-03-15">
+            </div>
+        </div>
+    `;
+
+    document.getElementById("modalSubmitBtn").disabled = false;
+    modal.style.display = "flex";
+};
