@@ -1,2 +1,50 @@
-﻿body {
+﻿.uav-bom-page {
+    width: 100%;
+    padding: 20px;
+    margin: 0;
+}
+
+/* שורת סליידרים: מצמידים אותם לצדדים (ימין ושמאל) */
+.bom-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    width: 100%;
+}
+
+/* ביטול המרכוז האוטומטי של הסליידרים מה-styles.css הגנרי */
+.uav-bom-page .custom-slider-toggle {
+    margin: 0 !important;
+}
+
+/* עיצוב ספציפי לסליידר הדגמים כדי להבדילו מהסליידר הראשי */
+.model-selection-toggle {
+    background: #eef2f6 !important;
+}
+
+
+/* הדגשת עמודת המק"ט בטורקיז של המערכת */
+.col-sku {
+    font-weight: 700;
+    color: #0ea5b7;
+}
+
+/* התאמת הטולבר שיהיה אחיד ליתר הדפים */
+.uav-bom-page .global-toolbar {
+    background: white;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+/* מתיחת הטבלה לכל הרוחב */
+.uav-bom-page .table-container {
+    width: 100%;
+    margin-top: 0;
 }

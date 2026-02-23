@@ -49,10 +49,10 @@ const routes = {
         mode: "production"
     },
     "/production/tasks_order": {
-        file: "./pages/production/tasks_order.html",
-        js: "./pages/production/tasks_order.js",
-        css: "./pages/production/tasks_order.css",
-        init: "initTasksOrder",
+        file: "./pages/production/tasks_workorder.html",
+        js: "./pages/production/tasks_workorder.js",
+        css: "./pages/production/tasks_workorder.css",
+        init: "initTasksWorkOrder",
         title: "ניהול סדר עבודה",
         subtitle: "",
         mode: "production"
@@ -94,6 +94,15 @@ const routes = {
         subtitle: "חישוב חוסרי מלאי",
         mode: "inventory"
     },
+    "/inventory/inventory_check/results": {
+        file: "./pages/inventory/inventory_results.html",
+        js: "./pages/inventory/inventory_results.js",
+        css: "./pages/inventory/inventory_results.css",
+        init: "initInventoryResults",
+        title: "תוצאות בדיקת מלאי",
+        subtitle: "פירוט החוסרים לפי דרישה",
+        mode: "inventory"
+    },
     "/inventory/all_inventory": {
         file: "./pages/inventory/all_inventory.html",
         js: "./pages/inventory/all_inventory.js",
@@ -110,6 +119,15 @@ const routes = {
         init: "initOrdersTracking",
         title: "מעקב הזמנות רכש",
         subtitle: "",
+        mode: "inventory"
+    },
+    "/inventory/uav_BOM": {
+        file: "./pages/inventory/uav_BOM.html",
+        js: "./pages/inventory/uav_BOM.js",
+        css: "./pages/inventory/uav_BOM.css",
+        init: "initUavBOM",
+        title: "כמויות מעץ מוצר",
+        subtitle: "פריטים וחלקים לייצור כטב״מים",
         mode: "inventory"
     }
 };

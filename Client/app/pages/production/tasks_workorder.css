@@ -1,2 +1,19 @@
-﻿body {
+﻿.tasks-workorder-page {
+    width: 100%;
+    padding: 20px;
+}
+
+/* קונטיינר לסליידר כדי לאפשר גלילה אם יש הרבה תחנות */
+.workstation-slider-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    margin-bottom: 20px;
+}
+
+/* תיקון קטן לסליידר הגנרי בתוך הדף הזה */
+.tasks-workorder-page .custom-slider-toggle {
+    margin: 0 !important;
+    white-space: nowrap;
 }

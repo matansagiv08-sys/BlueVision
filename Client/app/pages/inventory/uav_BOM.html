@@ -1,10 +1,51 @@
-﻿<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8" />
-    <title></title>
-</head>
-<body>
+﻿<div class="uav-bom-page">
+    <div class="bom-selection-header">
+        <div class="custom-slider-toggle main-type-toggle">
+            <button class="slider-btn active" onclick="window.switchBomType('uav', this)">כטב"מים</button>
+            <button class="slider-btn" onclick="window.switchBomType('bodies', this)">גופים</button>
+        </div>
 
-</body>
-</html>
+        <div class="custom-slider-toggle model-selection-toggle">
+            <button class="slider-btn active" onclick="window.filterBomByModel('WanderB', this)">WanderB</button>
+            <button class="slider-btn" onclick="window.filterBomByModel('ThunderBird V', this)">ThunderBird V</button>
+            <button class="slider-btn" onclick="window.filterBomByModel('Spider X6', this)">Spider X6</button>
+        </div>
+    </div>
+
+    <div class="global-toolbar">
+        <div class="search-container">
+            <input type="text" id="bomSearch" class="standard-input" placeholder="חפש רכיב או מק״ט בעץ המוצר..." oninput="window.filterBomTable()">
+            <span class="search-icon-inside">🔍</span>
+        </div>
+
+        <div class="filter-actions">
+            <select id="categoryFilter" onchange="window.filterBomTable()">
+                <option value="all">כל הקטגוריות</option>
+                <option value="electronics">אלקטרוניקה</option>
+                <option value="mechanical">מכאני</option>
+            </select>
+            <button class="btn-secondary-action" onclick="window.sortBomTable()">
+                מיון כמות ⇅
+            </button>
+            <button class="btn-primary" onclick="window.exportToExcel()" style="margin-right: 10px;">
+                ייצא (Excel) 📄
+            </button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="generic-data-table">
+            <thead>
+                <tr>
+                    <th>מק"ט</th>
+                    <th>תיאור פריט</th>
+                    <th>כמות נדרשת</th>
+                    <th>במלאי</th>
+                    <th>סטטוס</th>
+                </tr>
+            </thead>
+            <tbody id="bom-table-body">
+            </tbody>
+        </table>
+    </div>
+</div>

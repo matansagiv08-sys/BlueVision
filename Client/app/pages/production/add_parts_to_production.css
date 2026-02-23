@@ -1,2 +1,75 @@
-﻿body {
+﻿.add-parts-production-page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
 }
+
+/* התאמת הכרטיס הגנרי לטופס */
+.form-wrapper {
+    padding: 35px;
+    background: white;
+    margin-top: 15px;
+}
+
+.form-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+    .form-group label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #475569; /* צבע טקסט גנרי */
+    }
+
+.req {
+    color: #e11d48;
+    margin-right: 3px;
+}
+
+/* שדות קלט בסגנון המערכת */
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 12px 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fcfcfd;
+    transition: all 0.2s ease;
+}
+
+    /* אפקט פוקוס גנרי - טורקיז מהסליידר */
+    .form-group input:focus,
+    .form-group select:focus {
+        border-color: #0ea5b7; /* הצבע של is-active */
+        box-shadow: 0 0 0 3px rgba(14, 165, 183, 0.1);
+        outline: none;
+        background: white;
+    }
+
+.full-width {
+    grid-column: span 2;
+}
+
+.form-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #f1f5f9;
+}
+
+    .form-footer-actions .btn-primary {
+        padding-left: 35px;
+        padding-right: 35px;
+    }

@@ -1,18 +1,25 @@
 ﻿<div class="all-inventory-page">
-    <div class="inventory-toolbar" style="margin-bottom: 25px;">
-        <div class="search-box">
-            <input type="text" id="inventorySearch" placeholder="חפש מק״ט או תיאור..." oninput="window.filterInventory()">
-            <span class="search-icon">🔍</span>
+    <div class="global-toolbar">
+        <div class="search-container">
+            <input type="text" id="inventorySearch" class="standard-input" placeholder="חפש מק״ט או תיאור..." oninput="window.filterInventory()">
+            <span class="search-icon-inside">🔍</span>
         </div>
 
-        <div class="filter-group">
+        <div class="filter-actions">
             <select id="platformFilter" onchange="window.filterInventory()">
                 <option value="all">כל הפלטפורמות</option>
                 <option value="WB">WB</option>
                 <option value="TBV">TBV</option>
                 <option value="Puma">Puma</option>
             </select>
-            <button class="btn-sort" onclick="window.sortInventory()">
+
+            <select id="stockStatusFilter" onchange="window.filterInventory()">
+                <option value="all">סטטוס מלאי</option>
+                <option value="in-stock">במלאי</option>
+                <option value="out-of-stock">חוסר</option>
+            </select>
+
+            <button class="btn-secondary-action" onclick="window.sortInventory()">
                 מיון ⇅
             </button>
         </div>
@@ -32,20 +39,5 @@
             <tbody id="inventory-table-body">
             </tbody>
         </table>
-    </div>
-</div>
-
-<div id="genericModal" class="modal-overlay" onclick="window.closeGenericModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="modal-header-blue">
-            <h2 id="modalTitle">פרטים מלאים על הפריט</h2>
-            <button class="close-btn" onclick="window.closeGenericModal()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
-        </div>
-        <div id="modalBody" class="modal-body">
-        </div>
-        <div class="modal-footer">
-            <button class="btn-modal btn-cancel" onclick="window.closeGenericModal()">ביטול</button>
-            <button id="modalSubmitBtn" class="btn-modal btn-save" disabled onclick="window.handleModalSubmit()">אישור</button>
-        </div>
     </div>
 </div>

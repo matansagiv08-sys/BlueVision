@@ -1,10 +1,91 @@
-﻿<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8" />
-    <title></title>
-</head>
-<body>
+﻿<div class="add-parts-production-page">
 
-</body>
-</html>
+    <div class="generic-card form-wrapper">
+        <form id="production-form" class="standard-grid-form">
+
+            <div class="form-columns">
+                <div class="column">
+                    <div class="form-group">
+                        <label>קוד פריט (מק״ט) <span class="req">*</span></label>
+                        <input type="text" placeholder="לדוגמה: ENG-737-001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>כמות <span class="req">*</span></label>
+                        <input type="number" value="0" min="1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>מספר כטב״ם <span class="req">*</span></label>
+                        <input type="text" placeholder="לדוגמה: WB-001">
+                    </div>
+
+                    <div class="form-group">
+                        <label>תחנת עבודה <span class="req">*</span></label>
+                        <select required>
+                            <option value="">בחר תחנה מהרשימה...</option>
+                            <option value="plating">הכנת תבניות וצבע</option>
+                            <option value="layup">ליווח סקינים</option>
+                            <option value="assembly">תחנת הרכבה</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>תאריך יעד (Deadline) <span class="req">*</span></label>
+                        <input type="date" required>
+                    </div>
+                </div>
+
+                <div class="column">
+                    <div class="form-group">
+                        <label>שם פריט <span class="req">*</span></label>
+                        <input type="text" placeholder="לדוגמה: כנף ראשית">
+                    </div>
+
+                    <div class="form-group">
+                        <label>קטגוריה <span class="req">*</span></label>
+                        <select required>
+                            <option value="structural">מבני</option>
+                            <option value="electronic">אלקטרוניקה</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>כטב״ם קשור</label>
+                        <select>
+                            <option value="wb">WanderB</option>
+                            <option value="tbv">ThunderBird V</option>
+                            <option value="spider">Spider X6</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>פרויקט קשור</label>
+                        <input type="text" placeholder="לדוגמה: פרויקט אלפא">
+                    </div>
+
+                    <div class="form-group">
+                        <label>עדיפות לייצור</label>
+                        <select>
+                            <option value="normal">רגיל</option>
+                            <option value="high">גבוה</option>
+                            <option value="critical">קריטי 🔥</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group full-width">
+                <label>הערות ייצור מיוחדות</label>
+                <textarea placeholder="פרט כאן הנחיות מיוחדות לתחנת העבודה..." rows="3"></textarea>
+            </div>
+
+            <div class="form-footer-actions">
+                <button type="button" class="btn-secondary" onclick="window.history.back()">ביטול</button>
+                <button type="submit" class="btn-primary">
+                    <span class="icon">💾</span> שמור והוסף לייצור
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

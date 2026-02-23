@@ -39,14 +39,14 @@
                 <div class="top-menu">
                     <a href="#/production/tasks_board" data-route class="tab-production">לוח משימות</a>
                     <a href="#/production/projects_status" data-route class="tab-production">סטטוס פרויקטים</a>
-                    <a href="#/production/tasks_order" data-route class="tab-production">ניהול סדרר עבודה</a>
+                    <a href="#/production/tasks_order" data-route class="tab-production">ניהול סדר עבודה</a>
                     <a href="#/production/add_parts_to_production" data-route class="tab-production">הוספת חלק לייצור</a>
                     <a href="#/production/monthly_dashboard" data-route class="tab-production">דוח חודשי</a>
                     <a href="#/inventory/inventory_dashboard" data-route class="tab-inventory">דוח מלאי</a>
                     <a href="#/inventory/inventory_check" data-route class="tab-inventory">בדיקת מלאי</a>
                     <a href="#/inventory/all_inventory" data-route class="tab-inventory">מלאי כולל</a>
                     <a href="#/inventory/orders_tracking" data-route class="tab-inventory">מעקב הזמנות רכש</a>
-                    <a href="#/inventory/uav_BOM" data-route class="tab-inventory">כמויות מעץ מוצר</a> 
+                    <a href="#/inventory/uav_BOM" data-route class="tab-inventory">כמויות מעץ מוצר</a>
                 </div>
             </div>
         </header>
@@ -58,6 +58,20 @@
 
         <main id="app"></main>
 
+    </div>
+    <div id="genericModal" class="modal-overlay" onclick="window.closeGenericModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header-blue">
+                <h2 id="modalTitle">פרטים מלאים</h2>
+                <button class="close-btn" onclick="window.closeGenericModal()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+            </div>
+            <div id="modalBody" class="modal-body">
+            </div>
+    <div class="modal-footer">
+        <button class="btn-cancel" onclick="window.closeGenericModal()">ביטול</button>
+        <button id="modalSubmitBtn" class="btn-save" disabled>שמור שינויים</button>
+    </div>
+        </div>
     </div>
 </body>
 </html>

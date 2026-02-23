@@ -1,16 +1,24 @@
 ﻿<div class="inventory-check-page">
     <div class="check-header">
         <div class="custom-slider-toggle">
-            <button class="slider-btn active" id="mode-uav" onclick="window.switchCheckMode('uav')">כטב"מים</button>
-            <button class="slider-btn" id="mode-body" onclick="window.switchCheckMode('body')">גופים</button>
+            <button class="slider-btn active" id="mode-uav" onclick="window.switchCheckMode('uav')">
+                כטב"מים
+            </button>
+            <button class="slider-btn" id="mode-body" onclick="window.switchCheckMode('body')">
+                גופים
+            </button>
         </div>
     </div>
-    <div id="check-rows-container"></div>
+
+    <div id="check-rows-container" class="check-rows-container">
+    </div>
 
     <div class="check-actions">
-        <button id="btn-calculate" class="btn-calculate" disabled onclick="window.navigateToResults()">חשב</button>
-        <button class="btn-add-row" onclick="window.addNewCheckRow()">
-            הוסף כטב"ם נוסף +
+        <button class="btn-secondary" onclick="window.addNewCheckRow()">
+            הוסף
+        </button>
+        <button id="btn-calculate" class="btn-save" disabled onclick="window.navigateToResults()">
+            חשב חוסרים במלאי
         </button>
     </div>
 </div>

@@ -1,1 +1,54 @@
-﻿
+﻿<div class="orders-tracking-page">
+    <div class="summary-cards-container">
+        <div class="summary-card highlight-blue">
+            <span class="card-label">הזמנות פתוחות</span>
+            <div class="card-value" id="open-orders-count">12</div>
+            <span class="card-sub-label">ממתינות לאספקה</span>
+        </div>
+        <div class="summary-card">
+            <span class="card-label">הזמנות באיחור</span>
+            <div class="card-value" id="delayed-orders-count" style="color: #e11d48;">3</div>
+            <span class="card-sub-label">מעבר לתאריך אספקה</span>
+        </div>
+        <div class="summary-card">
+            <span class="card-label">ערך מלאי בדרך</span>
+            <div class="card-value" id="in-transit-value">₪ 245K</div>
+            <span class="card-sub-label">לפי מחירי הזמנה</span>
+        </div>
+    </div>
+
+    <div class="global-toolbar">
+        <div class="search-container">
+            <input type="text" id="orderSearch" class = "standard-input" placeholder="חפש מספר הזמנה, ספק או מק״ט..." oninput="window.filterOrders()">
+            <span class="search-icon-inside">🔍</span>
+        </div>
+        <div class="filter-actions">
+            <select id="statusFilter" onchange="window.filterOrders()">
+                <option value="all">כל הסטטוסים</option>
+                <option value="sent">נשלח לספק</option>
+                <option value="partial">אספקה חלקית</option>
+                <option value="delayed">באיחור</option>
+            </select>
+            <button class="btn-secondary-action" onclick="window.exportOrders()">
+                ייצא לאקסל 📄
+            </button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="generic-data-table clickable-table">
+            <thead>
+                <tr>
+                    <th>מס' הזמנה</th>
+                    <th>ספק</th>
+                    <th>תאריך הזמנה</th>
+                    <th>תאריך אספקה משוער</th>
+                    <th>סטטוס</th>
+                    <th>ערך הזמנה</th>
+                </tr>
+            </thead>
+            <tbody id="orders-table-body">
+            </tbody>
+        </table>
+    </div>
+</div>

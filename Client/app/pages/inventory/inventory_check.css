@@ -1,2 +1,76 @@
-﻿body {
+﻿/* מיכל ראשי לדף */
+.inventory-check-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 10px;
 }
+
+/* כרטיס שורת בדיקה */
+.check-row-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    display: grid;
+    /* חלוקה ל-4 עמודות: סוג (רחב), כמות, עדיפות, וכפתור מחיקה */
+    grid-template-columns: 2.5fr 1fr 1fr auto;
+    gap: 20px;
+    align-items: flex-end;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+    /* שורה שהושלמה מקבלת צבע ירוק */
+    .check-row-card.row-complete {
+        background-color: #f8fafc;
+    }
+
+/* קבוצת קלט (תווית + שדה) */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+    .input-group label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #475569;
+        letter-spacing: 0.5px;
+    }
+
+.check-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1e293b;
+    background-color: #ffffff;
+    transition: border-color 0.2s;
+}
+
+    .check-input:focus {
+        border-color: #0c2340;
+        outline: none;
+    }
+
+/* כפתור מחיקה ספציפי */
+.btn-delete-row {
+    background: #fff1f2;
+    color: #e11d48;
+    border: 1px solid #ffe4e6;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+    .btn-delete-row:hover {
+        background: #ffe4e6;
+        transform: scale(1.05);
+    }

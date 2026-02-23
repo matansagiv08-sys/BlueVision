@@ -1,10 +1,51 @@
-﻿<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8" />
-    <title></title>
-</head>
-<body>
+﻿<div class="tasks-workorder-page">
+    <div class="top-action-bar">
+        <div class="header-left">
+            <button class="btn-secondary-action" onclick="window.optimizeRoute()">איפוס לאלגוריתם 🔄</button>
+            <button class="btn-primary" onclick="window.saveWorkOrder()">שמור שינויים 💾</button>
+        </div>
+    </div>
 
-</body>
-</html>
+    <div class="workstation-slider-container">
+        <div class="custom-slider-toggle">
+            <button class="slider-btn pill-blue" onclick="window.filterByStation('all', this)">כל התחנות</button>
+            <button class="slider-btn" onclick="window.filterByStation('plating', this)">הכנת תבניות</button>
+            <button class="slider-btn" onclick="window.filterByStation('layup', this)">ליווח</button>
+            <button class="slider-btn" onclick="window.filterByStation('closure', this)">סגירה</button>
+            <button class="slider-btn" onclick="window.filterByStation('extraction', this)">חליצה</button>
+            <button class="slider-btn" onclick="window.filterByStation('qc', this)">QC</button>
+        </div>
+    </div>
+
+    <div class="global-toolbar">
+        <div class="search-container">
+            <input type="text" id="taskSearch" class="standard-input" placeholder="חפש פק״ע, מק״ט או סיריאלי..." oninput="window.filterWorkOrder()">
+            <span class="search-icon-inside">🔍</span>
+        </div>
+        <div class="filter-actions">
+            <select id="urgencyFilter" onchange="window.filterWorkOrder()">
+                <option value="all">כל הדחיפויות</option>
+                <option value="critical">קריטי</option>
+                <option value="high">גבוה</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="generic-data-table clickable-table">
+            <thead>
+                <tr>
+                    <th>מספר פק"ע</th>
+                    <th>מק"ט פריט</th>
+                    <th>תיאור פריט</th>
+                    <th>מספר סיריאלי</th>
+                    <th>סטטוס</th>
+                    <th>דחיפות</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody id="tasks-table-body">
+            </tbody>
+        </table>
+    </div>
+</div>

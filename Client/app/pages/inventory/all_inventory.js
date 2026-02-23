@@ -1,4 +1,7 @@
-﻿// נתונים גלובליים
+﻿/* =========================================
+   חלק א': נתונים וטבלה (שורות)
+   ========================================= */
+
 let fullInventoryData = [
     { sku: "WB-5501", desc: "מנוע ראשי כטב״ם", platform: "WB", parent: "מכלול כנף", qty: 12 },
     { sku: "TBV-202", desc: "חיישן גובה לייזר", platform: "TBV", parent: "אווירונאוטיקה", qty: 4 },
@@ -7,7 +10,7 @@ let fullInventoryData = [
 ];
 
 window.initAllInventory = function () {
-    console.log("Loading All Inventory...");
+    console.log("Loading All Inventory rows...");
     renderInventoryTable(fullInventoryData);
 };
 
@@ -16,7 +19,7 @@ function renderInventoryTable(data) {
     if (!tbody) return;
 
     tbody.innerHTML = data.map(item => `
-        <tr onclick='window.showItemDetails(${JSON.stringify(item)})'>
+        <tr onclick='window.showItemDetails(${JSON.stringify(item)})' style="cursor:pointer;">
             <td style="font-weight:700; color:#0c2340;">${item.sku}</td>
             <td>${item.desc}</td>
             <td><span class="badge badge-blue">${item.platform}</span></td>
@@ -26,44 +29,26 @@ function renderInventoryTable(data) {
     `).join('');
 }
 
-// פונקציית סינון
-window.filterInventory = function () {
-    const searchTerm = document.getElementById("inventorySearch").value.toLowerCase();
-    const platform = document.getElementById("platformFilter").value;
+/* =========================================
+   חלק ב': החלון שנפתח (Modal)
+   ========================================= */
 
-    const filtered = fullInventoryData.filter(item => {
-        const matchesSearch = item.sku.toLowerCase().includes(searchTerm) ||
-            item.desc.toLowerCase().includes(searchTerm);
-        const matchesPlatform = platform === "all" || item.platform === platform;
-        return matchesSearch && matchesPlatform;
-    });
-    renderInventoryTable(filtered);
-};
-
-// פונקציית מיון
-window.sortInventory = function () {
-    fullInventoryData.sort((a, b) => a.qty - b.qty);
-    renderInventoryTable(fullInventoryData);
-};
-
-// ניהול מודאל
 window.showItemDetails = function (item) {
     const modal = document.getElementById("genericModal");
     const body = document.getElementById("modalBody");
+    const title = document.getElementById("modalTitle");
     const submitBtn = document.getElementById("modalSubmitBtn");
-
-    // חיפוש כפתור האישור בתוך הפוטר של המודאל
-    const submitBtn = modal.querySelector(".btn-save");
 
     if (!modal || !body) {
         console.error("Modal elements not found!");
         return;
     }
 
-    // --- שינוי: הגדרת כפתור האישור כ"כבוי" (אפור) בפתיחה ---
+    // הגדרות כותרת וסטטוס כפתור
+    if (title) title.innerText = `עריכת פריט: ${item.sku}`;
     if (submitBtn) submitBtn.disabled = true;
 
-    // --- שינוי: הפיכת השדות ל-Input/Select במקום טקסט רגיל ---
+    // הזרקת השדות לחלון שנפתח
     body.innerHTML = `
         <div class="info-item">
             <label>מק״ט פריט</label>
@@ -93,7 +78,7 @@ window.showItemDetails = function (item) {
 
     modal.style.display = "flex";
 
-    // --- הוספה: מאזין לשינויים שמפעיל את הכפתור ---
+    // הפעלת כפתור שמירה רק כשיש שינוי בתוך החלון
     const inputs = body.querySelectorAll('input, select');
     inputs.forEach(input => {
         input.addEventListener('input', () => {
@@ -102,7 +87,35 @@ window.showItemDetails = function (item) {
     });
 };
 
-window.closeModal = function () {
-    const modal = document.getElementById("itemModal");
+/* =========================================
+   חלק ג': סינון ומיון
+   ========================================= */
+
+window.filterInventory = function () {
+    const searchTerm = document.getElementById("inventorySearch").value.toLowerCase();
+    const platform = document.getElementById("platformFilter").value;
+    const stockStatus = document.getElementById("stockStatusFilter")?.value || "all";
+
+    const filtered = fullInventoryData.filter(item => {
+        const matchesSearch = item.sku.toLowerCase().includes(searchTerm) ||
+            item.desc.toLowerCase().includes(searchTerm);
+        const matchesPlatform = platform === "all" || item.platform === platform;
+
+        let matchesStock = true;
+        if (stockStatus === "in-stock") matchesStock = item.qty > 0;
+        if (stockStatus === "out-of-stock") matchesStock = item.qty === 0;
+
+        return matchesSearch && matchesPlatform && matchesStock;
+    });
+    renderInventoryTable(filtered);
+};
+
+window.sortInventory = function () {
+    fullInventoryData.sort((a, b) => a.qty - b.qty);
+    renderInventoryTable(fullInventoryData);
+};
+
+window.closeGenericModal = function () {
+    const modal = document.getElementById("genericModal");
     if (modal) modal.style.display = "none";
 };

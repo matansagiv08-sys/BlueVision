@@ -39,34 +39,41 @@ window.addNewCheckRow = function () {
     if (!container) return;
 
     const rowId = 'row-' + Math.random().toString(36).substr(2, 9);
-    const typeLabel = currentCheckMode === 'uav' ? 'סוג כטב"ם' : 'סוג גוף';
+    const typeLabel = currentCheckMode === 'uav' ? "סוג כטב\"ם" : "סוג גוף";
 
     const html = `
-        <div class="check-row-card" id="${rowId}">
-            <div class="row-content">
-                <div class="row-icon">✈️</div>
-                <div class="input-group">
-                    <label>${typeLabel}</label>
-                    <select class="check-input" onchange="window.validateRow('${rowId}')">
-                        <option value="" disabled selected>בחר סוג</option>
-                        <option value="WB">WB</option><option value="TBV">TBV</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>כמות</label>
-                    <input type="number" class="check-input" placeholder="0" oninput="window.validateRow('${rowId}')">
-                </div>
-                <div class="input-group">
-                    <label>עדיפות</label>
-                    <select class="check-input" onchange="window.validateRow('${rowId}')">
-                        <option value="" disabled selected>בחר</option>
-                        <option value="1">1</option><option value="2">2</option>
-                    </select>
-                </div>
-                <button class="btn-delete" onclick="window.removeRow('${rowId}')">🗑️</button>
+        <div class="generic-card check-row-card" id="${rowId}">
+            <div class="input-group">
+                <label>${typeLabel}</label>
+                <select class="check-input" onchange="window.validateRow('${rowId}')">
+                    <option value="" disabled selected>בחר פלטפורמה...</option>
+                    <option>WanderB</option>
+                    <option>ThunderB</option>
+                    <option>Puma</option>
+                </select>
             </div>
+
+            <div class="input-group">
+                <label>כמות מבוקשת</label>
+                <input type="number" class="check-input" placeholder="0" min="1" 
+                       oninput="window.validateRow('${rowId}')">
+            </div>
+
+            <div class="input-group">
+                <label>עדיפות</label>
+                <select class="check-input" onchange="window.validateRow('${rowId}')">
+                    <option value="" disabled selected>בחר...</option>
+                    <option value="1">1 (דחוף ביותר)</option>
+                    <option value="2">2 (סטנדרטי)</option>
+                </select>
+            </div>
+
+            <button class="btn-delete-row" onclick="window.removeRow('${rowId}')" title="מחק שורה">
+                🗑️
+            </button>
         </div>
     `;
+
     container.insertAdjacentHTML('beforeend', html);
     updateCalculateButton();
 };
@@ -92,4 +99,7 @@ function updateCalculateButton() {
     if (btn) btn.disabled = !(rows.length > 0 && rows.length === complete.length);
 }
 
-window.navigateToResults = function () { alert("מחשב..."); };
+window.navigateToResults = function () {
+    // לוגיקה לאיסוף הנתונים...
+    window.location.hash = "/inventory/inventory_check/results";
+};

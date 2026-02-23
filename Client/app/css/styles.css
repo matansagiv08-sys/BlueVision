@@ -229,9 +229,10 @@ body.mode-inventory .tab-inventory {
     width: 100%;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     overflow: hidden;
     border: 1px solid #e2e8f0;
+    margin-top: 20px;
 }
 
 .generic-data-table {
@@ -266,9 +267,49 @@ body.mode-inventory .tab-inventory {
 
 
 /* =========================================
-   SHARED COMPONENTS: Generic Modal
+   GENERIC BUTTONS - אחידות בכל האתר
 ========================================= */
+.btn-primary, .btn-save {
+    background: #0c2340;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
 
+    .btn-primary:hover, .btn-save:hover:not(:disabled) {
+        background: #162e4f;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .btn-primary:disabled, .btn-save:disabled {
+        background: #cbd5e1;
+        color: #94a3b8;
+        cursor: not-allowed;
+    }
+
+.btn-secondary, .btn-cancel {
+    background: white;
+    color: #64748b;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+    .btn-secondary:hover, .btn-cancel:hover {
+        background: #f1f5f9;
+        color: #0c2340;
+    }
+
+/* =========================================
+   GENERIC MODAL LAYOUT
+========================================= */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -301,13 +342,6 @@ body.mode-inventory .tab-inventory {
     align-items: center;
 }
 
-.modal-body {
-    padding: 25px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
 .modal-footer {
     padding: 15px 25px;
     background: #f8fafc;
@@ -317,32 +351,193 @@ body.mode-inventory .tab-inventory {
     border-top: 1px solid #e2e8f0;
 }
 
-.btn-modal {
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
+
+/* =========================================
+   GENERIC TOOLBAR (Search & Filters)
+   ========================================= */
+
+/* שורת הכלים הגנרית - מתאימה לפיגמה */
+.global-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    background: #ffffff;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    margin-bottom: 24px;
 }
 
-.btn-save {
-    background: #0c2340;
-    color: white;
+/* תיבת החיפוש */
+.search-container {
+    position: relative;
+    flex-grow: 1;
+    max-width: 400px;
 }
 
-    .btn-save:disabled {
-        background: #cbd5e1;
-        cursor: not-allowed;
-        color: #94a3b8;
+    .search-container input {
+        width: 100%;
+        padding: 10px 40px 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
     }
 
-.btn-cancel {
-    background: white;
-    color: #64748b;
+.search-icon-inside {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+/* כפתורים וסלקטים */
+.filter-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.filter-actions select, .btn-secondary-action {
+    padding: 10px 16px;
     border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
 }
 
-    .btn-cancel:hover {
-        background: #f1f5f9;
+/* אפקט ריחוף על שורות הטבלה */
+.generic-data-table tbody tr {
+    transition: background-color 0.2s ease; /* מעבר רך של הצבע */
+    cursor: pointer;
+}
+
+    .generic-data-table tbody tr:hover {
+        background-color: rgba(12, 35, 64, 0.08); /* תכלת-כחול שקפקף שמתאים ללוגו שלכם */
     }
+
+/* הוספת קו הפרדה עדין בין השורות */
+.generic-data-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.generic-data-table tbody tr:hover {
+    background-color: rgba(0, 122, 255, 0.05); /* תכלת בהיר מאוד */
+    box-shadow: inset 4px 0 0 #0c2340; /* פס כחול דק בצד ימין של השורה שמרחפים עליה */
+}
+
+/* =========================================
+   GENERIC INTERACTIVE CARD
+========================================= */
+.generic-card {
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+/* מצב פעיל / מושלם - המסגרת הכחולה */
+.generic-card.is-active, .generic-card.row-complete {
+    border: 2px solid #0ea5b7;
+    box-shadow: 0 12px 28px rgba(14, 165, 183, 0.18);
+    background: #fdfeff; /* שינוי רקע קליל להדגשה */
+}
+
+/* =========================================
+   GENERIC SLIDER TOGGLE
+========================================= */
+.custom-slider-toggle {
+    display: flex;
+    background: #e2e8f0; /* רקע אפור בהיר */
+    padding: 6px;
+    border-radius: 50px;
+    width: fit-content;
+    margin: 0 auto 40px auto;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.slider-btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 50px;
+    background: transparent;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+/* מצב פעיל - משתמש בכחול-טורקיז של ה-Project Card */
+.slider-btn.active {
+    background: #0ea5b7; /* הצבע מה-ps-project-card */
+    color: white;
+    box-shadow: 0 4px 12px rgba(14, 165, 183, 0.25);
+    transform: scale(1.05);
+}
+
+.slider-btn:hover:not(.active) {
+    color: #0c2340;
+}
+
+/* =========================================
+   GENERIC SUMMARY CARDS (הריבועים למעלה)
+========================================= */
+.summary-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    padding: 24px;
+    text-align: center;
+    background: white;
+    border-radius: 18px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.04);
+}
+
+    .summary-card.highlight-blue {
+        border: 2px solid #0ea5b7;
+        box-shadow: 0 8px 20px rgba(14, 165, 183, 0.15);
+    }
+
+.card-label {
+    font-size: 14px;
+    color: #64748b;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.card-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: #0c2340;
+}
+
+.card-sub-label {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* =========================================
+   בועות סטטוס
+========================================= */
+
+.status-pill {
+    padding: 4px 12px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.pill-blue { background: #e0f2fe; color: #0369a1; }
+.pill-green { background: #dcfce7; color: #166534; }
+.pill-yellow { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }

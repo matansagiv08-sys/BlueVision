@@ -325,7 +325,7 @@
    STATUS PILLS
 ============================= */
 
-.ps-pill {
+/*.ps-pill {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -334,7 +334,7 @@
     font-weight: 800;
     font-size: 0.95rem;
     border: 1px solid transparent;
-}
+}*/
 
 .ps-pill-good {
     background: #dcfce7;

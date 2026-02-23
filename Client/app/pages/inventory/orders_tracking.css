@@ -1,2 +1,15 @@
-﻿body {
+﻿.orders-tracking-page {
+    padding: 20px;
+}
+
+.page-section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0c2340;
+}
+
+/* הפיכת הטבלה לרחבה כפי שהגדרנו ב-styles */
+.orders-tracking-page .table-container {
+    width: 100%;
+}body {
 }
