@@ -269,11 +269,13 @@ body.mode-inventory .tab-inventory {
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.btn-primary:disabled, .btn-save:disabled {
-    background: #cbd5e1;
-    color: #94a3b8;
-    cursor: not-allowed;
-}
+    .btn-primary:disabled, .btn-save:disabled {
+        background-color: #e2e8f0 !important;
+        color: #94a3b8 !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
 
 .btn-secondary, .btn-cancel {
     background: white;

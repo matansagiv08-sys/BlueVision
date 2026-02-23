@@ -1,14 +1,7 @@
 ﻿<div class="tasks-workorder-page">
-    <div class="top-action-bar">
-        <div class="header-left">
-            <button class="btn-secondary-action" onclick="window.optimizeRoute()">איפוס לאלגוריתם 🔄</button>
-            <button class="btn-primary" onclick="window.saveWorkOrder()">שמור שינויים 💾</button>
-        </div>
-    </div>
-
     <div class="workstation-slider-container">
         <div class="custom-slider-toggle">
-            <button class="slider-btn pill-blue" onclick="window.filterByStation('all', this)">כל התחנות</button>
+            <button class="slider-btn active pill-blue" onclick="window.filterByStation('all', this)">כל התחנות</button>
             <button class="slider-btn" onclick="window.filterByStation('plating', this)">הכנת תבניות</button>
             <button class="slider-btn" onclick="window.filterByStation('layup', this)">ליווח</button>
             <button class="slider-btn" onclick="window.filterByStation('closure', this)">סגירה</button>
@@ -17,22 +10,26 @@
         </div>
     </div>
 
-    <div class="global-toolbar">
-        <div class="search-container">
+    <div class="global-toolbar" style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: 12px; margin-bottom: 20px;">
+
+        <div class="search-container" style="flex: 1; max-width: 400px;">
             <input type="text" id="taskSearch" class="standard-input" placeholder="חפש פק״ע, מק״ט או סיריאלי..." oninput="window.filterWorkOrder()">
-            <span class="search-icon-inside">🔍</span>
         </div>
-        <div class="filter-actions">
-            <select id="urgencyFilter" onchange="window.filterWorkOrder()">
+
+        <div class="toolbar-actions" style="display: flex; gap: 10px; align-items: center;">
+            <select id="urgencyFilter" class="standard-input" style="width: auto; padding: 5px 10px;" onchange="window.filterWorkOrder()">
                 <option value="all">כל הדחיפויות</option>
                 <option value="critical">קריטי</option>
                 <option value="high">גבוה</option>
             </select>
+
+            <button class="btn-cancel" style="border-radius: 50px;" onclick="window.optimizeRoute()">איפוס לאלגוריתם</button>
+            <button class="btn-save" style="border-radius: 50px;" onclick="window.saveWorkOrder()" disabled>שמור שינויים</button>
         </div>
     </div>
 
     <div class="table-container">
-        <table class="generic-data-table clickable-table">
+        <table class="generic-data-table">
             <thead>
                 <tr>
                     <th>מספר פק"ע</th>
