@@ -320,13 +320,12 @@ function psStatusPill(s) {
     const tone = s?.tone || "info";
     const text = s?.text || "";
 
-    let cls = "ps-pill";
-    if (tone === "good") cls += " ps-pill-good";
-    else if (tone === "bad") cls += " ps-pill-bad";
-    else if (tone === "warn") cls += " ps-pill-warn";
-    else cls += " ps-pill-info";
+    let colorClass = "pill-blue";
+    if (tone === "good") colorClass = "pill-green";
+    else if (tone === "bad") colorClass = "pill-red";
+    else if (tone === "warn") colorClass = "pill-yellow";
 
-    return `<span class="${cls}">${escapeHtml(text)}</span>`;
+    return `<span class="status-pill ${colorClass}">${text}</span>`;
 }
 
 /* =========================
