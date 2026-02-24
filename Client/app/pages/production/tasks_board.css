@@ -62,7 +62,10 @@
 
 /* Pills */
 .status-pill {
-    border: 1px dashed #cbd5e1;
+    display: inline-flex; /* NEW: makes hover effects visible */
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #cbd5e1; /* changed to 2px so change is visible */
     background: #ffffff;
     border-radius: 8px;
     padding: 6px 12px;
@@ -71,6 +74,7 @@
     min-width: 92px;
     font-weight: 700;
     white-space: nowrap;
+    transition: border-color 0.12s ease, background-color 0.12s ease;
 }
 
 .status-none {
@@ -100,6 +104,46 @@
     background: #fee2e2;
     border: 1px solid #fca5a5;
     color: #b91c1c;
+}
+
+/* NEW: force-visible hover for pills (scoped to Task Board) */
+.tasks-board-page .status-pill:hover {
+    border: 2px solid #0c2340 !important;
+    background-color: #ffffff !important;
+}
+
+/* NEW: status-specific hover borders (Task Board only) */
+.tasks-board-page .status-done:hover {
+    border-color: #15803d !important;
+}
+
+.tasks-board-page .status-progress:hover {
+    border-color: #1d4ed8 !important;
+}
+
+.tasks-board-page .status-hold:hover {
+    border-color: #c2410c !important;
+}
+
+.tasks-board-page .status-blocked:hover {
+    border-color: #b91c1c !important;
+}
+
+.tasks-board-page .status-none:hover {
+    border-color: #64748b !important;
+}
+
+/* NEW: hover feedback for pills */
+.status-pill:hover {
+    border-style: solid; /* NEW: obvious change */
+    border-color: #0c2340; /* strong navy hover border */
+    background-color: #f8fafc; /* tiny bg shift */
+}
+
+/* NEW: keyboard accessibility (optional but recommended) */
+.status-pill:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(12, 35, 64, 0.18);
 }
 
 /* Modal content (Task Board) */
@@ -174,4 +218,8 @@
     resize: vertical;
     font-family: inherit;
     outline: none;
+}
+
+.tasks-board-page .status-pill:hover {
+    border: 2px solid #93c5fd !important;
 }

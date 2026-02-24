@@ -166,14 +166,20 @@ function removeDynamicCss() {
 /* Load a CSS file once */
 function loadCssOnce(href) {
     return new Promise((resolve, reject) => {
-        if (document.querySelector(`link[data-dynamic="true"][href="${href}"]`)) {
-            return resolve();
-        }
+        // If this css was already loaded, remove it so edits are picked up
+        document.querySelectorAll(`link[data-dynamic="true"][data-href="${href}"]`)
+            .forEach(l => l.remove());
 
         const l = document.createElement("link");
         l.rel = "stylesheet";
-        l.href = href;
+
+        // cache-bust so the browser fetches your updated file
+        const bust = `v=${Date.now()}`;
+        l.href = href.includes("?") ? `${href}&${bust}` : `${href}?${bust}`;
+
         l.dataset.dynamic = "true";
+        l.dataset.href = href; // store original for matching next time
+
         l.onload = () => resolve();
         l.onerror = () => reject(new Error(`Failed to load css: ${href}`));
         document.head.appendChild(l);
@@ -248,4 +254,10 @@ window.addEventListener("load", loadRoute);
 window.closeGenericModal = function () {
     const modal = document.getElementById("genericModal");
     if (modal) modal.style.display = "none";
+
+    const submitBtn = document.getElementById("modalSubmitBtn");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.onclick = null;
+    }
 };
