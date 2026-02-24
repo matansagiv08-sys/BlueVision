@@ -132,6 +132,9 @@ window.openStatusModal = function (orderNum, station, pillEl) {
         window.closeGenericModal();
     };
 
+    // NEW: wire the Confirm button to the handler
+    submitBtn.onclick = window.handleModalSubmit;
+
     modal.style.display = "flex";
 };
 
@@ -233,6 +236,18 @@ window.openItemDetailsModal = function (orderNum) {
         </div>
     `;
 
-    document.getElementById("modalSubmitBtn").disabled = false;
+    const submitBtn = document.getElementById("modalSubmitBtn");
+    submitBtn.disabled = false;
+
+    // NEW: what Confirm does for this modal
+    submitBtn.onclick = function () {
+        window.closeGenericModal();
+
+        // optional refresh: rerender table so UI always matches latest data
+        if (typeof window.initTasksBoard === "function") {
+            window.initTasksBoard();
+        }
+    };
+
     modal.style.display = "flex";
 };

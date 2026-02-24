@@ -62,7 +62,10 @@
 
 /* Pills */
 .status-pill {
-    border: 1px dashed #cbd5e1;
+    display: inline-flex; /* NEW: makes hover effects visible */
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #cbd5e1; /* changed to 2px so change is visible */
     background: #ffffff;
     border-radius: 8px;
     padding: 6px 12px;
@@ -71,6 +74,7 @@
     min-width: 92px;
     font-weight: 700;
     white-space: nowrap;
+    transition: border-color 0.12s ease, background-color 0.12s ease;
 }
 
 .status-none {
@@ -100,6 +104,13 @@
     background: #fee2e2;
     border: 1px solid #fca5a5;
     color: #b91c1c;
+}
+
+
+/* NEW: keyboard accessibility (optional but recommended) */
+.status-pill:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(12, 35, 64, 0.18);
 }
 
 /* Modal content (Task Board) */
@@ -174,4 +185,8 @@
     resize: vertical;
     font-family: inherit;
     outline: none;
+}
+
+.tasks-board-page .status-pill:hover {
+    border: 2px solid #93c5fd !important;
 }
