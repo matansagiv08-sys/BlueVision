@@ -198,19 +198,19 @@ function projectCardHtml(p) {
         </div>
 
         <div class="ps-project-meta">
+          <div class="ps-project-meta-left">
+            <div class="ps-progress">
+              <div class="ps-progress-bar" style="width:${progress}%"></div>
+            </div>
+            <div class="ps-percent">${progress}%</div>
+          </div>
+
           <div class="ps-project-meta-right">
-            ${statusPill}
             <div class="ps-deadline">
               <span class="ps-clock">🕒</span>
               <span>דד ליין: ${escapeHtml(p.deadline)}</span>
             </div>
-          </div>
-
-          <div class="ps-project-meta-left">
-            <div class="ps-percent">${progress}%</div>
-            <div class="ps-progress">
-              <div class="ps-progress-bar" style="width:${progress}%"></div>
-            </div>
+            ${statusPill}
           </div>
         </div>
 
