@@ -44,24 +44,25 @@
     width: 100%;
     background: transparent;
     border: none;
-    /* FIX: space should be on RIGHT for the chevron (not left) */
-    padding: 24px 70px 24px 24px;
+    /* keep chevron space on the left */
+    padding: 24px 24px 24px 70px;
     cursor: pointer;
     display: flex;
-    align-items: center;
-    gap: 22px;
-    /* FIX: make button use same font as rest of site */
+    flex-direction: column;
+    align-items: stretch; /* important: children take full width */
+    gap: 12px; /* NEW: vertical gap */
+
     font: inherit;
     color: inherit;
-    /* FIX: ensure layout is RTL so title starts on right */
     direction: rtl;
     text-align: right;
 }
 
-/* Chevron – fixed right */
+/* Chevron – fixed left */
 .ps-chev {
     position: absolute;
-    right: 22px;
+    left: 22px;
+    right: auto;
     top: 50%;
     transform: translateY(-50%);
     font-size: 1.3rem;
@@ -75,13 +76,15 @@
 
 /* Project title area */
 .ps-project-title {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    /* prevent shrinking */
+    display: inline-flex; /* content-sized row */
+    flex-direction: row; /* same line */
+    align-items: baseline;
+    gap: 10px;
+    width: fit-content; /* don't stretch full width */
+    margin-left: auto; /* push the whole block to the RIGHT */
+    margin-right: 0;
     flex-shrink: 0;
-    /* give it more breathing room */
-    min-width: 220px;
+    min-width: 0;
 }
 
 .ps-project-name {
@@ -94,7 +97,7 @@
 .ps-project-sub {
     font-size: 1rem;
     color: #64748b;
-    margin-top: 4px;
+    margin-top: 0;
     white-space: nowrap;
 }
 
@@ -105,6 +108,8 @@
     gap: 18px;
     width: 100%;
     flex-wrap: nowrap;
+
+    justify-content: flex-start; /* RTL: keeps group near the right */
 }
 
 .ps-project-meta-right {
@@ -114,8 +119,6 @@
 }
 
 .ps-project-meta-left {
-    /* FIX: logical margin so progress always goes to the far LEFT */
-    margin-inline-start: auto;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -141,6 +144,7 @@
     background: #e5e7eb;
     border-radius: 999px;
     overflow: hidden;
+    position: relative;
 }
 
 .ps-progress-bar {
@@ -148,6 +152,9 @@
     width: 0%;
     border-radius: 999px;
     background: linear-gradient(90deg, #0ea5b7, #2563eb);
+    position: absolute;
+    top: 0;
+    right: 0;
 }
 
 /* =============================
@@ -176,7 +183,7 @@
 
 .ps-uav-row {
     position: relative;
-    padding: 20px 70px 20px 20px; /* space on RIGHT for arrow */
+    padding: 20px 20px 20px 70px; 
     background: #f8fafc;
     border: 1px solid rgba(0,0,0,0.06);
     border-radius: 14px;
@@ -193,7 +200,8 @@
 
     .ps-uav-row .ps-chev {
         position: absolute;
-        right: 18px;
+        left: 18px;
+        right: auto;
         top: 50%;
         transform: translateY(-50%);
     }
