@@ -2,10 +2,13 @@
     <div class="workstation-slider-container">
         <div class="custom-slider-toggle">
             <button class="slider-btn active pill-blue" onclick="window.filterByStation('all', this)">כל התחנות</button>
-            <button class="slider-btn" onclick="window.filterByStation('plating', this)">הכנת תבניות</button>
-            <button class="slider-btn" onclick="window.filterByStation('layup', this)">ליווח</button>
+            <button class="slider-btn" onclick="window.filterByStation('templates_paint', this)">הכנת תבניות וצבע</button>
+            <button class="slider-btn" onclick="window.filterByStation('layup_upper', this)">ליווח סקין עליון</button>
+            <button class="slider-btn" onclick="window.filterByStation('layup_lower', this)">ליווח סקין תחתון</button>
             <button class="slider-btn" onclick="window.filterByStation('closure', this)">סגירה</button>
             <button class="slider-btn" onclick="window.filterByStation('extraction', this)">חליצה</button>
+            <button class="slider-btn" onclick="window.filterByStation('finishes', this)">פינישים</button>
+            <button class="slider-btn" onclick="window.filterByStation('paint', this)">צבע</button>
             <button class="slider-btn" onclick="window.filterByStation('qc', this)">QC</button>
         </div>
     </div>
@@ -17,14 +20,16 @@
         </div>
 
         <div class="toolbar-actions" style="display: flex; gap: 10px; align-items: center;">
-            <select id="urgencyFilter" class="standard-input" style="width: auto; padding: 5px 10px;" onchange="window.filterWorkOrder()">
+            <select id="urgencyFilter" class="standard-input urgency-select" onchange="window.filterWorkOrder()">
                 <option value="all">כל הדחיפויות</option>
                 <option value="critical">קריטי</option>
                 <option value="high">גבוה</option>
+                <option value="medium">בינוני</option>
+                <option value="low">נמוך</option>
             </select>
 
-            <button class="btn-cancel" style="border-radius: 50px;" onclick="window.optimizeRoute()">איפוס לאלגוריתם</button>
-            <button class="btn-save" style="border-radius: 50px;" onclick="window.saveWorkOrder()" disabled>שמור שינויים</button>
+            <button id="resetAlgoBtn" class="btn-cancel" style="border-radius: 50px; opacity:0.5;" onclick="window.optimizeRoute()" disabled>איפוס לאלגוריתם</button>
+            <button id="saveOrderBtn" class="btn-save" style="border-radius: 50px; opacity:0.5;" onclick="window.saveWorkOrder()" disabled>שמור שינויים</button>
         </div>
     </div>
 
@@ -32,6 +37,7 @@
         <table class="generic-data-table">
             <thead>
                 <tr>
+                    <th class="drag-col"></th>
                     <th>מספר פק"ע</th>
                     <th>מק"ט פריט</th>
                     <th>תיאור פריט</th>
