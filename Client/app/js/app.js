@@ -142,16 +142,34 @@ function setActiveMenu(path) {
 }
 
 /* Load a JS file once (prevents duplicates) */
+//function loadScriptOnce(src) {
+//    return new Promise((resolve, reject) => {
+//        if (document.querySelector(`script[data-dynamic="true"][src="${src}"]`)) {
+//            return resolve();
+//        }
+
+//        const s = document.createElement("script");
+//        s.src = src;
+//        s.defer = true;
+//        s.dataset.dynamic = "true";
+//        s.onload = () => resolve();
+//        s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+//        document.body.appendChild(s);
+//    });
+//}
+
 function loadScriptOnce(src) {
     return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[data-dynamic="true"][src="${src}"]`)) {
-            return resolve();
-        }
+        // Remove previous instance so edits are picked up
+        document.querySelectorAll(`script[data-dynamic="true"][data-src="${src}"]`)
+            .forEach(s => s.remove());
 
         const s = document.createElement("script");
-        s.src = src;
+        const bust = `v=${Date.now()}`;
+        s.src = src.includes("?") ? `${src}&${bust}` : `${src}?${bust}`;
         s.defer = true;
         s.dataset.dynamic = "true";
+        s.dataset.src = src; // store original for matching next time
         s.onload = () => resolve();
         s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
         document.body.appendChild(s);
@@ -196,7 +214,9 @@ async function loadRoute() {
 
     try {
         // 1) Load HTML
-        const res = await fetch(route.file);
+        const bust = `v=${Date.now()}`;
+        const fileUrl = route.file.includes("?") ? `${route.file}&${bust}` : `${route.file}?${bust}`;
+        const res = await fetch(fileUrl, { cache: "no-store" });
         if (!res.ok) throw new Error(`Failed to fetch: ${route.file}`);
         const html = await res.text();
 

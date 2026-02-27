@@ -17,3 +17,44 @@
     margin: 0 !important;
     white-space: nowrap;
 }
+
+/* Urgency dropdown styling (workorder page) */
+/*.tasks-workorder-page .urgency-select {
+    width: auto;
+    min-width: 160px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    cursor: pointer;
+}*/
+
+
+/* Drag handle column */
+.tasks-workorder-page .drag-col {
+    width: 44px;
+}
+
+.tasks-workorder-page .drag-handle {
+    cursor: grab;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    border: 1px solid #e5e7eb;
+    opacity: 0.9;
+}
+
+.tasks-workorder-page tr.dragging {
+    opacity: 0.6;
+}
+
+.tasks-workorder-page tr.drag-over {
+    outline: 2px dashed #94a3b8;
+    outline-offset: -6px;
+}
