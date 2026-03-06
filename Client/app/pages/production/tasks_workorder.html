@@ -28,8 +28,8 @@
                 <option value="low">נמוך</option>
             </select>
 
-            <button class="btn-cancel" onclick="window.optimizeRoute()">איפוס לאלגוריתם</button>
-            <button class="btn-save" onclick="window.saveWorkOrder()" disabled>שמור שינויים</button>
+            <button id="resetAlgoBtn" class="btn-cancel" onclick="window.optimizeRoute()" disabled>איפוס לאלגוריתם</button>
+            <button id="saveOrderBtn" class="btn-save" onclick="window.saveWorkOrder()" disabled>שמור שינויים</button>
         </div>
     </div>
 
@@ -37,6 +37,7 @@
         <table class="generic-data-table">
             <thead>
                 <tr>
+                    <th class="drag-col"></th>
                     <th>מספר פק"ע</th>
                     <th>מק"ט פריט</th>
                     <th>תיאור פריט</th>

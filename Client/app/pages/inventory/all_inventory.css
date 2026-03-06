@@ -1,2 +1,11 @@
-﻿body {
+﻿.all-inventory-page .filter-actions .btn-secondary-action {
+    border-color: #0c2340;
+    background: #0c2340;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.all-inventory-page .filter-actions .btn-secondary-action:hover {
+    background: #14345a;
+    border-color: #14345a;
 }

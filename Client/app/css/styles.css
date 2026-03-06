@@ -18,6 +18,10 @@ body {
 .sidebar {
     width: 260px;
     height: 100vh;
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 100;
     background: #0c2340;
     color: white;
     display: flex;
@@ -135,7 +139,12 @@ body {
 
 .main {
     flex: 1;
+    margin-right: 260px;
     padding: 30px;
+}
+
+.sidebar.collapsed + .main {
+    margin-right: 80px;
 }
 
 .topbar {

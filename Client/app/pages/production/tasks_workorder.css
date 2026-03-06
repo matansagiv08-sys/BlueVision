@@ -58,3 +58,21 @@
     outline: 2px dashed #94a3b8;
     outline-offset: -6px;
 }
+
+.tasks-workorder-page #saveOrderBtn,
+.tasks-workorder-page #resetAlgoBtn {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tasks-workorder-page #saveOrderBtn:disabled,
+.tasks-workorder-page #resetAlgoBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.tasks-workorder-page #saveOrderBtn:not(:disabled),
+.tasks-workorder-page #resetAlgoBtn:not(:disabled) {
+    opacity: 1;
+    cursor: pointer;
+}

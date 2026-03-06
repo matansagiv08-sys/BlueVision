@@ -1,7 +1,9 @@
-﻿let allTasks = [];
+let allTasks = [];
 let currentStation = 'all';
 let originalOrderByStation = {};
 let currentOrderByStation = {};
+let originalGlobalOrder = [];
+let currentGlobalOrder = [];
 let dragSrcPo = null;
 
 window.initTasksWorkOrder = function () {
@@ -64,19 +66,18 @@ function buildOrderMaps(tasks) {
         originalOrderByStation[st] = [...order];
         currentOrderByStation[st] = [...order];
     });
+
+    const globalOrder = tasks.map(t => t.po);
+    originalGlobalOrder = [...globalOrder];
+    currentGlobalOrder = [...globalOrder];
 }
 
 function isDirty() {
-    const stations = Object.keys(originalOrderByStation);
-    return stations.some(st => {
-        const a = originalOrderByStation[st] || [];
-        const b = currentOrderByStation[st] || [];
-        if (a.length !== b.length) return true;
-        for (let i = 0; i < a.length; i++) {
-            if (a[i] !== b[i]) return true;
-        }
-        return false;
-    });
+    if (originalGlobalOrder.length !== currentGlobalOrder.length) return true;
+    for (let i = 0; i < originalGlobalOrder.length; i++) {
+        if (originalGlobalOrder[i] !== currentGlobalOrder[i]) return true;
+    }
+    return false;
 }
 
 function updateDirtyState() {
@@ -260,29 +261,20 @@ function wireRowDnD() {
             const targetPo = r.getAttribute('data-po');
             if (!dragSrcPo || !targetPo || dragSrcPo === targetPo) return;
 
-            const srcTask = allTasks.find(t => t.po === dragSrcPo);
-            const tgtTask = allTasks.find(t => t.po === targetPo);
-            if (!srcTask || !tgtTask) return;
-
-            // allow drag only inside same station
-            if (srcTask.station !== tgtTask.station) return;
-
-            reorderWithinStation(srcTask.station, dragSrcPo, targetPo);
+            reorderGlobally(dragSrcPo, targetPo);
             window.filterWorkOrder();
             updateDirtyState();
         });
     });
 }
 
-function reorderWithinStation(station, draggedPo, targetPo) {
-    const order = currentOrderByStation[station] || [];
-    const from = order.indexOf(draggedPo);
-    const to = order.indexOf(targetPo);
+function reorderGlobally(draggedPo, targetPo) {
+    const from = currentGlobalOrder.indexOf(draggedPo);
+    const to = currentGlobalOrder.indexOf(targetPo);
     if (from === -1 || to === -1) return;
 
-    order.splice(from, 1);
-    order.splice(to, 0, draggedPo);
-    currentOrderByStation[station] = order;
+    currentGlobalOrder.splice(from, 1);
+    currentGlobalOrder.splice(to, 0, draggedPo);
 }
 
 window.filterByStation = function (station, btn) {
@@ -308,18 +300,15 @@ window.filterByStation = function (station, btn) {
 window.saveWorkOrder = function () {
     console.log("Saving changes...");
 
-    // Later: send currentOrderByStation to backend
+    // Later: send currentGlobalOrder to backend
 
     // Treat current as new baseline after successful save
-    Object.keys(currentOrderByStation).forEach(st => {
-        originalOrderByStation[st] = [...currentOrderByStation[st]];
-    });
+    originalGlobalOrder = [...currentGlobalOrder];
 
     updateDirtyState();
     alert("השינויים נשמרו בהצלחה!");
 };
 
-// בכל פעם שמשנים דחיפות או מסננים - אנחנו "מלכלכים" את הנתונים ומאפשרים שמירה
 window.filterWorkOrder = function () {
     const q = (document.getElementById("taskSearch")?.value || "").trim().toLowerCase();
     const urgency = document.getElementById("urgencyFilter")?.value || "all";
@@ -347,38 +336,20 @@ window.filterWorkOrder = function () {
 };
 
 window.optimizeRoute = function () {
-    Object.keys(originalOrderByStation).forEach(st => {
-        currentOrderByStation[st] = [...originalOrderByStation[st]];
-    });
+    currentGlobalOrder = [...originalGlobalOrder];
 
     window.filterWorkOrder();
     updateDirtyState();
 };
 
 function sortByCurrentOrder(tasks) {
-    const byStation = {};
-    tasks.forEach(t => {
-        byStation[t.station] = byStation[t.station] || [];
-        byStation[t.station].push(t);
+    const rank = new Map(currentGlobalOrder.map((po, index) => [po, index]));
+
+    return [...tasks].sort((a, b) => {
+        const aRank = rank.has(a.po) ? rank.get(a.po) : Number.MAX_SAFE_INTEGER;
+        const bRank = rank.has(b.po) ? rank.get(b.po) : Number.MAX_SAFE_INTEGER;
+        return aRank - bRank;
     });
-
-    const stations = Object.keys(byStation);
-    let result = [];
-
-    stations.forEach(st => {
-        const order = currentOrderByStation[st] || [];
-        const map = new Map(byStation[st].map(t => [t.po, t]));
-
-        order.forEach(po => {
-            if (map.has(po)) result.push(map.get(po));
-        });
-
-        byStation[st].forEach(t => {
-            if (!order.includes(t.po)) result.push(t);
-        });
-    });
-
-    return result;
 }
 
 

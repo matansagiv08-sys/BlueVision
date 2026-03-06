@@ -11,5 +11,29 @@
 /* הפיכת הטבלה לרחבה כפי שהגדרנו ב-styles */
 .orders-tracking-page .table-container {
     width: 100%;
-}body {
+}
+
+.orders-tracking-page .summary-card.highlight-blue {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(16, 24, 40, 0.04);
+}
+
+.orders-tracking-page .orders-export-btn {
+    border-color: #0c2340;
+    background: #0c2340;
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(12, 35, 64, 0.2);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.orders-tracking-page .orders-export-btn:hover {
+    background: #14345a;
+    box-shadow: 0 6px 16px rgba(12, 35, 64, 0.26);
+    transform: translateY(-1px);
+}
+
+.orders-tracking-page .orders-export-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(12, 35, 64, 0.2);
 }
