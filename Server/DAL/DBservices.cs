@@ -38,179 +38,150 @@ public class DBservices
         using XLWorkbook workbook = new XLWorkbook(excelStream);
         Console.WriteLine("Loaded workbook");
 
-        IXLWorksheet baseSheet = workbook.Worksheet("פריטים ומלאים");
-        IXLWorksheet openReqSheet = workbook.Worksheet("כמות פתוחה בדרישות");
-        IXLWorksheet openPoSheet = workbook.Worksheet("כמות פתוחה בהזמנות רכש");
+        Console.WriteLine("Reading sheet: פריטים ומלאים");
+        IXLWorksheet detailsSheet = workbook.Worksheet("פריטים ומלאים");
+        Dictionary<string, string> itemToGroupMap = BuildItemToGroupMap(detailsSheet);
 
-        List<IXLRow> baseRows = baseSheet.RowsUsed().Skip(1).ToList();
-        Console.WriteLine("Read base sheet rows: " + baseRows.Count);
+        Console.WriteLine("Built item-to-group map with " + itemToGroupMap.Count + " entries");
 
-        // Build side-sheet dictionaries and merge them by ItemCode with the base sheet.
-        // Missing ItemCode in side sheets defaults to 0 later during row creation.
-        // Side sheet dictionary: ItemCode (col A) -> OpenPurchaseRequestQty (col B)
-        Dictionary<string, int> openReqByItemCode = BuildSingleValueDictionary(openReqSheet, 2);
-        Console.WriteLine("Built open request dictionary: " + openReqByItemCode.Count);
+        List<string> uniqueGroupNames = itemToGroupMap.Values
+            .Select(v => v.Trim())
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        // Side sheet dictionary: ItemCode (col A) -> (OpenPurchaseOrderQty, ApprovedOrderQty, UnapprovedOrderQty)
-        Dictionary<string, (int OpenPo, int Approved, int Unapproved)> openPoByItemCode = BuildOpenPoDictionary(openPoSheet);
-        Console.WriteLine("Built open PO dictionary: " + openPoByItemCode.Count);
+        Console.WriteLine("Found " + uniqueGroupNames.Count + " unique group names");
 
-        List<InventoryItem> itemsToInsert = new List<InventoryItem>();
+        int insertedGroups = 0;
+        int updatedRows = 0;
+        Dictionary<string, int> groupNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (IXLRow row in baseRows)
+        using (SqlConnection con = connect("myProjDB"))
+        {
+            const string insertIfMissingSql = @"
+IF NOT EXISTS (SELECT 1 FROM Groups WHERE ItemGrpName = @GroupName)
+BEGIN
+    INSERT INTO Groups (ItemGrpName)
+    VALUES (@GroupName)
+END";
+
+            using SqlCommand cmd = new SqlCommand(insertIfMissingSql, con);
+            cmd.Parameters.Add("@GroupName", SqlDbType.NVarChar, 255);
+            cmd.CommandTimeout = 120;
+
+            foreach (string groupName in uniqueGroupNames)
+            {
+                cmd.Parameters["@GroupName"].Value = groupName;
+                int affectedRows = cmd.ExecuteNonQuery();
+                if (affectedRows > 0)
+                {
+                    insertedGroups++;
+                }
+            }
+            Console.WriteLine("Inserted " + insertedGroups + " new groups");
+
+            {
+                using SqlCommand selectGroupsCmd = new SqlCommand("SELECT ItemGrpID, ItemGrpName FROM Groups", con);
+                selectGroupsCmd.CommandTimeout = 120;
+                using SqlDataReader reader = selectGroupsCmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    int itemGrpId = Convert.ToInt32(reader["ItemGrpID"]);
+                    string groupName = reader["ItemGrpName"]?.ToString()?.Trim() ?? string.Empty;
+
+                    if (string.IsNullOrWhiteSpace(groupName))
+                    {
+                        continue;
+                    }
+
+                    groupNameToId[groupName] = itemGrpId;
+                }
+            }
+            Console.WriteLine("Loaded " + groupNameToId.Count + " groups from database");
+
+            DataTable updatesTable = new DataTable();
+            updatesTable.Columns.Add("ItemCode", typeof(string));
+            updatesTable.Columns.Add("ItemGrpID", typeof(int));
+
+            foreach (var mapping in itemToGroupMap)
+            {
+                string itemCode = mapping.Key;
+                string groupName = mapping.Value?.Trim() ?? string.Empty;
+
+                if (!groupNameToId.TryGetValue(groupName, out int itemGrpId))
+                {
+                    continue;
+                }
+
+                updatesTable.Rows.Add(itemCode, itemGrpId);
+            }
+
+            Console.WriteLine("Prepared " + updatesTable.Rows.Count + " inventory item/group matches for update");
+
+            if (updatesTable.Rows.Count > 0)
+            {
+                const string createTempTableSql = @"
+CREATE TABLE #ItemGroupUpdates
+(
+    ItemCode NVARCHAR(100) NOT NULL,
+    ItemGrpID INT NOT NULL
+)";
+
+                using (SqlCommand createTempCmd = new SqlCommand(createTempTableSql, con))
+                {
+                    createTempCmd.CommandTimeout = 120;
+                    createTempCmd.ExecuteNonQuery();
+                }
+
+                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
+                {
+                    bulkCopy.DestinationTableName = "#ItemGroupUpdates";
+                    bulkCopy.BulkCopyTimeout = 120;
+                    bulkCopy.BatchSize = 2000;
+                    bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
+                    bulkCopy.ColumnMappings.Add("ItemGrpID", "ItemGrpID");
+                    bulkCopy.WriteToServer(updatesTable);
+                }
+                Console.WriteLine("Bulk copied temp update table");
+
+                const string updateInventorySql = @"
+UPDATE i
+SET i.ItemGrpID = u.ItemGrpID
+FROM InventoryItems i
+INNER JOIN #ItemGroupUpdates u
+    ON i.InventoryItemID = u.ItemCode";
+
+                using SqlCommand updateCmd = new SqlCommand(updateInventorySql, con);
+                updateCmd.CommandTimeout = 120;
+                updatedRows = updateCmd.ExecuteNonQuery();
+            }
+
+            Console.WriteLine("Updated " + updatedRows + " inventory rows");
+        }
+
+        Console.WriteLine("Import finished successfully");
+        return updatedRows;
+    }
+
+    private static Dictionary<string, string> BuildItemToGroupMap(IXLWorksheet sheet)
+    {
+        Dictionary<string, string> itemToGroupMap = new Dictionary<string, string>();
+
+        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
         {
             string itemCode = row.Cell(1).GetValue<string>().Trim();
+            string itmsGrpNam = row.Cell(3).GetValue<string>().Trim();
 
-            // Merge key is ItemCode from column A.
-            // Skip base rows where ItemCode is empty.
-            if (string.IsNullOrWhiteSpace(itemCode))
+            if (string.IsNullOrWhiteSpace(itemCode) || string.IsNullOrWhiteSpace(itmsGrpNam))
             {
                 continue;
             }
 
-            (int OpenPo, int Approved, int Unapproved) poData = openPoByItemCode.ContainsKey(itemCode)
-                ? openPoByItemCode[itemCode]
-                : (0, 0, 0);
-
-            InventoryItem item = new InventoryItem
-            {
-                InventoryItemID = itemCode,
-                ItemName = NullIfEmpty(row.Cell(2).GetValue<string>()),
-                ItemGrpID = null,
-                BuyMethod = null,
-                Price = null,
-                PlatformID = null,
-                SupplierID = null,
-                Whse01_QTY = ToSafeInt(row.Cell(5)),
-                Whse03_QTY = ToSafeInt(row.Cell(6)),
-                Whse90_QTY = ToSafeInt(row.Cell(7)),
-                OpenPurchaseRequestQty = openReqByItemCode.ContainsKey(itemCode) ? openReqByItemCode[itemCode] : 0,
-                OpenPurchaseOrderQty = poData.OpenPo,
-                ApprovedOrderQty = poData.Approved,
-                UnapprovedOrderQty = poData.Unapproved,
-                PlaneOrBody = null,
-                LastPODate = null
-            };
-
-            itemsToInsert.Add(item);
+            // If ItemCode appears more than once, keep the latest value.
+            itemToGroupMap[itemCode] = itmsGrpNam;
         }
 
-        Console.WriteLine("Prepared items to insert: " + itemsToInsert.Count);
-
-        DataTable inventoryTable = BuildInventoryItemsDataTable(itemsToInsert);
-
-        using SqlConnection con = connect("myProjDB");
-        Console.WriteLine("Opened SQL connection");
-        using SqlTransaction transaction = con.BeginTransaction();
-        Console.WriteLine("Began SQL transaction");
-
-        try
-        {
-            using (SqlCommand deleteCmd = new SqlCommand("DELETE FROM InventoryItems", con, transaction))
-            {
-                deleteCmd.CommandTimeout = 120;
-                deleteCmd.ExecuteNonQuery();
-            }
-            Console.WriteLine("Deleted existing InventoryItems rows");
-
-            using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con, SqlBulkCopyOptions.TableLock, transaction))
-            {
-                bulkCopy.DestinationTableName = "InventoryItems";
-                bulkCopy.BulkCopyTimeout = 300;
-                bulkCopy.BatchSize = 1000;
-
-                bulkCopy.ColumnMappings.Add("InventoryItemID", "InventoryItemID");
-                bulkCopy.ColumnMappings.Add("ItemName", "ItemName");
-                bulkCopy.ColumnMappings.Add("ItemGrpID", "ItemGrpID");
-                bulkCopy.ColumnMappings.Add("BuyMethod", "BuyMethod");
-                bulkCopy.ColumnMappings.Add("Price", "Price");
-                bulkCopy.ColumnMappings.Add("PlatformID", "PlatformID");
-                bulkCopy.ColumnMappings.Add("SupplierID", "SupplierID");
-                bulkCopy.ColumnMappings.Add("Whse01_QTY", "Whse01_QTY");
-                bulkCopy.ColumnMappings.Add("Whse03_QTY", "Whse03_QTY");
-                bulkCopy.ColumnMappings.Add("Whse90_QTY", "Whse90_QTY");
-                bulkCopy.ColumnMappings.Add("OpenPurchaseRequestQty", "OpenPurchaseRequestQty");
-                bulkCopy.ColumnMappings.Add("OpenPurchaseOrderQty", "OpenPurchaseOrderQty");
-                bulkCopy.ColumnMappings.Add("ApprovedOrderQty", "ApprovedOrderQty");
-                bulkCopy.ColumnMappings.Add("UnapprovedOrderQty", "UnapprovedOrderQty");
-                bulkCopy.ColumnMappings.Add("PlaneOrBody", "PlaneOrBody");
-                bulkCopy.ColumnMappings.Add("LastPODate", "LastPODate");
-
-                bulkCopy.WriteToServer(inventoryTable);
-            }
-            Console.WriteLine("Inserted " + itemsToInsert.Count + " rows");
-
-            transaction.Commit();
-            Console.WriteLine("Transaction committed");
-            Console.WriteLine("Import finished successfully");
-            return itemsToInsert.Count;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Import failed with exception:");
-            Console.WriteLine(ex.ToString());
-
-            try
-            {
-                transaction.Rollback();
-                Console.WriteLine("Rollback completed");
-            }
-            catch (Exception rollbackEx)
-            {
-                Console.WriteLine("Rollback failed:");
-                Console.WriteLine(rollbackEx.ToString());
-            }
-
-            throw;
-        }
-    }
-
-    private static DataTable BuildInventoryItemsDataTable(List<InventoryItem> items)
-    {
-        DataTable table = new DataTable("InventoryItems");
-
-        table.Columns.Add("InventoryItemID", typeof(string));
-        table.Columns.Add("ItemName", typeof(string));
-        table.Columns.Add("ItemGrpID", typeof(int));
-        table.Columns.Add("BuyMethod", typeof(int));
-        table.Columns.Add("Price", typeof(double));
-        table.Columns.Add("PlatformID", typeof(int));
-        table.Columns.Add("SupplierID", typeof(int));
-        table.Columns.Add("Whse01_QTY", typeof(int));
-        table.Columns.Add("Whse03_QTY", typeof(int));
-        table.Columns.Add("Whse90_QTY", typeof(int));
-        table.Columns.Add("OpenPurchaseRequestQty", typeof(int));
-        table.Columns.Add("OpenPurchaseOrderQty", typeof(int));
-        table.Columns.Add("ApprovedOrderQty", typeof(int));
-        table.Columns.Add("UnapprovedOrderQty", typeof(int));
-        table.Columns.Add("PlaneOrBody", typeof(bool));
-        table.Columns.Add("LastPODate", typeof(DateTime));
-
-        foreach (InventoryItem item in items)
-        {
-            DataRow row = table.NewRow();
-
-            row["InventoryItemID"] = item.InventoryItemID;
-            row["ItemName"] = item.ItemName ?? (object)DBNull.Value;
-            row["ItemGrpID"] = DBNull.Value;
-            row["BuyMethod"] = DBNull.Value;
-            row["Price"] = DBNull.Value;
-            row["PlatformID"] = DBNull.Value;
-            row["SupplierID"] = DBNull.Value;
-            row["Whse01_QTY"] = item.Whse01_QTY ?? 0;
-            row["Whse03_QTY"] = item.Whse03_QTY ?? 0;
-            row["Whse90_QTY"] = item.Whse90_QTY ?? 0;
-            row["OpenPurchaseRequestQty"] = item.OpenPurchaseRequestQty ?? 0;
-            row["OpenPurchaseOrderQty"] = item.OpenPurchaseOrderQty ?? 0;
-            row["ApprovedOrderQty"] = item.ApprovedOrderQty ?? 0;
-            row["UnapprovedOrderQty"] = item.UnapprovedOrderQty ?? 0;
-            row["PlaneOrBody"] = DBNull.Value;
-            row["LastPODate"] = DBNull.Value;
-
-            table.Rows.Add(row);
-        }
-
-        return table;
+        return itemToGroupMap;
     }
 
     private static Dictionary<string, int> BuildSingleValueDictionary(IXLWorksheet sheet, int valueColumnIndex)
