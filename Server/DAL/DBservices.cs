@@ -41,8 +41,10 @@ public class DBservices
         Console.WriteLine("Reading sheet: פריטים ומלאים");
         IXLWorksheet detailsSheet = workbook.Worksheet("פריטים ומלאים");
         Dictionary<string, string> itemToGroupMap = BuildItemToGroupMap(detailsSheet);
+        Dictionary<string, string> itemToBuyMethod = BuildItemToBuyMethodMap(detailsSheet);
 
         Console.WriteLine("Built item-to-group map with " + itemToGroupMap.Count + " entries");
+        Console.WriteLine("Built item-to-buyMethod map with " + itemToBuyMethod.Count + " entries");
 
         List<string> uniqueGroupNames = itemToGroupMap.Values
             .Select(v => v.Trim())
@@ -157,6 +159,60 @@ INNER JOIN #ItemGroupUpdates u
             }
 
             Console.WriteLine("Updated " + updatedRows + " inventory rows");
+
+            Console.WriteLine("Updating BuyMethod for " + itemToBuyMethod.Count + " items");
+
+            DataTable buyMethodUpdatesTable = new DataTable();
+            buyMethodUpdatesTable.Columns.Add("ItemCode", typeof(string));
+            buyMethodUpdatesTable.Columns.Add("BuyMethod", typeof(string));
+
+            foreach (var mapping in itemToBuyMethod)
+            {
+                buyMethodUpdatesTable.Rows.Add(mapping.Key, mapping.Value);
+            }
+
+            Console.WriteLine("Prepared " + buyMethodUpdatesTable.Rows.Count + " BuyMethod updates");
+
+            int updatedBuyMethodRows = 0;
+            if (buyMethodUpdatesTable.Rows.Count > 0)
+            {
+                const string createBuyMethodTempTableSql = @"
+CREATE TABLE #BuyMethodUpdates
+(
+    ItemCode NVARCHAR(100) NOT NULL,
+    BuyMethod CHAR(1) NOT NULL
+)";
+
+                using (SqlCommand createTempCmd = new SqlCommand(createBuyMethodTempTableSql, con))
+                {
+                    createTempCmd.CommandTimeout = 120;
+                    createTempCmd.ExecuteNonQuery();
+                }
+
+                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
+                {
+                    bulkCopy.DestinationTableName = "#BuyMethodUpdates";
+                    bulkCopy.BulkCopyTimeout = 120;
+                    bulkCopy.BatchSize = 2000;
+                    bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
+                    bulkCopy.ColumnMappings.Add("BuyMethod", "BuyMethod");
+                    bulkCopy.WriteToServer(buyMethodUpdatesTable);
+                }
+                Console.WriteLine("Bulk copied BuyMethod temp table");
+
+                const string updateBuyMethodSql = @"
+UPDATE i
+SET i.BuyMethod = u.BuyMethod
+FROM InventoryItems i
+INNER JOIN #BuyMethodUpdates u
+    ON i.InventoryItemID = u.ItemCode";
+
+                using SqlCommand updateBuyMethodCmd = new SqlCommand(updateBuyMethodSql, con);
+                updateBuyMethodCmd.CommandTimeout = 120;
+                updatedBuyMethodRows = updateBuyMethodCmd.ExecuteNonQuery();
+            }
+
+            Console.WriteLine("Updated " + updatedBuyMethodRows + " inventory BuyMethod rows");
         }
 
         Console.WriteLine("Import finished successfully");
@@ -182,6 +238,30 @@ INNER JOIN #ItemGroupUpdates u
         }
 
         return itemToGroupMap;
+    }
+
+    private static Dictionary<string, string> BuildItemToBuyMethodMap(IXLWorksheet sheet)
+    {
+        Dictionary<string, string> itemToBuyMethod = new Dictionary<string, string>();
+
+        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
+        {
+            string itemCode = row.Cell(1).GetValue<string>().Trim();
+            if (string.IsNullOrWhiteSpace(itemCode))
+            {
+                continue;
+            }
+
+            string buyMethod = row.Cell(4).GetValue<string>().Trim().ToUpper();
+            if (buyMethod != "B" && buyMethod != "M")
+            {
+                continue;
+            }
+
+            itemToBuyMethod[itemCode] = buyMethod;
+        }
+
+        return itemToBuyMethod;
     }
 
     private static Dictionary<string, int> BuildSingleValueDictionary(IXLWorksheet sheet, int valueColumnIndex)
