@@ -5,7 +5,7 @@ namespace Server.Models
     public class ItemInProduction
     {
         int serialNumber;
-        int productItemID;
+        string productItemID;
         int planeID;
         int priorityLevel;
         int workOrderID;
@@ -13,7 +13,7 @@ namespace Server.Models
         string comments;
 
         public int SerialNumber { get => serialNumber; set => serialNumber = value; }
-        public int ProductItemID { get => productItemID; set => productItemID = value; }
+        public string ProductItemID { get => productItemID; set => productItemID = value; }
         public int PlaneID { get => planeID; set => planeID = value; }
         public int PriorityLevel { get => priorityLevel; set => priorityLevel = value; }
         public int WorkOrderID { get => workOrderID; set => workOrderID = value; }

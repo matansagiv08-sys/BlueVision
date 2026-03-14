@@ -909,12 +909,12 @@ INNER JOIN #BuyMethodUpdates u
                 list.Add(new ItemInProduction
                 {
                     SerialNumber = (int)reader["SerialNumber"],
-                    ProductItemID = (int)reader["ProductItemID"],
+                    ProductItemID = reader["ProductItemID"].ToString(),
                     PlaneID = (int)reader["PlaneID"],
-                    PriorityLevel = (int)reader["PriorityLevel"],
-                    WorkOrderID = (int)reader["WorkOrderID"],
-                    PlannedQty = (int)reader["PlannedQty"],
-                    Comments = reader["Comments"].ToString()
+                    PriorityLevel = Convert.ToInt32(reader["PriorityLevel"]),
+                    WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
+                    PlannedQty = Convert.ToInt32(reader["PlannedQty"]),
+                    Comments = reader["Comments"]?.ToString()
                 });
             }
             return list;
@@ -970,16 +970,15 @@ INNER JOIN #BuyMethodUpdates u
         finally { if (con != null) con.Close(); }
     }
 
-    public int DeleteItemInProduction(int serialNumber, int productItemID)
+    public int DeleteItemInProduction(int serialNumber, string productItemID)
     {
         SqlConnection con = null;
         try
         {
             con = connect("myProjDB");
-
             Dictionary<string, object> paramDic = new Dictionary<string, object>();
             paramDic.Add("@SerialNumber", serialNumber);
-            paramDic.Add("@ProductItemID", productItemID);
+            paramDic.Add("@ProductItemID", productItemID); // עכשיו זה string
 
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteItemInProduction", con, paramDic);
             return cmd.ExecuteNonQuery();
@@ -1033,6 +1032,57 @@ INNER JOIN #BuyMethodUpdates u
     {
         Dictionary<string, object> d = new Dictionary<string, object> { { "@ProjectID", id } };
         SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteProject", connect("myProjDB"), d);
+        return cmd.ExecuteNonQuery();
+    }
+
+    public List<Plane> GetPlanes()
+    {
+        SqlConnection con = connect("myProjDB");
+        List<Plane> list = new List<Plane>();
+        // שימוש בפונקציה הכללית הקיימת אצלך
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetAllPlanes", con, null);
+        SqlDataReader reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new Plane
+            {
+                PlaneID = (int)reader["PlaneID"],
+                PlaneTypeID = (int)reader["PlaneTypeID"],
+                ProjectID = (int)reader["ProjectID"],
+                PriorityLevel = (byte)reader["PriorityLevel"]
+            });
+        }
+        con.Close();
+        return list;
+    }
+
+    public int InsertPlane(Plane p)
+    {
+        Dictionary<string, object> d = new Dictionary<string, object> {
+        {"@PlaneTypeID", p.PlaneTypeID},
+        {"@ProjectID", p.ProjectID},
+        {"@PriorityLevel", p.PriorityLevel}
+    };
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertPlane", connect("myProjDB"), d);
+        return cmd.ExecuteNonQuery();
+    }
+
+    public int UpdatePlane(Plane p)
+    {
+        Dictionary<string, object> d = new Dictionary<string, object> {
+        {"@PlaneID", p.PlaneID},
+        {"@PlaneTypeID", p.PlaneTypeID},
+        {"@ProjectID", p.ProjectID},
+        {"@PriorityLevel", p.PriorityLevel}
+    };
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUpdatePlane", connect("myProjDB"), d);
+        return cmd.ExecuteNonQuery();
+    }
+
+    public int DeletePlane(int id)
+    {
+        Dictionary<string, object> d = new Dictionary<string, object> { { "@PlaneID", id } };
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeletePlane", connect("myProjDB"), d);
         return cmd.ExecuteNonQuery();
     }
 

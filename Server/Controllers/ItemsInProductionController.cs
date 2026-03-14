@@ -31,7 +31,7 @@ namespace Server.Controllers
         }
 
         [HttpDelete("serial/{serialNumber}/product/{productItemID}")]
-        public int Delete(int serialNumber, int productItemID)
+        public int Delete(int serialNumber, string productItemID)
         {
             ItemInProduction item = new ItemInProduction();
             item.SerialNumber = serialNumber;
