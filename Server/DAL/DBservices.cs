@@ -27,6 +27,30 @@ public class DBservices
         return con;
     }
 
+
+    // Create the SqlCommand
+    private SqlCommand CreateCommandWithStoredProcedureGeneral(String spName, SqlConnection con, Dictionary<string, object> paramDic)
+    {
+
+        SqlCommand cmd = new SqlCommand(); // create the command object
+
+        cmd.Connection = con;              // assign the connection to the command object
+
+        cmd.CommandText = spName;      // can be Select, Insert, Update, Delete 
+
+        cmd.CommandTimeout = 10;           // Time to wait for the execution' The default is 30 seconds
+
+        cmd.CommandType = System.Data.CommandType.StoredProcedure; // the type of the command, can also be text
+
+        if (paramDic != null)
+            foreach (KeyValuePair<string, object> param in paramDic)
+            {
+                cmd.Parameters.AddWithValue(param.Key, param.Value);
+
+            }
+        return cmd;
+    }
+
     public int ImportInventoryItemsFromExcel(string? filePath)
     {
         Console.WriteLine("Import started");
@@ -863,4 +887,153 @@ INNER JOIN #BuyMethodUpdates u
 
         return cell.GetFormattedString().Trim();
     }
+
+
+
+
+    //ייצור
+    public List<ItemInProduction> ReadItemsInProduction()
+    {
+        SqlConnection con = null;
+        List<ItemInProduction> list = new List<ItemInProduction>();
+
+        try
+        {
+            con = connect("myProjDB");
+            // בקריאה פשוטה אין לנו פרמטרים, אז נשלח Dictionary ריק או null
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetItemsInProduction", con, null);
+            SqlDataReader reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                list.Add(new ItemInProduction
+                {
+                    SerialNumber = (int)reader["SerialNumber"],
+                    ProductItemID = (int)reader["ProductItemID"],
+                    PlaneID = (int)reader["PlaneID"],
+                    PriorityLevel = (int)reader["PriorityLevel"],
+                    WorkOrderID = (int)reader["WorkOrderID"],
+                    PlannedQty = (int)reader["PlannedQty"],
+                    Comments = reader["Comments"].ToString()
+                });
+            }
+            return list;
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int InsertItemInProduction(ItemInProduction item)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            Dictionary<string, object> paramDic = new Dictionary<string, object>();
+            paramDic.Add("@SerialNumber", item.SerialNumber);
+            paramDic.Add("@ProductItemID", item.ProductItemID);
+            paramDic.Add("@PlaneID", item.PlaneID);
+            paramDic.Add("@PriorityLevel", item.PriorityLevel);
+            paramDic.Add("@WorkOrderID", item.WorkOrderID);
+            paramDic.Add("@PlannedQty", item.PlannedQty);
+            paramDic.Add("@Comments", item.Comments ?? (object)DBNull.Value);
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertItemInProduction", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int UpdateItemInProduction(ItemInProduction item) // שינוי הפרמטר לקבלת האובייקט
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            Dictionary<string, object> paramDic = new Dictionary<string, object>();
+            paramDic.Add("@SerialNumber", item.SerialNumber);
+            paramDic.Add("@ProductItemID", item.ProductItemID);
+            paramDic.Add("@PlaneID", item.PlaneID);
+            paramDic.Add("@PriorityLevel", item.PriorityLevel);
+            paramDic.Add("@WorkOrderID", item.WorkOrderID);
+            paramDic.Add("@PlannedQty", item.PlannedQty);
+            paramDic.Add("@Comments", item.Comments ?? (object)DBNull.Value);
+
+            // כאן חסר היה להעביר את ה-paramDic למתודה
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUpdateItemInProduction", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex) { throw (ex); }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int DeleteItemInProduction(int serialNumber, int productItemID)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            Dictionary<string, object> paramDic = new Dictionary<string, object>();
+            paramDic.Add("@SerialNumber", serialNumber);
+            paramDic.Add("@ProductItemID", productItemID);
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteItemInProduction", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public List<Project> GetProjects()
+    {
+        SqlConnection con = connect("myProjDB");
+        List<Project> list = new List<Project>();
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetAllProjects", con, null);
+        SqlDataReader reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new Project
+            {
+                ProjectID = (int)reader["ProjectID"],
+                ProjectName = reader["ProjectName"].ToString(),
+                DueDate = (DateTime)reader["DueDate"],
+                PriorityLevel = (byte)reader["PriorityLevel"]
+            });
+        }
+        con.Close();
+        return list;
+    }
+
+    public int InsertProject(Project p)
+    {
+        Dictionary<string, object> d = new Dictionary<string, object> {
+        {"@ProjectName", p.ProjectName},
+        {"@DueDate", p.DueDate},
+        {"@PriorityLevel", p.PriorityLevel}
+    };
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertProject", connect("myProjDB"), d);
+        return cmd.ExecuteNonQuery();
+    }
+
+    public int UpdateProject(Project p)
+    {
+        Dictionary<string, object> d = new Dictionary<string, object> {
+        {"@ProjectID", p.ProjectID}, {"@ProjectName", p.ProjectName},
+        {"@DueDate", p.DueDate}, {"@PriorityLevel", p.PriorityLevel}
+    };
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUpdateProject", connect("myProjDB"), d);
+        return cmd.ExecuteNonQuery();
+    }
+
+    public int DeleteProject(int id)
+    {
+        Dictionary<string, object> d = new Dictionary<string, object> { { "@ProjectID", id } };
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteProject", connect("myProjDB"), d);
+        return cmd.ExecuteNonQuery();
+    }
+
 }

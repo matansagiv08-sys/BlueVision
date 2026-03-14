@@ -2,7 +2,7 @@
 
 namespace Server.Models
 {
-    public class ItemsInProduction
+    public class ItemInProduction
     {
         int serialNumber;
         int productItemID;
@@ -20,29 +20,31 @@ namespace Server.Models
         public int PlannedQty { get => plannedQty; set => plannedQty = value; }
         public string Comments { get => comments; set => comments = value; }
 
-        public ItemsInProduction() { }
+        public ItemInProduction() { }
 
-        public ItemsInProduction(int serialNumber, int productItemID, int planeID, int priorityLevel, int workOrderID, int plannedQty, string comments)
+        // מתודת Read שמחזירה רשימה של כל הפריטים בייצור
+        public List<ItemInProduction> Read()
         {
-            SerialNumber = serialNumber;
-            ProductItemID = productItemID;
-            PlaneID = planeID;
-            PriorityLevel = priorityLevel;
-            WorkOrderID = workOrderID;
-            PlannedQty = plannedQty;
-            Comments = comments;
+            DBservices dbs = new DBservices();
+            return dbs.ReadItemsInProduction();
         }
 
         public int Insert()
         {
             DBservices dbs = new DBservices();
-            return dbs.Insert(this);
+            return dbs.InsertItemInProduction(this);
         }
 
-        public List<ItemsInProduction> Read()
+        public int Update()
         {
             DBservices dbs = new DBservices();
-            return dbs.ReadItemsInProduction(); // נניח שזו המתודה שתצרי ב-DBservices
+            return dbs.UpdateItemInProduction(this);
+        }
+
+        public int Delete()
+        {
+            DBservices dbs = new DBservices();
+            return dbs.DeleteItemInProduction(this.SerialNumber, this.ProductItemID);
         }
     }
 }
