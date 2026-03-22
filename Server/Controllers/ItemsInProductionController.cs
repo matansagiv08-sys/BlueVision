@@ -35,7 +35,7 @@ namespace Server.Controllers
         {
             ItemInProduction item = new ItemInProduction();
             item.SerialNumber = serialNumber;
-            item.ProductItemID = productItemID;
+            item.ProductionItemID = productItemID;
             return item.Delete();
         }
     }

@@ -909,7 +909,7 @@ INNER JOIN #BuyMethodUpdates u
                 list.Add(new ItemInProduction
                 {
                     SerialNumber = (int)reader["SerialNumber"],
-                    ProductItemID = reader["ProductItemID"].ToString(),
+                    ProductionItemID = reader["ProductionItemID"].ToString(),
                     PlaneID = (int)reader["PlaneID"],
                     PriorityLevel = Convert.ToInt32(reader["PriorityLevel"]),
                     WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
@@ -932,7 +932,7 @@ INNER JOIN #BuyMethodUpdates u
 
             Dictionary<string, object> paramDic = new Dictionary<string, object>();
             paramDic.Add("@SerialNumber", item.SerialNumber);
-            paramDic.Add("@ProductItemID", item.ProductItemID);
+            paramDic.Add("@ProductionItemID", item.ProductionItemID);
             paramDic.Add("@PlaneID", item.PlaneID);
             paramDic.Add("@PriorityLevel", item.PriorityLevel);
             paramDic.Add("@WorkOrderID", item.WorkOrderID);
@@ -955,7 +955,7 @@ INNER JOIN #BuyMethodUpdates u
 
             Dictionary<string, object> paramDic = new Dictionary<string, object>();
             paramDic.Add("@SerialNumber", item.SerialNumber);
-            paramDic.Add("@ProductItemID", item.ProductItemID);
+            paramDic.Add("@ProductionItemID", item.ProductionItemID);
             paramDic.Add("@PlaneID", item.PlaneID);
             paramDic.Add("@PriorityLevel", item.PriorityLevel);
             paramDic.Add("@WorkOrderID", item.WorkOrderID);
@@ -970,7 +970,7 @@ INNER JOIN #BuyMethodUpdates u
         finally { if (con != null) con.Close(); }
     }
 
-    public int DeleteItemInProduction(int serialNumber, string productItemID)
+    public int DeleteItemInProduction(int serialNumber, string ProductionItemID)
     {
         SqlConnection con = null;
         try
@@ -978,7 +978,7 @@ INNER JOIN #BuyMethodUpdates u
             con = connect("myProjDB");
             Dictionary<string, object> paramDic = new Dictionary<string, object>();
             paramDic.Add("@SerialNumber", serialNumber);
-            paramDic.Add("@ProductItemID", productItemID); // עכשיו זה string
+            paramDic.Add("@ProductionItemID", ProductionItemID); // עכשיו זה string
 
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteItemInProduction", con, paramDic);
             return cmd.ExecuteNonQuery();
@@ -1084,6 +1084,156 @@ INNER JOIN #BuyMethodUpdates u
         Dictionary<string, object> d = new Dictionary<string, object> { { "@PlaneID", id } };
         SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeletePlane", connect("myProjDB"), d);
         return cmd.ExecuteNonQuery();
+    }
+
+    public List<PlaneType> GetPlaneTypes()
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB"); // שם ה-ConnectionString שלך
+                                       // שליחת Dictionary ריק כי אין פרמטרים ב-Get
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetPlaneTypes", con, new Dictionary<string, object>());
+            SqlDataReader reader = cmd.ExecuteReader();
+            List<PlaneType> list = new List<PlaneType>();
+
+            while (reader.Read())
+            {
+                list.Add(new PlaneType
+                {
+                    PlaneTypeID = (int)reader["PlaneTypeID"],
+                    PlaneTypeName = reader["PlaneTypeName"].ToString()
+                });
+            }
+            return list;
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
+    }
+
+    public int InsertPlaneType(PlaneType pt)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@PlaneTypeName", pt.PlaneTypeName }
+        };
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertPlaneType", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
+    }
+
+    public int DeletePlaneType(int id)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@PlaneTypeID", id }
+        };
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeletePlaneType", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
+    }
+
+    public List<TaskBoardRow> GetTaskBoardData()
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            SqlCommand cmdItems = CreateCommandWithStoredProcedureGeneral("spGetItemsForTaskBoard", con, new Dictionary<string, object>());
+            SqlDataReader readerItems = cmdItems.ExecuteReader();
+            List<TaskBoardRow> itemsList = new List<TaskBoardRow>();
+
+            while (readerItems.Read())
+            {
+                itemsList.Add(new TaskBoardRow
+                {
+                    WorkOrderID = (int)readerItems["WorkOrderID"],
+                    ProductionItemID = readerItems["ProductionItemID"].ToString(),
+                    SerialNumber = (int)readerItems["SerialNumber"],
+                    PlaneTypeName = readerItems["PlaneTypeName"].ToString(),
+                    PlannedQty = (int)readerItems["PlannedQty"],
+                    Stages = new List<StageStatusDTO>() // רשימה ריקה שתתמלא מיד
+                });
+            }
+            readerItems.Close();
+
+            SqlCommand cmdProgress = CreateCommandWithStoredProcedureGeneral("spGetProductionProgress", con, new Dictionary<string, object>());
+            SqlDataReader readerProgress = cmdProgress.ExecuteReader();
+
+            while (readerProgress.Read())
+            {
+                int serial = (int)readerProgress["SerialNumber"];
+                string prodItemID = readerProgress["ProductionItemID"].ToString();
+
+                var item = itemsList.FirstOrDefault(i => i.SerialNumber == serial && i.ProductionItemID == prodItemID);
+
+                if (item != null)
+                {
+                    item.Stages.Add(new StageStatusDTO
+                    {
+                        StageName = readerProgress["ProductionStageName"].ToString(),
+                        StatusName = readerProgress["ProductionStatusName"].ToString()
+                    });
+                }
+            }
+            readerProgress.Close();
+
+            return itemsList;
+        }
+        catch (Exception ex) { throw ex; }
+    }
+
+    public List<ProductionStage> GetProductionStages()
+    {
+  
+        SqlConnection con = connect("myProjDB");
+        SqlDataAdapter da = new SqlDataAdapter("spGetProductionStages", con);
+        da.SelectCommand.CommandType = CommandType.StoredProcedure;
+
+        DataTable dt = new DataTable();
+        da.Fill(dt);
+        List<ProductionStage> stagesList = new List<ProductionStage>();
+
+        foreach (DataRow dr in dt.Rows)
+        {
+            stagesList.Add(new ProductionStage
+            {
+                ProductionStageID = Convert.ToInt32(dr["ProductionStageID"]),
+                ProductionStageName = dr["ProductionStageName"].ToString()
+            });
+        }
+        return stagesList;
     }
 
 }
