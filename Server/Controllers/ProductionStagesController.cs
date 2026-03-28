@@ -1,19 +1,20 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Server.Models;
+
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class PlanesController : ControllerBase
+    public class ProductionStagesController : ControllerBase
     {
-        // GET: api/Planes
+        // GET: api/ProductionStages
         //[HttpGet]
-        //public IEnumerable<Plane> Get()
+        //public IEnumerable<ProductionStage> Get()
         //{
-        //    Plane p = new Plane();
-        //    return p.GetPlanes();
+        //    ProductionStage ps = new ProductionStage();
+        //    return ps.GetStages();
         //}
     }
 }

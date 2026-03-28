@@ -11,7 +11,11 @@ namespace Server.Controllers
     {
         // GET: api/PlaneTypes
         [HttpGet]
-        public List<PlaneType> Get() => new PlaneType().GetPlaneTypes();
+        public IEnumerable<PlaneType> Get()
+        {
+            PlaneType pt = new PlaneType();
+            return pt.GetPlaneTypes();
+        }
 
         // POST: api/PlaneTypes
         [HttpPost]

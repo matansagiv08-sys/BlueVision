@@ -7,7 +7,7 @@ namespace Server.Models
         public int ProjectID { get; set; }
         public string ProjectName { get; set; }
         public DateTime DueDate { get; set; }
-        public byte PriorityLevel { get; set; }
+        public int PriorityLevel { get; set; }
 
         public Project() { }
 

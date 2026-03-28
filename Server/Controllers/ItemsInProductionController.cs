@@ -10,33 +10,32 @@ namespace Server.Controllers
     public class ItemsInProductionController : ControllerBase
     {
         // GET: api/ItemsInProduction
-        // מחזיר את כל הרשימה מה-DB ללקוח (React)
         [HttpGet]
-        public IEnumerable<ItemInProduction> Get()
+        public IEnumerable<ItemInProduction> GetAllPItemsInProduction()
         {
             ItemInProduction item = new ItemInProduction();
             return item.Read();
         }
 
-        [HttpPost]
-        public int Post([FromBody] ItemInProduction item)
-        {
-            return item.Insert();
-        }
+        //[HttpPost]
+        //public int Post([FromBody] ItemInProduction item)
+        //{
+        //    return item.Insert();
+        //}
 
-        [HttpPut]
-        public int Put([FromBody] ItemInProduction item)
-        {
-            return item.Update();
-        }
+        //[HttpPut]
+        //public int Put([FromBody] ItemInProduction item)
+        //{
+        //    return item.Update();
+        //}
 
-        [HttpDelete("serial/{serialNumber}/product/{productItemID}")]
-        public int Delete(int serialNumber, string productItemID)
-        {
-            ItemInProduction item = new ItemInProduction();
-            item.SerialNumber = serialNumber;
-            item.ProductionItemID = productItemID;
-            return item.Delete();
-        }
+        //[HttpDelete("serial/{serialNumber}/product/{productItemID}")]
+        //public int Delete(int serialNumber, string productItemID)
+        //{
+        //    ItemInProduction item = new ItemInProduction();
+        //    item.SerialNumber = serialNumber;
+        //    item.ProductionItemID = productItemID;
+        //    return item.Delete();
+        //}
     }
 }

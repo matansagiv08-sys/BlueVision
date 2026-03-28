@@ -10,15 +10,12 @@ namespace Server.Controllers
     public class ProjectsController : ControllerBase
     {
         [HttpGet]
-        public List<Project> Get() => new Project().GetProjects();
-
-        [HttpPost]
-        public int Post([FromBody] Project p) => p.Insert();
-
-        [HttpPut]
-        public int Put([FromBody] Project p) => p.Update();
-
-        [HttpDelete("{id}")]
-        public int Delete(int id) => new Project().Delete(id);
+        // GET: api/Projects
+        [HttpGet]
+        public IEnumerable<Project> Get()
+        {
+            Project p = new Project();
+            return p.GetProjects();
+        }
     }
 }
