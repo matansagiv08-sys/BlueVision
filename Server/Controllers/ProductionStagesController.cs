@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Server.DAL;
 using Server.Models;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace Server.Controllers
 {
@@ -9,12 +8,11 @@ namespace Server.Controllers
     [ApiController]
     public class ProductionStagesController : ControllerBase
     {
-        // GET: api/ProductionStages
-        //[HttpGet]
-        //public IEnumerable<ProductionStage> Get()
-        //{
-        //    ProductionStage ps = new ProductionStage();
-        //    return ps.GetStages();
-        //}
+        [HttpGet]
+        public IEnumerable<ProductionStage> GetProductionStages()
+        {
+            DBservices dbs = new DBservices();
+            return dbs.GetProductionStages();
+        }
     }
 }

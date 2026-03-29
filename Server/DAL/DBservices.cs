@@ -1205,7 +1205,7 @@ INNER JOIN #BuyMethodUpdates u
             if (con != null) con.Close();
         }
     }
-
+    //קריאת נתוני תחנות העבודה בייצור
     public List<ProductionStage> GetProductionStages()
     {
         SqlConnection con = null;
@@ -1215,14 +1215,22 @@ INNER JOIN #BuyMethodUpdates u
             con = connect("myProjDB");
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetProductionStages", con, null);
             SqlDataReader reader = cmd.ExecuteReader();
-
             while (reader.Read())
             {
-                stagesList.Add(new ProductionStage
+                ProductionStage stage = new ProductionStage();
+
+                stage.ProductionStageID = Convert.ToInt32(reader["ProductionStageID"]);
+                stage.ProductionStageName = reader["ProductionStageName"].ToString();
+                if (reader["TargetDuration"] != DBNull.Value)
                 {
-                    ProductionStageID = (int)reader["ProductionStageID"],
-                    ProductionStageName = reader["ProductionStageName"].ToString()
-                });
+                    stage.TargetDuration = (TimeSpan)reader["TargetDuration"];
+                }
+                else
+                {
+                    stage.TargetDuration = TimeSpan.Zero;
+                }
+                stage.StageOrder = Convert.ToInt32(reader["StageOrder"]);
+                stagesList.Add(stage);
             }
             return stagesList;
         }

@@ -11,21 +11,21 @@ namespace Server.Models
 
         public ProductionStage() { }
 
-    //    public List<ProductionStage> GetStages()
-    //    {
-    //        DBservices dbs = new DBservices();
-    //        return dbs.GetStages();
-    //    }
-    //    public int Insert()
-    //    {
-    //        DBservices dbs = new DBservices();
-    //        return dbs.InsertStage(this);
-    //    }
+        public List<ProductionStage> GetProductionStages()
+        {
+            DBservices dbs = new DBservices();
+            return dbs.GetProductionStages();
+        }
+        //    public int Insert()
+        //    {
+        //        DBservices dbs = new DBservices();
+        //        return dbs.InsertStage(this);
+        //    }
 
-    //    public int Update()
-    //    {
-    //        DBservices dbs = new DBservices();
-    //        return dbs.UpdateStage(this);
-    //    }
+        //    public int Update()
+        //    {
+        //        DBservices dbs = new DBservices();
+        //        return dbs.UpdateStage(this);
+        //    }
     }
 }

@@ -9,8 +9,8 @@ namespace Server.Models
         public Plane PlaneID { get; set; }
         public int PriorityLevel { get; set; }
         public int WorkOrderID { get; set; }
-        public int plannedQty { get; set; }
-        public string comments { get; set; }
+        public int PlannedQty { get; set; }
+        public string Comments { get; set; }
         public List<ProductionItemStage> Stages { get; set; } = new List<ProductionItemStage>();
 
         public ItemInProduction() { }

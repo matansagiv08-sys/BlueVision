@@ -17,8 +17,8 @@
 });
 
 function initBoard() {
-    let api = "api/TaskBoard/stages"; // בלי סלאש בהתחלה כי הוא כבר ישנו ב-server
-    ajaxCall("GET", server + api, "",
+    let apiStages = "api/ProductionStages";
+    ajaxCall("GET", server + apiStages, "",
         getStagesSuccess,
         (err) => console.error("Error fetching stages:", err)
     );
@@ -26,11 +26,12 @@ function initBoard() {
 
 function getStagesSuccess(stagesFromDB) {
     const dynamicStations = stagesFromDB.map(s => s.productionStageName);
-
-    let api = "api/TaskBoard";
-    ajaxCall("GET", server + api, "",
-        (boardData) => renderTasksBoard(boardData, dynamicStations),
-        (err) => console.error("Error fetching board data:", err)
+    let apiPlanes = "api/PlaneTypes";
+    ajaxCall("GET", server + apiPlanes, "",
+        (planesData) => {
+            renderTasksBoard(planesData, dynamicStations);
+        },
+        (err) => console.error("Error fetching planes:", err)
     );
 }
 
