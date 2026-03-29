@@ -7,9 +7,8 @@ public class InventoryItem
     public string InventoryItemID { get; set; } = string.Empty;
     public string? ItemName { get; set; }
     public int? ItemGrpID { get; set; }
-    public int? BuyMethod { get; set; }
+    public string? BuyMethod { get; set; }
     public double? Price { get; set; }
-    public int? PlatformID { get; set; }
     public int? SupplierID { get; set; }
     public int? Whse01_QTY { get; set; }
     public int? Whse03_QTY { get; set; }
@@ -18,7 +17,7 @@ public class InventoryItem
     public int? OpenPurchaseOrderQty { get; set; }
     public int? ApprovedOrderQty { get; set; }
     public int? UnapprovedOrderQty { get; set; }
-    public bool? PlaneOrBody { get; set; }
+    public string? BodyPlane { get; set; }
     public DateTime? LastPODate { get; set; }
 
     public int ImportFromExcel(string filePath)

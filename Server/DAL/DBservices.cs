@@ -51,6 +51,43 @@ public class DBservices
         return cmd;
     }
 
+    public List<InventoryItem> GetInventoryItems()
+    {
+        List<InventoryItem> items = new List<InventoryItem>();
+
+        using SqlConnection con = connect("myProjDB");
+        using SqlCommand cmd = new SqlCommand("SELECT TOP 100 * FROM InventoryItems", con);
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandTimeout = 120;
+
+        using SqlDataReader reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            InventoryItem item = new InventoryItem
+            {
+                InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
+                ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
+                ItemGrpID = reader["ItemGrpID"] == DBNull.Value ? null : Convert.ToInt32(reader["ItemGrpID"]),
+                BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
+                Price = reader["Price"] == DBNull.Value ? null : Convert.ToDouble(reader["Price"]),
+                SupplierID = reader["SupplierID"] == DBNull.Value ? null : Convert.ToInt32(reader["SupplierID"]),
+                Whse01_QTY = reader["Whse01_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse01_QTY"]),
+                Whse03_QTY = reader["Whse03_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse03_QTY"]),
+                Whse90_QTY = reader["Whse90_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse90_QTY"]),
+                OpenPurchaseRequestQty = reader["OpenPurchaseRequestQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseRequestQty"]),
+                OpenPurchaseOrderQty = reader["OpenPurchaseOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseOrderQty"]),
+                ApprovedOrderQty = reader["ApprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["ApprovedOrderQty"]),
+                UnapprovedOrderQty = reader["UnapprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["UnapprovedOrderQty"]),
+                BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString(),
+                LastPODate = reader["LastPODate"] == DBNull.Value ? null : Convert.ToDateTime(reader["LastPODate"])
+            };
+
+            items.Add(item);
+        }
+
+        return items;
+    }
+
     public int ImportInventoryItemsFromExcel(string? filePath)
     {
         Console.WriteLine("Import started");

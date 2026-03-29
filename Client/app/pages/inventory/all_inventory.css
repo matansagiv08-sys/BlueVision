@@ -5,6 +5,53 @@
     font-weight: 600;
 }
 
+.all-inventory-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.all-inventory-page .global-toolbar {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.all-inventory-page .search-container {
+    flex: 1 1 320px;
+    min-width: 220px;
+    max-width: 100%;
+}
+
+.all-inventory-page .filter-actions {
+    flex: 1 1 420px;
+    min-width: 220px;
+    max-width: 100%;
+    flex-wrap: wrap;
+}
+
+.all-inventory-page .table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.all-inventory-page .generic-data-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.all-inventory-page .generic-data-table th,
+.all-inventory-page .generic-data-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .all-inventory-page .filter-actions .btn-secondary-action:hover {
     background: #14345a;
     border-color: #14345a;
