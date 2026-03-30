@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Server.DAL;
 using Server.Models;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace Server.Controllers
 {
@@ -9,33 +8,20 @@ namespace Server.Controllers
     [ApiController]
     public class ItemsInProductionController : ControllerBase
     {
-        // GET: api/ItemsInProduction
-        [HttpGet]
-        public IEnumerable<ItemInProduction> GetAllPItemsInProduction()
+
+        [HttpGet("boardData")]
+        public IActionResult GetBoardData()
         {
-            ItemInProduction item = new ItemInProduction();
-            return item.Read();
+            try
+            {
+                ItemInProduction model = new ItemInProduction();
+                List<ItemInProduction> board = model.GetBoardData();
+                return Ok(board);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
-
-        //[HttpPost]
-        //public int Post([FromBody] ItemInProduction item)
-        //{
-        //    return item.Insert();
-        //}
-
-        //[HttpPut]
-        //public int Put([FromBody] ItemInProduction item)
-        //{
-        //    return item.Update();
-        //}
-
-        //[HttpDelete("serial/{serialNumber}/product/{productItemID}")]
-        //public int Delete(int serialNumber, string productItemID)
-        //{
-        //    ItemInProduction item = new ItemInProduction();
-        //    item.SerialNumber = serialNumber;
-        //    item.ProductionItemID = productItemID;
-        //    return item.Delete();
-        //}
     }
 }

@@ -929,107 +929,58 @@ INNER JOIN #BuyMethodUpdates u
 
 
     //ייצור
-    public List<ItemInProduction> ReadItemsInProduction()
+    public List<ItemInProduction> GetTasksBoard()
     {
         SqlConnection con = null;
-        List<ItemInProduction> list = new List<ItemInProduction>();
+        // מילון לאיחוד השורות לפי המספר הסידורי של הפריט
+        Dictionary<int, ItemInProduction> itemsMap = new Dictionary<int, ItemInProduction>();
+
         try
         {
             con = connect("myProjDB");
-            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetItemsInProduction", con, null);
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetProductionBoardData", con, null);
             SqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                list.Add(new ItemInProduction
+                int sn = Convert.ToInt32(reader["SerialNumber"]);
+                if (!itemsMap.ContainsKey(sn))
                 {
-                    SerialNumber = (int)reader["SerialNumber"],
-                    ProductionItem = new ProductionItem
+                    itemsMap[sn] = new ItemInProduction
                     {
-                        ProductionItemID = reader["ProductionItemID"].ToString(),
-                        ItemName = reader["ItemName"].ToString()
-                    },
-                    PlaneID = new Plane
+                        SerialNumber = sn,
+                        WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
+                        ProductionItem = new ProductionItem { ProductionItemID = reader["ProductionItemID"].ToString() },
+                        PlannedQty = Convert.ToInt32(reader["PlannedQty"]),
+                        PlaneID = new Plane
+                        {
+                            Type = new PlaneType
+                            {
+                                PlaneTypeName = reader["PlaneTypeName"].ToString()
+                            }
+                        },
+                        Stages = new List<ProductionItemStage>()
+                    };
+                }
+                itemsMap[sn].Stages.Add(new ProductionItemStage
+                {
+                    Stage = new ProductionStage
                     {
-                        PlaneID = (int)reader["PlaneID"],
-                        Type = new PlaneType { PlaneTypeName = reader["PlaneTypeName"].ToString() }
+                        ProductionStageID = Convert.ToInt32(reader["ProductionStageID"]),
+                        ProductionStageName = reader["ProductionStageName"].ToString()
                     },
-                    PriorityLevel = Convert.ToInt32(reader["PriorityLevel"]),
-                    WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
-                    plannedQty = Convert.ToInt32(reader["PlannedQty"]),
-                    comments = reader["Comments"]?.ToString(),
-                    Stages = new List<ProductionItemStage>()
+                    Status = new ProductionStatus
+                    {
+                        ProductionStatusName = reader["StatusName"].ToString()
+                    },
+                    Comment = reader["Comment"].ToString()
                 });
             }
-            return list;
+            return itemsMap.Values.ToList();
         }
         catch (Exception ex) { throw ex; }
         finally { if (con != null) con.Close(); }
     }
-
-    //public int InsertItemInProduction(ItemInProduction item)
-    //{
-    //    SqlConnection con = null;
-    //    try
-    //    {
-    //        con = connect("myProjDB");
-
-    //        Dictionary<string, object> paramDic = new Dictionary<string, object>();
-    //        paramDic.Add("@SerialNumber", item.SerialNumber);
-    //        paramDic.Add("@ProductionItemID", item.ProductionItemID);
-    //        paramDic.Add("@PlaneID", item.PlaneID);
-    //        paramDic.Add("@PriorityLevel", item.PriorityLevel);
-    //        paramDic.Add("@WorkOrderID", item.WorkOrderID);
-    //        paramDic.Add("@PlannedQty", item.PlannedQty);
-    //        paramDic.Add("@Comments", item.Comments ?? (object)DBNull.Value);
-
-    //        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertItemInProduction", con, paramDic);
-    //        return cmd.ExecuteNonQuery();
-    //    }
-    //    catch (Exception ex) { throw ex; }
-    //    finally { if (con != null) con.Close(); }
-    //}
-
-    //public int UpdateItemInProduction(ItemInProduction item) // שינוי הפרמטר לקבלת האובייקט
-    //{
-    //    SqlConnection con = null;
-    //    try
-    //    {
-    //        con = connect("myProjDB");
-
-    //        Dictionary<string, object> paramDic = new Dictionary<string, object>();
-    //        paramDic.Add("@SerialNumber", item.SerialNumber);
-    //        paramDic.Add("@ProductionItemID", item.ProductionItemID);
-    //        paramDic.Add("@PlaneID", item.PlaneID);
-    //        paramDic.Add("@PriorityLevel", item.PriorityLevel);
-    //        paramDic.Add("@WorkOrderID", item.WorkOrderID);
-    //        paramDic.Add("@PlannedQty", item.PlannedQty);
-    //        paramDic.Add("@Comments", item.Comments ?? (object)DBNull.Value);
-
-    //        // כאן חסר היה להעביר את ה-paramDic למתודה
-    //        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUpdateItemInProduction", con, paramDic);
-    //        return cmd.ExecuteNonQuery();
-    //    }
-    //    catch (Exception ex) { throw (ex); }
-    //    finally { if (con != null) con.Close(); }
-    //}
-
-    //public int DeleteItemInProduction(int serialNumber, string ProductionItemID)
-    //{
-    //    SqlConnection con = null;
-    //    try
-    //    {
-    //        con = connect("myProjDB");
-    //        Dictionary<string, object> paramDic = new Dictionary<string, object>();
-    //        paramDic.Add("@SerialNumber", serialNumber);
-    //        paramDic.Add("@ProductionItemID", ProductionItemID); // עכשיו זה string
-
-    //        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteItemInProduction", con, paramDic);
-    //        return cmd.ExecuteNonQuery();
-    //    }
-    //    catch (Exception ex) { throw ex; }
-    //    finally { if (con != null) con.Close(); }
-    //}
 
     public List<Project> GetProjects()
     {

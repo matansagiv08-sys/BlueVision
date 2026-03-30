@@ -15,29 +15,11 @@ namespace Server.Models
 
         public ItemInProduction() { }
 
-        //  שמחזירה רשימה של כל הפריטים בייצור
-        public List<ItemInProduction> Read()
+        public List<ItemInProduction> GetBoardData()
         {
             DBservices dbs = new DBservices();
-            return dbs.ReadItemsInProduction();
+            return dbs.GetTasksBoard(); 
         }
 
-    //    public int Insert()
-    //    {
-    //        DBservices dbs = new DBservices();
-    //        return dbs.InsertItemInProduction(this);
-    //    }
-
-    //    public int Update()
-    //    {
-    //        DBservices dbs = new DBservices();
-    //        return dbs.UpdateItemInProduction(this);
-    //    }
-
-    //    public int Delete()
-    //    {
-    //        DBservices dbs = new DBservices();
-    //        return dbs.DeleteItemInProduction(this.SerialNumber, this.ProductionItemID);
-    //    }
     }
 }
