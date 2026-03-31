@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.Diagnostics;
+using System.Text;
 using ClosedXML.Excel;
 using Server.Models;
 
@@ -51,14 +52,50 @@ public class DBservices
         return cmd;
     }
 
-    public List<InventoryItem> GetInventoryItems()
+    public List<InventoryItem> GetInventoryItems(int page = 1, int pageSize = 100, string? search = null, string? stockStatus = "all", int? planeTypeId = null)
     {
         List<InventoryItem> items = new List<InventoryItem>();
 
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 100;
+
+        int offset = (page - 1) * pageSize;
+
+        StringBuilder sql = new StringBuilder();
+        sql.Append("SELECT i.* FROM InventoryItems i WHERE 1=1 ");
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sql.Append("AND (i.InventoryItemID LIKE @Search OR i.ItemName LIKE @Search) ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(stockStatus) && !stockStatus.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (stockStatus.Equals("inStock", StringComparison.OrdinalIgnoreCase))
+            {
+                sql.Append("AND (ISNULL(i.Whse01_QTY,0) + ISNULL(i.Whse03_QTY,0) + ISNULL(i.Whse90_QTY,0)) > 0 ");
+            }
+            else if (stockStatus.Equals("outOfStock", StringComparison.OrdinalIgnoreCase))
+            {
+                sql.Append("AND (ISNULL(i.Whse01_QTY,0) + ISNULL(i.Whse03_QTY,0) + ISNULL(i.Whse90_QTY,0)) = 0 ");
+            }
+        }
+
+        if (planeTypeId.HasValue)
+        {
+            sql.Append("AND EXISTS (SELECT 1 FROM ItemPlatforms ip WHERE ip.InventoryItemID = i.InventoryItemID AND ip.PlaneTypeID = @PlaneTypeID) ");
+        }
+
+        sql.Append("ORDER BY i.InventoryItemID OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY");
+
         using SqlConnection con = connect("myProjDB");
-        using SqlCommand cmd = new SqlCommand("SELECT TOP 100 * FROM InventoryItems", con);
+        using SqlCommand cmd = new SqlCommand(sql.ToString(), con);
         cmd.CommandType = CommandType.Text;
         cmd.CommandTimeout = 120;
+        cmd.Parameters.AddWithValue("@Offset", offset);
+        cmd.Parameters.AddWithValue("@PageSize", pageSize);
+        if (!string.IsNullOrWhiteSpace(search)) cmd.Parameters.AddWithValue("@Search", $"%{search.Trim()}%");
+        if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
 
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read())

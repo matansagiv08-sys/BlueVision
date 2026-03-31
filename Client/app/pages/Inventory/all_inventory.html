@@ -8,16 +8,17 @@
         <div class="filter-actions">
             <select id="platformFilter" onchange="window.filterInventory()">
                 <option value="all">כל הפלטפורמות</option>
-                <option value="WB">WB</option>
-                <option value="TBV">TBV</option>
-                <option value="Puma">Puma</option>
             </select>
 
             <select id="stockStatusFilter" onchange="window.filterInventory()">
                 <option value="all">סטטוס מלאי</option>
-                <option value="in-stock">במלאי</option>
-                <option value="out-of-stock">חוסר</option>
+                <option value="inStock">במלאי</option>
+                <option value="outOfStock">חוסר</option>
             </select>
+
+            <button class="btn-secondary-action advanced-filters-btn" onclick="window.openAdvancedInventoryFilters()">
+                סינון מתקדם
+            </button>
 
             <button class="btn-secondary-action" onclick="window.sortInventory()">
                 מיון ⇅
@@ -49,5 +50,59 @@
             <tbody id="inventory-table-body">
             </tbody>
         </table>
+    </div>
+
+    <div class="inventory-pager">
+        <button id="prevInventoryPageBtn" class="inventory-page-btn" onclick="window.prevInventoryPage()" aria-label="Previous page" title="Previous page">&#8249;</button>
+        <div id="inventoryPageNumbers" class="inventory-page-numbers"></div>
+        <button id="nextInventoryPageBtn" class="inventory-page-btn" onclick="window.nextInventoryPage()" aria-label="Next page" title="Next page">&#8250;</button>
+    </div>
+
+    <div id="advancedInventoryFiltersModal" class="inventory-modal-overlay" onclick="window.closeAdvancedInventoryFilters(event)">
+        <div class="inventory-modal" onclick="event.stopPropagation()">
+            <div class="inventory-modal-header">
+                <h3>סינון מתקדם</h3>
+                <button class="inventory-modal-close" onclick="window.closeAdvancedInventoryFilters()">✕</button>
+            </div>
+            <div class="inventory-modal-body">
+                <div class="inventory-modal-field">
+                    <label>BuyMethod</label>
+                    <select id="advBuyMethod">
+                        <option value="all">הכל</option>
+                        <option value="B">B</option>
+                        <option value="M">M</option>
+                    </select>
+                </div>
+                <div class="inventory-modal-field">
+                    <label>ItemGrpID</label>
+                    <select id="advItemGrpID">
+                        <option value="all">הכל</option>
+                    </select>
+                </div>
+                <div class="inventory-modal-field">
+                    <label>SupplierID</label>
+                    <select id="advSupplierID">
+                        <option value="all">הכל</option>
+                    </select>
+                </div>
+                <div class="inventory-modal-field">
+                    <label>BodyPlane</label>
+                    <select id="advBodyPlane">
+                        <option value="all">הכל</option>
+                        <option value="B">B</option>
+                        <option value="P">P</option>
+                        <option value="-">-</option>
+                    </select>
+                </div>
+                <div class="inventory-modal-field">
+                    <label>LastPODate</label>
+                    <input id="advLastPODate" type="date">
+                </div>
+            </div>
+            <div class="inventory-modal-footer">
+                <button class="inventory-modal-btn inventory-modal-btn-clear" onclick="window.resetAdvancedInventoryFilters()">נקה</button>
+                <button class="inventory-modal-btn inventory-modal-btn-apply" onclick="window.applyAdvancedInventoryFilters()">החל</button>
+            </div>
+        </div>
     </div>
 </div>
