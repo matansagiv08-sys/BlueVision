@@ -68,15 +68,42 @@
 }
 
 .all-inventory-page .filter-actions .advanced-filters-btn {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.all-inventory-page .filter-actions .advanced-filters-btn:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+.all-inventory-page .advanced-filters-count {
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #64748b;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    padding: 0 5px;
+}
+
+.all-inventory-page .filter-actions .clear-filters-btn {
     background: #ffffff;
     color: #475569;
     border: 1px solid #cbd5e1;
 }
 
-.all-inventory-page .filter-actions .advanced-filters-btn:hover {
+.all-inventory-page .filter-actions .clear-filters-btn:hover {
     background: #f8fafc;
     border-color: #94a3b8;
-    color: #1e293b;
 }
 
 .all-inventory-page .inventory-pager {
@@ -150,6 +177,14 @@
 .all-inventory-page .inventory-page-number:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+}
+
+.all-inventory-page .inventory-page-ellipsis {
+    min-width: 24px;
+    text-align: center;
+    color: #64748b;
+    font-weight: 700;
+    user-select: none;
 }
 
 .all-inventory-page .inventory-modal-overlay {

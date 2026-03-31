@@ -2,6 +2,7 @@ let fullInventoryData = [];
 let currentInventoryPage = 1;
 const inventoryPageSize = 100;
 let lastLoadedCount = 0;
+let knownLastInventoryPage = null;
 let currentSearch = "";
 let currentStockStatus = "all";
 let currentPlaneTypeId = "all";
@@ -12,12 +13,14 @@ let advancedBodyPlane = "all";
 let advancedLastPODate = "";
 
 window.initAllInventory = function () {
-    loadPlatformOptions();
+    loadInventoryFilterOptions();
+    updateAdvancedFiltersBadge();
     loadInventoryPage(1);
 };
 
 function loadInventoryPage(page) {
     if (page < 1) return;
+    if (knownLastInventoryPage !== null && page > knownLastInventoryPage) return;
 
     const params = new URLSearchParams();
     params.set("page", page);
@@ -25,6 +28,11 @@ function loadInventoryPage(page) {
     if (currentSearch) params.set("search", currentSearch);
     if (currentStockStatus && currentStockStatus !== "all") params.set("stockStatus", currentStockStatus);
     if (currentPlaneTypeId && currentPlaneTypeId !== "all") params.set("planeTypeId", currentPlaneTypeId);
+    if (advancedBuyMethod && advancedBuyMethod !== "all") params.set("buyMethod", advancedBuyMethod);
+    if (advancedItemGrpID && advancedItemGrpID !== "all") params.set("itemGrpID", advancedItemGrpID);
+    if (advancedSupplierID && advancedSupplierID !== "all") params.set("supplierID", advancedSupplierID);
+    if (advancedBodyPlane && advancedBodyPlane !== "all") params.set("bodyPlane", advancedBodyPlane);
+    if (advancedLastPODate) params.set("lastPODate", advancedLastPODate);
 
     const apiUrl = `https://localhost:7296/api/InventoryItems?${params.toString()}`;
 
@@ -39,15 +47,18 @@ function loadInventoryPage(page) {
 
             currentInventoryPage = page;
             lastLoadedCount = fullInventoryData.length;
-            populateAdvancedFilterOptions(fullInventoryData);
-            renderInventoryTable(getAdvancedFilteredInventory(fullInventoryData));
+            if (lastLoadedCount < inventoryPageSize) {
+                knownLastInventoryPage = currentInventoryPage;
+            } else if (currentInventoryPage === 1) {
+                knownLastInventoryPage = null;
+            }
+            renderInventoryTable(fullInventoryData);
             updateInventoryPager();
         },
         function (xhr) {
             console.error("Failed to load inventory items", xhr);
             fullInventoryData = [];
             lastLoadedCount = 0;
-            populateAdvancedFilterOptions([]);
             renderInventoryTable([]);
             updateInventoryPager();
         }
@@ -116,11 +127,12 @@ window.filterInventory = function () {
     currentSearch = (document.getElementById("inventorySearch")?.value || "").trim();
     currentStockStatus = document.getElementById("stockStatusFilter")?.value || "all";
     currentPlaneTypeId = document.getElementById("platformFilter")?.value || "all";
+    knownLastInventoryPage = null;
     loadInventoryPage(1);
 };
 
 window.sortInventory = function () {
-    renderInventoryTable(getAdvancedFilteredInventory(fullInventoryData));
+    renderInventoryTable(fullInventoryData);
 };
 
 window.prevInventoryPage = function () {
@@ -140,59 +152,56 @@ function updateInventoryPager() {
     const nextBtn = document.getElementById("nextInventoryPageBtn");
     const numbersWrap = document.getElementById("inventoryPageNumbers");
     const hasNext = lastLoadedCount === inventoryPageSize;
+    const lastPageForUi = knownLastInventoryPage ?? (hasNext ? currentInventoryPage + 1 : currentInventoryPage);
 
     if (prevBtn) prevBtn.disabled = currentInventoryPage <= 1;
-    if (nextBtn) nextBtn.disabled = !hasNext;
+    if (nextBtn) nextBtn.disabled = knownLastInventoryPage !== null ? currentInventoryPage >= knownLastInventoryPage : !hasNext;
 
     if (!numbersWrap) return;
 
-    const startPage = Math.max(1, currentInventoryPage - 2);
-    const endPage = currentInventoryPage + 2;
-    let html = "";
+    const pages = new Set();
+    pages.add(1);
+    for (let page = currentInventoryPage - 2; page <= currentInventoryPage + 2; page++) {
+        if (page >= 1 && page <= lastPageForUi) {
+            pages.add(page);
+        }
+    }
+    pages.add(lastPageForUi);
 
-    for (let page = startPage; page <= endPage; page++) {
+    const sortedPages = [...pages].sort((a, b) => a - b);
+    let html = "";
+    let previous = 0;
+
+    sortedPages.forEach(page => {
+        if (page - previous > 1) {
+            html += '<span class="inventory-page-ellipsis">...</span>';
+        }
         const isCurrent = page === currentInventoryPage;
-        const canGoForward = page <= currentInventoryPage || hasNext;
-        const disabledAttr = canGoForward ? "" : "disabled";
         const activeClass = isCurrent ? " is-active" : "";
 
-        html += `<button class="inventory-page-number${activeClass}" onclick="window.goToInventoryPage(${page})" ${disabledAttr}>${page}</button>`;
-    }
+        html += `<button class="inventory-page-number${activeClass}" onclick="window.goToInventoryPage(${page})">${page}</button>`;
+        previous = page;
+    });
 
     numbersWrap.innerHTML = html;
 }
 
 window.goToInventoryPage = function (page) {
     if (page < 1 || page === currentInventoryPage) return;
+    if (knownLastInventoryPage !== null && page > knownLastInventoryPage) return;
     loadInventoryPage(page);
 };
 
-function loadPlatformOptions() {
-    const platformSelect = document.getElementById("platformFilter");
-    if (!platformSelect) return;
-
+function loadInventoryFilterOptions() {
     ajaxCall(
         "GET",
-        "https://localhost:7296/api/PlaneTypes",
+        "https://localhost:7296/api/InventoryItems/filter-options",
         null,
         function (data) {
-            const list = Array.isArray(data) ? data : (Array.isArray(data?.$values) ? data.$values : []);
-            const relevant = list.filter(p => {
-                const name = (p.planeTypeName ?? p.PlaneTypeName ?? "").toUpperCase();
-                return name === "WB" || name === "TBV";
-            });
-
-            platformSelect.innerHTML = '<option value="all">כל הפלטפורמות</option>';
-            relevant.forEach(p => {
-                const id = p.planeTypeID ?? p.PlaneTypeID;
-                const name = p.planeTypeName ?? p.PlaneTypeName;
-                if (id !== undefined && name) {
-                    platformSelect.insertAdjacentHTML("beforeend", `<option value="${id}">${name}</option>`);
-                }
-            });
+            populateFilterOptions(data || {});
         },
         function () {
-            platformSelect.innerHTML = '<option value="all">כל הפלטפורמות</option>';
+            populateFilterOptions({});
         }
     );
 }
@@ -215,7 +224,9 @@ window.applyAdvancedInventoryFilters = function () {
     advancedBodyPlane = document.getElementById("advBodyPlane")?.value || "all";
     advancedLastPODate = document.getElementById("advLastPODate")?.value || "";
 
-    renderInventoryTable(getAdvancedFilteredInventory(fullInventoryData));
+    updateAdvancedFiltersBadge();
+    knownLastInventoryPage = null;
+    loadInventoryPage(1);
     window.closeAdvancedInventoryFilters();
 };
 
@@ -227,55 +238,109 @@ window.resetAdvancedInventoryFilters = function () {
     advancedLastPODate = "";
 
     syncAdvancedFilterControls();
-    renderInventoryTable(getAdvancedFilteredInventory(fullInventoryData));
+    updateAdvancedFiltersBadge();
+    knownLastInventoryPage = null;
+    loadInventoryPage(1);
 };
 
-function getAdvancedFilteredInventory(data) {
-    return data.filter(item => {
-        const buyMethod = String(item.buyMethod ?? item.BuyMethod ?? "").trim();
-        const itemGrpID = String(item.itemGrpID ?? item.ItemGrpID ?? "").trim();
-        const supplierID = String(item.supplierID ?? item.SupplierID ?? "").trim();
-        const bodyPlaneRaw = String(item.bodyPlane ?? item.BodyPlane ?? "").trim();
-        const bodyPlane = bodyPlaneRaw === "" ? "-" : bodyPlaneRaw;
-        const lastPODateRaw = item.lastPODate ?? item.LastPODate;
-        const lastPODate = lastPODateRaw ? String(lastPODateRaw).split("T")[0] : "";
+window.clearAllInventoryFilters = function () {
+    currentSearch = "";
+    currentStockStatus = "all";
+    currentPlaneTypeId = "all";
+    advancedBuyMethod = "all";
+    advancedItemGrpID = "all";
+    advancedSupplierID = "all";
+    advancedBodyPlane = "all";
+    advancedLastPODate = "";
+    knownLastInventoryPage = null;
 
-        if (advancedBuyMethod !== "all" && buyMethod !== advancedBuyMethod) return false;
-        if (advancedItemGrpID !== "all" && itemGrpID !== advancedItemGrpID) return false;
-        if (advancedSupplierID !== "all" && supplierID !== advancedSupplierID) return false;
-        if (advancedBodyPlane !== "all" && bodyPlane !== advancedBodyPlane) return false;
-        if (advancedLastPODate && lastPODate !== advancedLastPODate) return false;
+    const searchEl = document.getElementById("inventorySearch");
+    const stockEl = document.getElementById("stockStatusFilter");
+    const platformEl = document.getElementById("platformFilter");
+    if (searchEl) searchEl.value = "";
+    if (stockEl) stockEl.value = "all";
+    if (platformEl) platformEl.value = "all";
 
-        return true;
-    });
-}
+    syncAdvancedFilterControls();
+    updateAdvancedFiltersBadge();
+    loadInventoryPage(1);
+};
 
-function populateAdvancedFilterOptions(data) {
+function populateFilterOptions(options) {
+    const platformSelect = document.getElementById("platformFilter");
+    const buyMethodSelect = document.getElementById("advBuyMethod");
     const itemGrpSelect = document.getElementById("advItemGrpID");
     const supplierSelect = document.getElementById("advSupplierID");
-    if (!itemGrpSelect || !supplierSelect) return;
+    const bodyPlaneSelect = document.getElementById("advBodyPlane");
+    if (!platformSelect || !buyMethodSelect || !itemGrpSelect || !supplierSelect || !bodyPlaneSelect) return;
 
-    const itemGrpSet = new Set();
-    const supplierSet = new Set();
+    const platforms = Array.isArray(options.platforms) ? options.platforms : (Array.isArray(options.Platforms) ? options.Platforms : []);
+    const buyMethods = Array.isArray(options.buyMethods) ? options.buyMethods : (Array.isArray(options.BuyMethods) ? options.BuyMethods : []);
+    const groups = Array.isArray(options.groups) ? options.groups : (Array.isArray(options.Groups) ? options.Groups : []);
+    const suppliers = Array.isArray(options.suppliers) ? options.suppliers : (Array.isArray(options.Suppliers) ? options.Suppliers : []);
+    const bodyPlanes = Array.isArray(options.bodyPlanes) ? options.bodyPlanes : (Array.isArray(options.BodyPlanes) ? options.BodyPlanes : []);
 
-    data.forEach(item => {
-        const grp = String(item.itemGrpID ?? item.ItemGrpID ?? "").trim();
-        const supplier = String(item.supplierID ?? item.SupplierID ?? "").trim();
-        if (grp) itemGrpSet.add(grp);
-        if (supplier) supplierSet.add(supplier);
+    platformSelect.innerHTML = '<option value="all">כל הפלטפורמות</option>';
+    platforms.forEach(platform => {
+        const id = platform.planeTypeID ?? platform.PlaneTypeID;
+        const name = (platform.planeTypeName ?? platform.PlaneTypeName ?? "").toString().trim();
+        if (id === undefined || id === null || name === "") return;
+        platformSelect.insertAdjacentHTML("beforeend", `<option value="${id}">${escapeHtml(name)}</option>`);
     });
 
+    buyMethodSelect.innerHTML = '<option value="all">הכל</option>';
+    buyMethods
+        .map(v => String(v ?? "").trim())
+        .filter(v => v !== "")
+        .forEach(value => {
+            buyMethodSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`);
+        });
+
     itemGrpSelect.innerHTML = '<option value="all">הכל</option>';
-    [...itemGrpSet].sort((a, b) => Number(a) - Number(b)).forEach(value => {
-        itemGrpSelect.insertAdjacentHTML("beforeend", `<option value="${value}">${value}</option>`);
+    groups.forEach(group => {
+        const id = group.itemGrpID ?? group.ItemGrpID;
+        const name = (group.itemGrpName ?? group.ItemGrpName ?? "").toString().trim();
+        if (id === undefined || id === null) return;
+        itemGrpSelect.insertAdjacentHTML("beforeend", `<option value="${id}">${escapeHtml(name || String(id))}</option>`);
     });
 
     supplierSelect.innerHTML = '<option value="all">הכל</option>';
-    [...supplierSet].sort((a, b) => Number(a) - Number(b)).forEach(value => {
-        supplierSelect.insertAdjacentHTML("beforeend", `<option value="${value}">${value}</option>`);
+    suppliers.forEach(supplier => {
+        const id = supplier.supplierID ?? supplier.SupplierID;
+        const name = (supplier.supplierName ?? supplier.SupplierName ?? "").toString().trim();
+        if (id === undefined || id === null) return;
+        supplierSelect.insertAdjacentHTML("beforeend", `<option value="${id}">${escapeHtml(name || String(id))}</option>`);
+    });
+
+    bodyPlaneSelect.innerHTML = '<option value="all">הכל</option>';
+    bodyPlanes
+        .map(v => String(v ?? "").trim())
+        .filter(v => v !== "")
+        .forEach(value => {
+            bodyPlaneSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`);
     });
 
     syncAdvancedFilterControls();
+    if (platformSelect) platformSelect.value = currentPlaneTypeId;
+}
+
+function getAdvancedFiltersCount() {
+    let count = 0;
+    if (advancedBuyMethod !== "all") count++;
+    if (advancedItemGrpID !== "all") count++;
+    if (advancedSupplierID !== "all") count++;
+    if (advancedBodyPlane !== "all") count++;
+    if (advancedLastPODate) count++;
+    return count;
+}
+
+function updateAdvancedFiltersBadge() {
+    const badge = document.getElementById("advancedFiltersCount");
+    if (!badge) return;
+
+    const count = getAdvancedFiltersCount();
+    badge.textContent = String(count);
+    badge.hidden = count === 0;
 }
 
 function syncAdvancedFilterControls() {

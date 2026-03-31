@@ -180,6 +180,28 @@ public class DBservices
 
         using SqlConnection con = connect("myProjDB");
 
+        const string platformsSql = @"
+SELECT DISTINCT pt.PlaneTypeID, pt.PlaneTypeName
+FROM PlaneTypes pt
+INNER JOIN ItemPlatforms ip ON ip.PlaneTypeID = pt.PlaneTypeID
+WHERE NULLIF(LTRIM(RTRIM(pt.PlaneTypeName)), '') IS NOT NULL
+ORDER BY pt.PlaneTypeName";
+
+        using (SqlCommand platformsCmd = new SqlCommand(platformsSql, con))
+        {
+            platformsCmd.CommandType = CommandType.Text;
+            platformsCmd.CommandTimeout = 120;
+            using SqlDataReader platformsReader = platformsCmd.ExecuteReader();
+            while (platformsReader.Read())
+            {
+                options.Platforms.Add(new InventoryPlatformOption
+                {
+                    PlaneTypeID = Convert.ToInt32(platformsReader["PlaneTypeID"]),
+                    PlaneTypeName = platformsReader["PlaneTypeName"]?.ToString() ?? string.Empty
+                });
+            }
+        }
+
         const string groupsSql = @"
 SELECT ItemGrpID, ItemGrpName
 FROM Groups
