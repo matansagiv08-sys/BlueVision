@@ -52,7 +52,17 @@ public class DBservices
         return cmd;
     }
 
-    public List<InventoryItem> GetInventoryItems(int page = 1, int pageSize = 100, string? search = null, string? stockStatus = "all", int? planeTypeId = null)
+    public List<InventoryItem> GetInventoryItems(
+        int page = 1,
+        int pageSize = 100,
+        string? search = null,
+        string? stockStatus = "all",
+        int? planeTypeId = null,
+        int? itemGrpID = null,
+        string? buyMethod = null,
+        int? supplierID = null,
+        string? bodyPlane = null,
+        DateTime? lastPODate = null)
     {
         List<InventoryItem> items = new List<InventoryItem>();
 
@@ -62,7 +72,7 @@ public class DBservices
         int offset = (page - 1) * pageSize;
 
         StringBuilder sql = new StringBuilder();
-        sql.Append("SELECT i.* FROM InventoryItems i WHERE 1=1 ");
+        sql.Append("SELECT i.*, g.ItemGrpName, s.SupplierName FROM InventoryItems i LEFT JOIN Groups g ON g.ItemGrpID = i.ItemGrpID LEFT JOIN Suppliers s ON s.SupplierID = i.SupplierID WHERE 1=1 ");
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -86,6 +96,38 @@ public class DBservices
             sql.Append("AND EXISTS (SELECT 1 FROM ItemPlatforms ip WHERE ip.InventoryItemID = i.InventoryItemID AND ip.PlaneTypeID = @PlaneTypeID) ");
         }
 
+        if (itemGrpID.HasValue)
+        {
+            sql.Append("AND i.ItemGrpID = @ItemGrpID ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(buyMethod) && !buyMethod.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            sql.Append("AND i.BuyMethod = @BuyMethod ");
+        }
+
+        if (supplierID.HasValue)
+        {
+            sql.Append("AND i.SupplierID = @SupplierID ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(bodyPlane) && !bodyPlane.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (bodyPlane == "-")
+            {
+                sql.Append("AND (NULLIF(LTRIM(RTRIM(i.BodyPlane)), '') IS NULL OR LTRIM(RTRIM(i.BodyPlane)) = '-') ");
+            }
+            else
+            {
+                sql.Append("AND LTRIM(RTRIM(i.BodyPlane)) = @BodyPlane ");
+            }
+        }
+
+        if (lastPODate.HasValue)
+        {
+            sql.Append("AND CAST(i.LastPODate AS DATE) = @LastPODate ");
+        }
+
         sql.Append("ORDER BY i.InventoryItemID OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY");
 
         using SqlConnection con = connect("myProjDB");
@@ -96,6 +138,11 @@ public class DBservices
         cmd.Parameters.AddWithValue("@PageSize", pageSize);
         if (!string.IsNullOrWhiteSpace(search)) cmd.Parameters.AddWithValue("@Search", $"%{search.Trim()}%");
         if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+        if (itemGrpID.HasValue) cmd.Parameters.AddWithValue("@ItemGrpID", itemGrpID.Value);
+        if (!string.IsNullOrWhiteSpace(buyMethod) && !buyMethod.Equals("all", StringComparison.OrdinalIgnoreCase)) cmd.Parameters.AddWithValue("@BuyMethod", buyMethod.Trim());
+        if (supplierID.HasValue) cmd.Parameters.AddWithValue("@SupplierID", supplierID.Value);
+        if (!string.IsNullOrWhiteSpace(bodyPlane) && !bodyPlane.Equals("all", StringComparison.OrdinalIgnoreCase) && bodyPlane != "-") cmd.Parameters.AddWithValue("@BodyPlane", bodyPlane.Trim());
+        if (lastPODate.HasValue) cmd.Parameters.AddWithValue("@LastPODate", lastPODate.Value.Date);
 
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read())
@@ -105,9 +152,11 @@ public class DBservices
                 InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
                 ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
                 ItemGrpID = reader["ItemGrpID"] == DBNull.Value ? null : Convert.ToInt32(reader["ItemGrpID"]),
+                ItemGrpName = reader["ItemGrpName"] == DBNull.Value ? null : reader["ItemGrpName"].ToString(),
                 BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
                 Price = reader["Price"] == DBNull.Value ? null : Convert.ToDouble(reader["Price"]),
                 SupplierID = reader["SupplierID"] == DBNull.Value ? null : Convert.ToInt32(reader["SupplierID"]),
+                SupplierName = reader["SupplierName"] == DBNull.Value ? string.Empty : reader["SupplierName"].ToString() ?? string.Empty,
                 Whse01_QTY = reader["Whse01_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse01_QTY"]),
                 Whse03_QTY = reader["Whse03_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse03_QTY"]),
                 Whse90_QTY = reader["Whse90_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse90_QTY"]),
@@ -123,6 +172,94 @@ public class DBservices
         }
 
         return items;
+    }
+
+    public InventoryFilterOptions GetInventoryFilterOptions()
+    {
+        InventoryFilterOptions options = new InventoryFilterOptions();
+
+        using SqlConnection con = connect("myProjDB");
+
+        const string groupsSql = @"
+SELECT ItemGrpID, ItemGrpName
+FROM Groups
+WHERE NULLIF(LTRIM(RTRIM(ItemGrpName)), '') IS NOT NULL
+ORDER BY ItemGrpName";
+
+        using (SqlCommand groupsCmd = new SqlCommand(groupsSql, con))
+        {
+            groupsCmd.CommandType = CommandType.Text;
+            groupsCmd.CommandTimeout = 120;
+            using SqlDataReader groupsReader = groupsCmd.ExecuteReader();
+            while (groupsReader.Read())
+            {
+                options.Groups.Add(new InventoryGroupOption
+                {
+                    ItemGrpID = Convert.ToInt32(groupsReader["ItemGrpID"]),
+                    ItemGrpName = groupsReader["ItemGrpName"]?.ToString() ?? string.Empty
+                });
+            }
+        }
+
+        const string buyMethodsSql = @"
+SELECT DISTINCT LTRIM(RTRIM(BuyMethod)) AS BuyMethod
+FROM InventoryItems
+WHERE NULLIF(LTRIM(RTRIM(BuyMethod)), '') IS NOT NULL
+ORDER BY BuyMethod";
+
+        using (SqlCommand buyMethodsCmd = new SqlCommand(buyMethodsSql, con))
+        {
+            buyMethodsCmd.CommandType = CommandType.Text;
+            buyMethodsCmd.CommandTimeout = 120;
+            using SqlDataReader buyMethodsReader = buyMethodsCmd.ExecuteReader();
+            while (buyMethodsReader.Read())
+            {
+                options.BuyMethods.Add(buyMethodsReader["BuyMethod"]?.ToString() ?? string.Empty);
+            }
+        }
+
+        const string suppliersSql = @"
+SELECT SupplierID, SupplierName
+FROM Suppliers
+WHERE NULLIF(LTRIM(RTRIM(SupplierName)), '') IS NOT NULL
+ORDER BY SupplierName";
+
+        using (SqlCommand suppliersCmd = new SqlCommand(suppliersSql, con))
+        {
+            suppliersCmd.CommandType = CommandType.Text;
+            suppliersCmd.CommandTimeout = 120;
+            using SqlDataReader suppliersReader = suppliersCmd.ExecuteReader();
+            while (suppliersReader.Read())
+            {
+                options.Suppliers.Add(new InventorySupplierOption
+                {
+                    SupplierID = Convert.ToInt32(suppliersReader["SupplierID"]),
+                    SupplierName = suppliersReader["SupplierName"]?.ToString() ?? string.Empty
+                });
+            }
+        }
+
+        const string bodyPlanesSql = @"
+SELECT DISTINCT
+    CASE
+        WHEN NULLIF(LTRIM(RTRIM(BodyPlane)), '') IS NULL THEN '-'
+        ELSE LTRIM(RTRIM(BodyPlane))
+    END AS BodyPlaneValue
+FROM InventoryItems
+ORDER BY BodyPlaneValue";
+
+        using (SqlCommand bodyPlanesCmd = new SqlCommand(bodyPlanesSql, con))
+        {
+            bodyPlanesCmd.CommandType = CommandType.Text;
+            bodyPlanesCmd.CommandTimeout = 120;
+            using SqlDataReader bodyPlanesReader = bodyPlanesCmd.ExecuteReader();
+            while (bodyPlanesReader.Read())
+            {
+                options.BodyPlanes.Add(bodyPlanesReader["BodyPlaneValue"]?.ToString() ?? string.Empty);
+            }
+        }
+
+        return options;
     }
 
     public int ImportInventoryItemsFromExcel(string? filePath)

@@ -7,9 +7,11 @@ public class InventoryItem
     public string InventoryItemID { get; set; } = string.Empty;
     public string? ItemName { get; set; }
     public int? ItemGrpID { get; set; }
+    public string ItemGrpName { get; set; } = string.Empty;
     public string? BuyMethod { get; set; }
     public double? Price { get; set; }
     public int? SupplierID { get; set; }
+    public string SupplierName { get; set; } = string.Empty;
     public int? Whse01_QTY { get; set; }
     public int? Whse03_QTY { get; set; }
     public int? Whse90_QTY { get; set; }

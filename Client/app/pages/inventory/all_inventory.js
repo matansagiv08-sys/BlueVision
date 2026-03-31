@@ -61,10 +61,10 @@ function renderInventoryTable(data) {
     tbody.innerHTML = data.map(item => {
         const inventoryItemID = item.inventoryItemID ?? item.InventoryItemID ?? "";
         const itemName = item.itemName ?? item.ItemName ?? "";
-        const itemGrpID = item.itemGrpID ?? item.ItemGrpID ?? "";
+        const itemGrpName = item.itemGrpName ?? item.ItemGrpName ?? "";
         const buyMethod = item.buyMethod ?? item.BuyMethod ?? "";
         const price = item.price ?? item.Price;
-        const supplierID = item.supplierID ?? item.SupplierID ?? "";
+        const supplierName = item.supplierName ?? item.SupplierName ?? "";
         const whse01 = item.whse01_QTY ?? item.Whse01_QTY ?? "";
         const whse03 = item.whse03_QTY ?? item.Whse03_QTY ?? "";
         const whse90 = item.whse90_QTY ?? item.Whse90_QTY ?? "";
@@ -80,10 +80,10 @@ function renderInventoryTable(data) {
         <tr>
             <td class="col-inventory-id" title="${escapeHtml(displayOrDash(inventoryItemID))}">${displayOrDash(inventoryItemID)}</td>
             <td class="col-item-name" title="${escapeHtml(displayOrDash(itemName))}">${displayOrDash(itemName)}</td>
-            <td>${displayOrDash(itemGrpID)}</td>
+            <td>${displayOrDash(itemGrpName)}</td>
             <td>${displayOrDash(buyMethod)}</td>
             <td>${displayOrDash(price)}</td>
-            <td>${displayOrDash(supplierID)}</td>
+            <td>${displayOrDash(supplierName)}</td>
             <td>${displayOrDash(whse01)}</td>
             <td>${displayOrDash(whse03)}</td>
             <td>${displayOrDash(whse90)}</td>
