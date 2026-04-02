@@ -28,6 +28,20 @@ namespace Server.Models
         // מאפיין עזר 
         public bool IsFullyDone => Progress >= 100;
 
+        //  מאפיין מחושב למציאת התחנה הנוכחית
+        public ProductionItemStage CurrentStage
+        {
+            get
+            {
+                if (Stages == null || Stages.Count == 0) return null;
+
+                var activeStage = Stages.OrderBy(s => s.Stage.ProductionStageID)
+                                        .FirstOrDefault(s => s.Status != null && s.Status.ProductionStatusID != 4);
+
+                return activeStage ?? Stages.OrderByDescending(s => s.Stage.ProductionStageID).FirstOrDefault();
+            }
+        }
+
         public List<ItemInProduction> GetBoardData()
         {
             DBservices dbs = new DBservices();

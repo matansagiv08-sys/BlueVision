@@ -17,7 +17,6 @@ namespace Server.Models
             {
                 if (Planes == null || Planes.Count == 0) return 0;
 
-                // איסוף כל החלקים מכל המטוסים לרשימה אחת
                 var allItems = Planes.SelectMany(p => p.Items).ToList();
 
                 if (allItems.Count == 0) return 0;

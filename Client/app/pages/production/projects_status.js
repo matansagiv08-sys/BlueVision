@@ -23,38 +23,61 @@ function renderProjects(projects) {
     projects.forEach(project => {
         const pProgress = Math.round(project.progress || 0);
         const dueDate = project.dueDate ? new Date(project.dueDate).toLocaleDateString('he-IL') : "אין תאריך";
-
+        const planeCount = project.planes ? project.planes.length : 0;
         str += `
-        <div class="ps-project-card">
-            <button class="ps-project-head" onclick="$(this).next('.ps-project-body').slideToggle(); $(this).find('.ps-chev').toggleClass('up');">
-                <span class="ps-chev">▼</span>
-                <div class="ps-project-title">
-                    <span class="ps-project-name">${project.projectName}</span>
-                    <span class="ps-project-sub">#${project.projectID}</span>
-                </div>
-                
-                <div class="ps-project-meta">
-                    <div class="ps-project-meta-right">
-                        <span class="ps-deadline">יעד: ${dueDate}</span>
-                    </div>
-                    <div class="ps-project-meta-left">
-                        <div class="ps-progress">
-                            <div class="ps-progress-bar" style="width: ${pProgress}%"></div>
-                        </div>
-                        <span class="ps-percent">${pProgress}%</span>
-                    </div>
-                </div>
-            </button>
-
-            <div class="ps-project-body">
-                <div class="ps-uav-list">
-                    ${renderPlanes(project.planes || [])}
-                </div>
+<div class="ps-project-card" id="project-${project.projectID}">
+    <button class="ps-project-head" onclick="toggleProject(${project.projectID})">
+        <span class="ps-chev">▼</span>
+        <div class="ps-project-title">
+            <span class="ps-project-name">${project.projectName}</span>
+            <span class="ps-counter">${planeCount} כטב"מים</span> 
+        </div>
+        
+        <div class="ps-project-meta">
+            <div class="ps-project-meta-right">
+                <span class="ps-deadline">יעד: ${dueDate}</span>
             </div>
-        </div>`;
+            <div class="ps-project-meta-left">
+                <div class="ps-progress">
+                    <div class="ps-progress-bar" style="width: ${pProgress}%"></div>
+                </div>
+                <span class="ps-percent">${pProgress}%</span>
+            </div>
+        </div>
+    </button>
+
+    <div class="ps-project-body" style="display:none;"> 
+        <div class="ps-uav-list">
+            ${renderPlanes(project.planes || [])}
+        </div>
+    </div>
+</div>`;
     });
 
     $("#projects-list").html(str);
+}
+
+function toggleProject(projectId) {
+    const currentCard = $(`#project-${projectId}`);
+    const currentBody = currentCard.find('.ps-project-body');
+    const isOpening = !currentBody.is(':visible');
+
+
+    $('.ps-project-body').slideUp();
+    $('.ps-project-card').removeClass('highlight-blue'); 
+    $('.ps-project-card').find('.ps-uav-body').slideUp();
+    $('.ps-chev').removeClass('up');
+
+    if (isOpening) {
+        currentBody.slideDown();
+        currentCard.addClass('highlight-blue'); 
+        currentCard.find('.ps-chev').addClass('up');
+    } else {
+        currentBody.slideUp();
+        currentCard.removeClass('highlight-blue');
+        currentCard.find('.ps-uav-body').slideUp();
+        currentCard.find('.ps-chev').removeClass('up');
+    }
 }
 
 function renderPlanes(planes) {
@@ -62,15 +85,16 @@ function renderPlanes(planes) {
 
     return planes.map(plane => {
         const plProgress = Math.round(plane.progress || 0);
+        const typeName = (plane.type && plane.type.planeTypeName) ? plane.type.planeTypeName : "UAV";
+
         return `
         <div class="ps-uav-container">
-            <div class="ps-uav-row" onclick="$(this).next('.ps-uav-body').slideToggle(); $(this).toggleClass('active');">
+            <div class="ps-uav-row" onclick="togglePlane(this)">
                 <span class="ps-chev">▼</span>
                 <div class="ps-uav-right">
-                    <span class="ps-tag">UAV</span>
+                    <span class="ps-tag">${typeName}</span> 
                     <span class="ps-uav-id">מטוס ${plane.planeID}</span>
                 </div>
-                
                 <div class="ps-uav-left">
                     <div class="ps-uav-progress">
                         <div class="ps-uav-progress-bar" style="width: ${plProgress}%"></div>
@@ -79,16 +103,18 @@ function renderPlanes(planes) {
                 </div>
             </div>
             
-            <div class="ps-uav-body">
+            <div class="ps-uav-body" style="display:none;">
                 <div class="ps-parts-tablewrap">
                     <table class="ps-parts-table">
                         <thead>
                             <tr>
                                 <th>מספר סידורי</th>
                                 <th>מק"ט פריט</th>
+                                <th>מספר פק"ע</th>
+                                <th>תיאור פריט</th>
                                 <th>כמות מתוכננת</th>
-                                <th>הערות</th>
-                                <th>סטטוס נוכחי</th>
+                                <th>תחנה נוכחית</th>
+                                <th>סטטוס</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -101,32 +127,47 @@ function renderPlanes(planes) {
     }).join("");
 }
 
+function togglePlane(element) {
+    const $row = $(element);
+    const $body = $row.next('.ps-uav-body');
+    const $container = $row.closest('.ps-project-body'); // מוצא את גוף הפרויקט הנוכחי
+
+    // אם אתה רוצה שכשפותחים מטוס, שאר המטוסים באותו פרויקט יסגרו:
+    if (!$body.is(':visible')) {
+        $container.find('.ps-uav-body').slideUp();
+        $container.find('.ps-uav-row').removeClass('active');
+    }
+
+    $body.slideToggle();
+    $row.toggleClass('active');
+}
+
 function renderItems(items) {
-    if (items.length === 0) return "<tr><td colspan='5' style='text-align:center;'>אין פריטים בייצור למטוס זה</td></tr>";
+    if (!items || items.length === 0) return "<tr><td colspan='7' style='text-align:center;'>אין פריטים בייצור</td></tr>";
 
-    return items.map(item => {
-        // מציאת הסטטוס האחרון מתוך רשימת ה-Stages
-        const lastStage = item.stages && item.stages.length > 0 ? item.stages[item.stages.length - 1] : null;
-        const statusID = lastStage && lastStage.status ? lastStage.status.productionStatusID : 0;
+    const itemsArray = items.$values ? items.$values : items;
 
-        // בחירת קלאס לצבע הסטטוס (לפי ה-CSS שלך)
-        let statusClass = "ps-pill-info";
-        let statusText = "בביצוע";
+    return itemsArray.map(item => {
+        const current = item.currentStage;
+        const stageName = (current && current.stage) ? current.stage.productionStageName : "-";
+        const statusName = (current && current.status) ? current.status.productionStatusName : "-";
+        const statusID = (current && current.status) ? current.status.productionStatusID : 0;
 
-        if (statusID === 4) {
-            statusClass = "ps-pill-good";
-            statusText = "בוצע";
-        }
+        const itemDescription = (item.productionItem && item.productionItem.itemName)
+            ? item.productionItem.itemName
+            : (item.comments || "-");
+
+        let statusClass = `status-${statusID}`;
 
         return `
         <tr>
-            <td>${item.serialNumber}</td>
-            <td>${item.productionItem ? item.productionItem.productionItemID : 'N/A'}</td>
+            <td class="ps-col-sn">${item.serialNumber}</td>
+            <td>${item.productionItem ? item.productionItem.productionItemID : '-'}</td>
+            <td>${item.workOrderID || '-'}</td>
+            <td class="ps-col-desc" title="${itemDescription}">${itemDescription}</td>
             <td>${item.plannedQty}</td>
-            <td class="ps-col-desc">${item.comments || '-'}</td>
-            <td>
-                <span class="ps-pill ${statusClass}">${statusText}</span>
-            </td>
+            <td><span class="ps-stage-name">${stageName}</span></td>
+            <td><span class="status-pill ${statusClass}">${statusName}</span></td>
         </tr>`;
     }).join("");
 }

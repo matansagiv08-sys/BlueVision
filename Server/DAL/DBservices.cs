@@ -1426,7 +1426,12 @@ INNER JOIN #BuyMethodUpdates u
                             ProjectID = pID,
                             PriorityLevel = Convert.ToInt32(reader["PlanePriority"]),
                             Items = new List<ItemInProduction>(),
-                            Type = new PlaneType { PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]) }
+                            // כאן השינוי - הוספת השם מתוך ה-reader
+                            Type = new PlaneType
+                            {
+                                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                                PlaneTypeName = reader["PlaneTypeName"].ToString()
+                            }
                         };
                         projectsMap[pID].Planes.Add(planesMap[plID]);
                     }
@@ -1442,7 +1447,11 @@ INNER JOIN #BuyMethodUpdates u
                                 WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
                                 PlannedQty = Convert.ToInt32(reader["PlannedQty"]),
                                 Comments = reader["Comments"].ToString(),
-                                ProductionItem = new ProductionItem { ProductionItemID = reader["ProductionItemID"].ToString() },
+                                ProductionItem = new ProductionItem
+                                {
+                                    ProductionItemID = reader["ProductionItemID"].ToString(),
+                                    ItemName = reader["ItemName"].ToString()
+                                },
                                 Stages = new List<ProductionItemStage>()
                             };
                             planesMap[plID].Items.Add(itemsMap[sn]);
@@ -1455,7 +1464,14 @@ INNER JOIN #BuyMethodUpdates u
                             {
                                 Status = new ProductionStatus
                                 {
-                                    ProductionStatusID = Convert.ToInt32(reader["ProductionStatusID"])
+                                    ProductionStatusID = Convert.ToInt32(reader["ProductionStatusID"]),
+                                    ProductionStatusName = reader["ProductionStatusName"].ToString() // עכשיו זה יעבוד
+                                },
+                                Stage = new ProductionStage
+                                {
+                                    ProductionStageID = Convert.ToInt32(reader["ProductionStageID"]),
+                                    ProductionStageName = reader["ProductionStageName"].ToString(), // עכשיו זה יעבוד
+                                    StageOrder = Convert.ToInt32(reader["StageOrder"]) // קריטי ל-CurrentStage
                                 }
                             });
                         }
