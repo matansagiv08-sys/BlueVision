@@ -15,6 +15,19 @@ namespace Server.Models
 
         public ItemInProduction() { }
 
+        public double Progress
+        {
+            get
+            {
+                if (Stages == null || Stages.Count == 0) return 0;
+                double doneStagesCount = Stages.Count(s => s.Status != null && s.Status.ProductionStatusID == 4);
+                return (doneStagesCount / Stages.Count) * 100;
+            }
+        }
+
+        // מאפיין עזר 
+        public bool IsFullyDone => Progress >= 100;
+
         public List<ItemInProduction> GetBoardData()
         {
             DBservices dbs = new DBservices();

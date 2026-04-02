@@ -1385,4 +1385,87 @@ INNER JOIN #BuyMethodUpdates u
         finally { if (con != null) con.Close(); }
     }
 
+    public List<Project> GetFullProjectsStatus()
+    {
+        SqlConnection con = null;
+        Dictionary<int, Project> projectsMap = new Dictionary<int, Project>();
+        Dictionary<int, Plane> planesMap = new Dictionary<int, Plane>();
+        Dictionary<int, ItemInProduction> itemsMap = new Dictionary<int, ItemInProduction>();
+
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("sp_GetFullProjectsStatus", con, null);
+            SqlDataReader reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                //   בפרויקט
+                int pID = Convert.ToInt32(reader["ProjectID"]);
+                if (!projectsMap.ContainsKey(pID))
+                {
+                    projectsMap[pID] = new Project
+                    {
+                        ProjectID = pID,
+                        ProjectName = reader["ProjectName"].ToString(),
+                        DueDate = Convert.ToDateTime(reader["DueDate"]),
+                        PriorityLevel = Convert.ToInt32(reader["ProjectPriority"]),
+                        Planes = new List<Plane>()
+                    };
+                }
+
+                //  במטוס
+                if (reader["PlaneID"] != DBNull.Value)
+                {
+                    int plID = Convert.ToInt32(reader["PlaneID"]);
+                    if (!planesMap.ContainsKey(plID))
+                    {
+                        planesMap[plID] = new Plane
+                        {
+                            PlaneID = plID,
+                            ProjectID = pID,
+                            PriorityLevel = Convert.ToInt32(reader["PlanePriority"]),
+                            Items = new List<ItemInProduction>(),
+                            Type = new PlaneType { PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]) }
+                        };
+                        projectsMap[pID].Planes.Add(planesMap[plID]);
+                    }
+
+                    if (reader["SerialNumber"] != DBNull.Value)
+                    {
+                        int sn = Convert.ToInt32(reader["SerialNumber"]);
+                        if (!itemsMap.ContainsKey(sn))
+                        {
+                            itemsMap[sn] = new ItemInProduction
+                            {
+                                SerialNumber = sn,
+                                WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
+                                PlannedQty = Convert.ToInt32(reader["PlannedQty"]),
+                                Comments = reader["Comments"].ToString(),
+                                ProductionItem = new ProductionItem { ProductionItemID = reader["ProductionItemID"].ToString() },
+                                Stages = new List<ProductionItemStage>()
+                            };
+                            planesMap[plID].Items.Add(itemsMap[sn]);
+                        }
+
+                        //  הוספת התחנה
+                        if (reader["ProductionStatusID"] != DBNull.Value)
+                        {
+                            itemsMap[sn].Stages.Add(new ProductionItemStage
+                            {
+                                Status = new ProductionStatus
+                                {
+                                    ProductionStatusID = Convert.ToInt32(reader["ProductionStatusID"])
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            return projectsMap.Values.ToList();
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
 }
