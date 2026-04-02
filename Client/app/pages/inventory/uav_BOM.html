@@ -1,14 +1,6 @@
-﻿<div class="uav-bom-page">
+<div class="uav-bom-page">
     <div class="bom-selection-header">
-        <div class="custom-slider-toggle main-type-toggle">
-            <button class="slider-btn active" onclick="window.switchBomType('uav', this)">כטב"מים</button>
-            <button class="slider-btn" onclick="window.switchBomType('bodies', this)">גופים</button>
-        </div>
-
-        <div class="custom-slider-toggle model-selection-toggle">
-            <button class="slider-btn active" onclick="window.filterBomByModel('WanderB', this)">WanderB</button>
-            <button class="slider-btn" onclick="window.filterBomByModel('ThunderBird V', this)">ThunderBird V</button>
-            <button class="slider-btn" onclick="window.filterBomByModel('Spider X6', this)">Spider X6</button>
+        <div id="bomPlaneToggle" class="custom-slider-toggle model-selection-toggle">
         </div>
     </div>
 
@@ -19,17 +11,35 @@
         </div>
 
         <div class="filter-actions">
-            <select id="categoryFilter" onchange="window.filterBomTable()">
-                <option value="all">כל הקטגוריות</option>
-                <option value="electronics">אלקטרוניקה</option>
-                <option value="mechanical">מכאני</option>
+            <select id="bomMeasureUnitFilter" onchange="window.filterBomTable()">
+                <option value="" selected disabled>יחידת מידה</option>
+                <option value="all">הכל</option>
             </select>
-            <button class="btn-secondary-action" onclick="window.sortBomTable()">
-                מיון כמות ⇅
-            </button>
-            <button class="btn-primary" onclick="window.exportToExcel()" style="margin-right: 10px;">
-                ייצא לאקסל 📄
-            </button>
+
+            <select id="bomWarehouseFilter" onchange="window.filterBomTable()">
+                <option value="" selected disabled>מחסן</option>
+                <option value="all">הכל</option>
+            </select>
+
+            <select id="bomLevelFilter" onchange="window.filterBomTable()">
+                <option value="" selected disabled>רמת BOM</option>
+                <option value="all">הכל</option>
+            </select>
+
+            <select id="bomHasChildFilter" onchange="window.filterBomTable()">
+                <option value="" selected disabled>סטטוס ילדים</option>
+                <option value="all">הכל</option>
+            </select>
+
+            <select id="bomBuyMethodFilter" onchange="window.filterBomTable()">
+                <option value="" selected disabled>שיטת רכישה</option>
+                <option value="all">הכל</option>
+            </select>
+
+            <select id="bomBodyPlaneFilter" onchange="window.filterBomTable()">
+                <option value="" selected disabled>כל גוף/כנף</option>
+                <option value="all">הכל</option>
+            </select>
         </div>
     </div>
 
@@ -37,15 +47,25 @@
         <table class="generic-data-table">
             <thead>
                 <tr>
-                    <th>מק"ט</th>
-                    <th>תיאור פריט</th>
-                    <th>כמות נדרשת</th>
-                    <th>במלאי</th>
-                    <th>סטטוס</th>
+                    <th>InventoryItemID</th>
+                    <th>ItemName</th>
+                    <th>Quantity</th>
+                    <th>MeasureUnit</th>
+                    <th>Warehouse</th>
+                    <th>BomLevel</th>
+                    <th>HasChild</th>
+                    <th>BuyMethod</th>
+                    <th>BodyPlane</th>
                 </tr>
             </thead>
             <tbody id="bom-table-body">
             </tbody>
         </table>
+    </div>
+
+    <div class="inventory-pager bom-pager">
+        <button id="prevBomPageBtn" class="inventory-page-btn" onclick="window.prevBomPage()" aria-label="Previous page" title="Previous page">&#8249;</button>
+        <div id="bomPageNumbers" class="inventory-page-numbers"></div>
+        <button id="nextBomPageBtn" class="inventory-page-btn" onclick="window.nextBomPage()" aria-label="Next page" title="Next page">&#8250;</button>
     </div>
 </div>

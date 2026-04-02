@@ -174,6 +174,253 @@ public class DBservices
         return items;
     }
 
+    public List<BomPlaneOption> GetBomPlaneOptions()
+    {
+        List<BomPlaneOption> options = new List<BomPlaneOption>();
+
+        const string sql = @"
+SELECT DISTINCT
+    b.PlaneTypeID,
+    COALESCE(NULLIF(LTRIM(RTRIM(pt.PlaneTypeName)), ''), CAST(b.PlaneTypeID AS NVARCHAR(20))) AS PlaneTypeName
+FROM BOM b
+LEFT JOIN PlaneTypes pt ON pt.PlaneTypeID = b.PlaneTypeID
+ORDER BY PlaneTypeName";
+
+        using SqlConnection con = connect("myProjDB");
+        using SqlCommand cmd = new SqlCommand(sql, con);
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandTimeout = 120;
+
+        using SqlDataReader reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            options.Add(new BomPlaneOption
+            {
+                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                PlaneTypeName = reader["PlaneTypeName"]?.ToString() ?? string.Empty
+            });
+        }
+
+        return options;
+    }
+
+    public List<BomRow> GetBomRows(
+        int page = 1,
+        int pageSize = 100,
+        int? planeTypeId = null,
+        string? search = null,
+        string? measureUnit = null,
+        string? warehouse = null,
+        int? bomLevel = null,
+        bool? hasChild = null,
+        string? buyMethod = null,
+        string? bodyPlane = null)
+    {
+        List<BomRow> rows = new List<BomRow>();
+
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 100;
+
+        int offset = (page - 1) * pageSize;
+
+        StringBuilder sql = new StringBuilder();
+        sql.Append("SELECT b.BomSerialID, b.PlaneTypeID, b.RowOrder, b.InventoryItemID, b.ItemName, b.Quantity, b.MeasureUnit, b.Warehouse, b.BomLevel, b.HasChild, b.BuyMethod, b.BodyPlane FROM BOM b WHERE 1=1 ");
+
+        if (planeTypeId.HasValue)
+        {
+            sql.Append("AND b.PlaneTypeID = @PlaneTypeID ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sql.Append("AND (b.InventoryItemID LIKE @Search OR b.ItemName LIKE @Search) ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(measureUnit) && !measureUnit.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            sql.Append("AND LTRIM(RTRIM(b.MeasureUnit)) = @MeasureUnit ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(warehouse) && !warehouse.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            sql.Append("AND LTRIM(RTRIM(b.Warehouse)) = @Warehouse ");
+        }
+
+        if (bomLevel.HasValue)
+        {
+            sql.Append("AND b.BomLevel = @BomLevel ");
+        }
+
+        if (hasChild.HasValue)
+        {
+            sql.Append("AND b.HasChild = @HasChild ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(buyMethod) && !buyMethod.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            sql.Append("AND b.BuyMethod = @BuyMethod ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(bodyPlane) && !bodyPlane.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (bodyPlane == "-")
+            {
+                sql.Append("AND (NULLIF(LTRIM(RTRIM(b.BodyPlane)), '') IS NULL OR LTRIM(RTRIM(b.BodyPlane)) = '-') ");
+            }
+            else
+            {
+                sql.Append("AND LTRIM(RTRIM(b.BodyPlane)) = @BodyPlane ");
+            }
+        }
+
+        sql.Append("ORDER BY b.RowOrder OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY");
+
+        using SqlConnection con = connect("myProjDB");
+        using SqlCommand cmd = new SqlCommand(sql.ToString(), con);
+        cmd.CommandType = CommandType.Text;
+        cmd.CommandTimeout = 120;
+        cmd.Parameters.AddWithValue("@Offset", offset);
+        cmd.Parameters.AddWithValue("@PageSize", pageSize);
+        if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+        if (!string.IsNullOrWhiteSpace(search)) cmd.Parameters.AddWithValue("@Search", $"%{search.Trim()}%");
+        if (!string.IsNullOrWhiteSpace(measureUnit) && !measureUnit.Equals("all", StringComparison.OrdinalIgnoreCase)) cmd.Parameters.AddWithValue("@MeasureUnit", measureUnit.Trim());
+        if (!string.IsNullOrWhiteSpace(warehouse) && !warehouse.Equals("all", StringComparison.OrdinalIgnoreCase)) cmd.Parameters.AddWithValue("@Warehouse", warehouse.Trim());
+        if (bomLevel.HasValue) cmd.Parameters.AddWithValue("@BomLevel", bomLevel.Value);
+        if (hasChild.HasValue) cmd.Parameters.AddWithValue("@HasChild", hasChild.Value);
+        if (!string.IsNullOrWhiteSpace(buyMethod) && !buyMethod.Equals("all", StringComparison.OrdinalIgnoreCase)) cmd.Parameters.AddWithValue("@BuyMethod", buyMethod.Trim());
+        if (!string.IsNullOrWhiteSpace(bodyPlane) && !bodyPlane.Equals("all", StringComparison.OrdinalIgnoreCase) && bodyPlane != "-") cmd.Parameters.AddWithValue("@BodyPlane", bodyPlane.Trim());
+
+        using SqlDataReader reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            rows.Add(new BomRow
+            {
+                BomSerialID = Convert.ToInt32(reader["BomSerialID"]),
+                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                RowOrder = Convert.ToInt32(reader["RowOrder"]),
+                InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
+                ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
+                Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
+                MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
+                Warehouse = reader["Warehouse"] == DBNull.Value ? null : reader["Warehouse"].ToString(),
+                BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
+                HasChild = reader["HasChild"] == DBNull.Value ? false : Convert.ToBoolean(reader["HasChild"]),
+                BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
+                BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
+            });
+        }
+
+        return rows;
+    }
+
+    public BomFilterOptions GetBomFilterOptions(int? planeTypeId = null)
+    {
+        BomFilterOptions options = new BomFilterOptions();
+
+        string planeFilter = planeTypeId.HasValue ? "WHERE b.PlaneTypeID = @PlaneTypeID" : string.Empty;
+
+        using SqlConnection con = connect("myProjDB");
+
+        const string measureUnitsSql = @"
+SELECT DISTINCT LTRIM(RTRIM(b.MeasureUnit)) AS Value
+FROM BOM b
+{PLANE_FILTER}
+AND NULLIF(LTRIM(RTRIM(b.MeasureUnit)), '') IS NOT NULL
+ORDER BY Value";
+
+        using (SqlCommand cmd = new SqlCommand(measureUnitsSql.Replace("{PLANE_FILTER}", planeFilter == string.Empty ? "WHERE 1=1" : planeFilter), con))
+        {
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 120;
+            if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read()) options.MeasureUnits.Add(reader["Value"]?.ToString() ?? string.Empty);
+        }
+
+        const string warehousesSql = @"
+SELECT DISTINCT LTRIM(RTRIM(b.Warehouse)) AS Value
+FROM BOM b
+{PLANE_FILTER}
+AND NULLIF(LTRIM(RTRIM(b.Warehouse)), '') IS NOT NULL
+ORDER BY Value";
+
+        using (SqlCommand cmd = new SqlCommand(warehousesSql.Replace("{PLANE_FILTER}", planeFilter == string.Empty ? "WHERE 1=1" : planeFilter), con))
+        {
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 120;
+            if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read()) options.Warehouses.Add(reader["Value"]?.ToString() ?? string.Empty);
+        }
+
+        const string bomLevelsSql = @"
+SELECT DISTINCT b.BomLevel
+FROM BOM b
+{PLANE_FILTER}
+ORDER BY b.BomLevel";
+
+        using (SqlCommand cmd = new SqlCommand(bomLevelsSql.Replace("{PLANE_FILTER}", planeFilter), con))
+        {
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 120;
+            if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read()) options.BomLevels.Add(Convert.ToInt32(reader["BomLevel"]));
+        }
+
+        const string hasChildSql = @"
+SELECT DISTINCT b.HasChild
+FROM BOM b
+{PLANE_FILTER}
+ORDER BY b.HasChild";
+
+        using (SqlCommand cmd = new SqlCommand(hasChildSql.Replace("{PLANE_FILTER}", planeFilter), con))
+        {
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 120;
+            if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read()) options.HasChildOptions.Add(Convert.ToBoolean(reader["HasChild"]));
+        }
+
+        const string buyMethodsSql = @"
+SELECT DISTINCT LTRIM(RTRIM(b.BuyMethod)) AS Value
+FROM BOM b
+{PLANE_FILTER}
+AND NULLIF(LTRIM(RTRIM(b.BuyMethod)), '') IS NOT NULL
+ORDER BY Value";
+
+        using (SqlCommand cmd = new SqlCommand(buyMethodsSql.Replace("{PLANE_FILTER}", planeFilter == string.Empty ? "WHERE 1=1" : planeFilter), con))
+        {
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 120;
+            if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read()) options.BuyMethods.Add(reader["Value"]?.ToString() ?? string.Empty);
+        }
+
+        const string bodyPlanesSql = @"
+SELECT DISTINCT
+    CASE
+        WHEN NULLIF(LTRIM(RTRIM(b.BodyPlane)), '') IS NULL THEN '-'
+        ELSE LTRIM(RTRIM(b.BodyPlane))
+    END AS Value
+FROM BOM b
+{PLANE_FILTER}
+ORDER BY Value";
+
+        using (SqlCommand cmd = new SqlCommand(bodyPlanesSql.Replace("{PLANE_FILTER}", planeFilter), con))
+        {
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 120;
+            if (planeTypeId.HasValue) cmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeId.Value);
+            using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read()) options.BodyPlanes.Add(reader["Value"]?.ToString() ?? string.Empty);
+        }
+
+        return options;
+    }
+
     public InventoryFilterOptions GetInventoryFilterOptions()
     {
         InventoryFilterOptions options = new InventoryFilterOptions();

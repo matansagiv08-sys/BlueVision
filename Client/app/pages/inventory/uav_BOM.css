@@ -7,9 +7,9 @@
 /* שורת סליידרים: מצמידים אותם לצדדים (ימין ושמאל) */
 .bom-selection-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     width: 100%;
 }
 
@@ -21,6 +21,8 @@
 /* עיצוב ספציפי לסליידר הדגמים כדי להבדילו מהסליידר הראשי */
 .model-selection-toggle {
     background: #eef2f6 !important;
+    display: inline-flex;
+    flex-wrap: wrap;
 }
 
 
@@ -43,8 +45,84 @@
     gap: 20px;
 }
 
+.uav-bom-page .search-container {
+    flex: 1 1 320px;
+    min-width: 220px;
+}
+
+.uav-bom-page .filter-actions {
+    flex: 1 1 520px;
+    min-width: 220px;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 /* מתיחת הטבלה לכל הרוחב */
 .uav-bom-page .table-container {
     width: 100%;
     margin-top: 0;
+}
+
+.uav-bom-page .inventory-pager {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    direction: ltr;
+}
+
+.uav-bom-page .inventory-page-numbers {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.uav-bom-page .inventory-page-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 16px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.uav-bom-page .inventory-page-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.uav-bom-page .inventory-page-number {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.uav-bom-page .inventory-page-number.is-active {
+    background: #0c2340;
+    border-color: #0c2340;
+    color: #ffffff;
+}
+
+.uav-bom-page .inventory-page-ellipsis {
+    min-width: 24px;
+    text-align: center;
+    color: #64748b;
+    font-weight: 700;
+    user-select: none;
 }
