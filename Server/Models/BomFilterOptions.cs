@@ -1,5 +1,11 @@
 namespace Server.Models;
 
+public class BomPlaneOption
+{
+    public int PlaneTypeID { get; set; }
+    public string PlaneTypeName { get; set; } = string.Empty;
+}
+
 public class BomFilterOptions
 {
     public List<string> MeasureUnits { get; set; } = new List<string>();
