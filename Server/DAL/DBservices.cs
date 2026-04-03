@@ -1414,6 +1414,7 @@ INNER JOIN #BuyMethodUpdates u
                     },
                     Status = new ProductionStatus
                     {
+                        ProductionStatusID = Convert.ToInt32(reader["ProductionStatusID"]),
                         ProductionStatusName = reader["StatusName"].ToString()
                     },
                     Comment = reader["Comment"].ToString()

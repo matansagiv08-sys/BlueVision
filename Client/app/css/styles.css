@@ -633,29 +633,29 @@ body.mode-inventory .tab-inventory {
 }
 
 /* התאמה ל-IDs מה-Database שלך */
-.status-1 {
-    background-color: #f0f4f8;
-    color: #64748b;
-    border: 1px solid #cbd5e1;
-}
+.status-pill.status-1 {
+        background-color: #f0f4f8;
+        color: #64748b;
+        border: 1px solid #cbd5e1;
+    }
 /* טרם החל */
-.status-2 {
-    background-color: #fff7ed;
-    color: #ea580c;
-    border: 1px solid #fdba74;
-}
+.status-pill.status-2.status-2 {
+        background-color: #fff7ed;
+        color: #ea580c;
+        border: 1px solid #fdba74;
+    }
 /* בביצוע / בתהליך */
-.status-3 {
-    background-color: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-}
+.status-pill.status-3 {
+        background-color: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
 /* תקוע / עיכוב */
-.status-4 {
-    background-color: #f0fdf4;
-    color: #16a34a;
-    border: 1px solid #bbf7d0;
-}
+.status-pill.status-4 {
+        background-color: #f0fdf4;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+    }
 /* בוצע / הושלם */
 
 .ps-counter {

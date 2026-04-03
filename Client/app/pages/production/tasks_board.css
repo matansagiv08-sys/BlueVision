@@ -60,52 +60,6 @@
     vertical-align: middle;
 }
 
-/* Pills */
-.status-pill {
-    display: inline-flex; /* NEW: makes hover effects visible */
-    align-items: center;
-    justify-content: center;
-    border: 2px dashed #cbd5e1; /* changed to 2px so change is visible */
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    min-width: 92px;
-    font-weight: 700;
-    white-space: nowrap;
-    transition: border-color 0.12s ease, background-color 0.12s ease;
-}
-
-.status-none {
-    color: #64748b;
-    background: #ffffff;
-}
-
-.status-done {
-    background: #dcfce7;
-    border: 1px solid #86efac;
-    color: #15803d;
-}
-
-.status-progress {
-    background: #dbeafe;
-    border: 1px solid #93c5fd;
-    color: #1d4ed8;
-}
-
-.status-hold {
-    background: #ffedd5;
-    border: 1px solid #fdba74;
-    color: #c2410c;
-}
-
-.status-blocked {
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    color: #b91c1c;
-}
-
 
 /* NEW: keyboard accessibility (optional but recommended) */
 .status-pill:focus-visible {
@@ -155,15 +109,15 @@
     gap: 12px;
 }
 
-.tb-status-btn {
+/*.tb-status-btn {
     padding: 12px;
-    border: 2px solid #cbd5e1;
+    //border: 2px solid #cbd5e1;
     border-radius: 12px;
-    background: #ffffff;
+    //background: #ffffff;
     cursor: pointer;
     font-weight: 800;
     transition: all 0.15s;
-}
+}*/
 
     .tb-status-btn.active {
         border-color: #0c2340;

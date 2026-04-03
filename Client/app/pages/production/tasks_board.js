@@ -46,7 +46,6 @@ function renderTasksBoard(boardData, allStages) {
         return acc;
     }, {});
 
-    // בניית ה HTML 
     let html = "";
     for (const typeName in grouped) {
         html += `
@@ -84,20 +83,24 @@ function renderRow(row, allStages) {
             <td class="tb-col-qty">${row.plannedQty}</td>
             ${allStages.map(stage => {
         const itemStage = row.stages.find(s => s.stage.productionStageID === stage.productionStageID);
-        const statusName = itemStage ? itemStage.status.productionStatusName : "none";
-        return `<td>${renderPill(row.serialNumber, stage.productionStageName, statusName, stage.productionStageID)}</td>`;
+
+        const statusID = itemStage && itemStage.status ? itemStage.status.productionStatusID : 1;
+        const statusName = itemStage && itemStage.status ? itemStage.status.productionStatusName : "טרם בוצע";
+
+        return `<td>${renderPill(row.serialNumber, stage.productionStageName, statusID, statusName, stage.productionStageID)}</td>`;
     }).join("")}
         </tr>`;
 }
 
-function renderPill(serialNumber, stationName, status, stageID) {
-    const statusClass = `status-${status.toLowerCase()}`;
-    // שינוי: הוספנו data-stageid כדי לשלוף אותו בקלות במודל
+function renderPill(serialNumber, stationName, statusID, statusName, stageID) {
+    const sID = parseInt(statusID) || 1;
+    const statusClass = `status-${sID}`;
+
     return `<div class="status-pill ${statusClass}" 
-                 data-status="${status}" 
+                 data-statusid="${sID}" 
                  data-stageid="${stageID}" 
                  onclick="window.openStatusModal('${serialNumber}', '${stationName}', this)">
-                 ${status === "none" ? "טרם" : status}
+                 ${statusName}
             </div>`;
 }
 
@@ -110,7 +113,7 @@ window.openStatusModal = function (serialNumber, station, pillEl) {
 
     tbActivePillEl = pillEl;
     tbSelectedStatus = pillEl.dataset.status || "none";
-    const stageID = pillEl.dataset.stageid; // שליפת ה-ID של התחנה מה-Pill
+    const stageID = pillEl.dataset.stageid;
 
     document.getElementById("modalTitle").innerText = "עדכון סטטוס תחנה";
 
