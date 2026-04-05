@@ -1806,36 +1806,7 @@ INNER JOIN #BuyMethodUpdates u
         return cmd.ExecuteNonQuery();
     }
 
-    //public int InsertPlane(Plane p)
-    //{
-    //    Dictionary<string, object> d = new Dictionary<string, object> {
-    //    {"@PlaneTypeID", p.PlaneTypeID},
-    //    {"@ProjectID", p.ProjectID},
-    //    {"@PriorityLevel", p.PriorityLevel}
-    //};
-    //    SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertPlane", connect("myProjDB"), d);
-    //    return cmd.ExecuteNonQuery();
-    //}
-
-    //public int UpdatePlane(Plane p)
-    //{
-    //    Dictionary<string, object> d = new Dictionary<string, object> {
-    //    {"@PlaneID", p.PlaneID},
-    //    {"@PlaneTypeID", p.PlaneTypeID},
-    //    {"@ProjectID", p.ProjectID},
-    //    {"@PriorityLevel", p.PriorityLevel}
-    //};
-    //    SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUpdatePlane", connect("myProjDB"), d);
-    //    return cmd.ExecuteNonQuery();
-    //}
-
-    //public int DeletePlane(int id)
-    //{
-    //    Dictionary<string, object> d = new Dictionary<string, object> { { "@PlaneID", id } };
-    //    SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeletePlane", connect("myProjDB"), d);
-    //    return cmd.ExecuteNonQuery();
-    //}
-
+   
     public List<PlaneType> GetPlaneTypes()
     {
         SqlConnection con = null;
@@ -1911,7 +1882,6 @@ INNER JOIN #BuyMethodUpdates u
             if (con != null) con.Close();
         }
     }
-    //קריאת נתוני תחנות העבודה בייצור
     public List<ProductionStage> GetProductionStages()
     {
         SqlConnection con = null;
@@ -1949,7 +1919,7 @@ INNER JOIN #BuyMethodUpdates u
         SqlConnection con = null;
         Dictionary<int, Project> projectsMap = new Dictionary<int, Project>();
         Dictionary<int, Plane> planesMap = new Dictionary<int, Plane>();
-        Dictionary<int, ItemInProduction> itemsMap = new Dictionary<int, ItemInProduction>();
+        Dictionary<string, ItemInProduction> itemsMap = new Dictionary<string, ItemInProduction>();
 
         try
         {
@@ -1959,7 +1929,6 @@ INNER JOIN #BuyMethodUpdates u
 
             while (reader.Read())
             {
-                //   בפרויקט
                 int pID = Convert.ToInt32(reader["ProjectID"]);
                 if (!projectsMap.ContainsKey(pID))
                 {
@@ -1967,13 +1936,14 @@ INNER JOIN #BuyMethodUpdates u
                     {
                         ProjectID = pID,
                         ProjectName = reader["ProjectName"].ToString(),
-                        DueDate = Convert.ToDateTime(reader["DueDate"]),
-                        PriorityLevel = Convert.ToInt32(reader["ProjectPriority"]),
+                       
+                        DueDate = reader["DueDate"] != DBNull.Value ? Convert.ToDateTime(reader["DueDate"]) : DateTime.MinValue,
+                        PriorityLevel = reader["ProjectPriority"] != DBNull.Value ? Convert.ToInt32(reader["ProjectPriority"]) : 0,
                         Planes = new List<Plane>()
                     };
                 }
 
-                //  במטוס
+
                 if (reader["PlaneID"] != DBNull.Value)
                 {
                     int plID = Convert.ToInt32(reader["PlaneID"]);
@@ -1983,63 +1953,69 @@ INNER JOIN #BuyMethodUpdates u
                         {
                             PlaneID = plID,
                             ProjectID = pID,
-                            PriorityLevel = Convert.ToInt32(reader["PlanePriority"]),
+                            PriorityLevel = reader["PlanePriority"] != DBNull.Value ? Convert.ToInt32(reader["PlanePriority"]) : 0,
                             Items = new List<ItemInProduction>(),
-                            // כאן השינוי - הוספת השם מתוך ה-reader
                             Type = new PlaneType
                             {
-                                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
-                                PlaneTypeName = reader["PlaneTypeName"].ToString()
+                                PlaneTypeID = reader["PlaneTypeID"] != DBNull.Value ? Convert.ToInt32(reader["PlaneTypeID"]) : 0,
+                                PlaneTypeName = reader["PlaneTypeName"]?.ToString() ?? "UAV"
                             }
                         };
                         projectsMap[pID].Planes.Add(planesMap[plID]);
                     }
 
+
                     if (reader["SerialNumber"] != DBNull.Value)
                     {
                         int sn = Convert.ToInt32(reader["SerialNumber"]);
-                        if (!itemsMap.ContainsKey(sn))
+                        string itemKey = pID + "_" + plID + "_" + sn; 
+
+                        if (!itemsMap.ContainsKey(itemKey))
                         {
-                            itemsMap[sn] = new ItemInProduction
+                            itemsMap[itemKey] = new ItemInProduction
                             {
                                 SerialNumber = sn,
-                                WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
-                                PlannedQty = Convert.ToInt32(reader["PlannedQty"]),
-                                Comments = reader["Comments"].ToString(),
+                                WorkOrderID = reader["WorkOrderID"] != DBNull.Value ? Convert.ToInt32(reader["WorkOrderID"]) : 0,
+                                PlannedQty = reader["PlannedQty"] != DBNull.Value ? Convert.ToInt32(reader["PlannedQty"]) : 0,
+                                Comments = reader["Comments"]?.ToString() ?? "",
                                 ProductionItem = new ProductionItem
                                 {
-                                    ProductionItemID = reader["ProductionItemID"].ToString(),
-                                    ItemName = reader["ItemName"].ToString()
+                                    ProductionItemID = reader["ProductionItemID"]?.ToString() ?? "-",
+                                    ItemName = reader["ItemName"]?.ToString() ?? "-"
                                 },
                                 Stages = new List<ProductionItemStage>()
                             };
-                            planesMap[plID].Items.Add(itemsMap[sn]);
+                            planesMap[plID].Items.Add(itemsMap[itemKey]);
                         }
 
-                        //  הוספת התחנה
-                        if (reader["ProductionStatusID"] != DBNull.Value)
+                        if (reader["ProductionStageID"] != DBNull.Value)
                         {
-                            itemsMap[sn].Stages.Add(new ProductionItemStage
+                            var stageStatus = new ProductionItemStage
                             {
                                 Status = new ProductionStatus
                                 {
-                                    ProductionStatusID = Convert.ToInt32(reader["ProductionStatusID"]),
-                                    ProductionStatusName = reader["ProductionStatusName"].ToString() // עכשיו זה יעבוד
+                                    ProductionStatusID = reader["ProductionStatusID"] != DBNull.Value ? Convert.ToInt32(reader["ProductionStatusID"]) : 1,
+                                    ProductionStatusName = reader["ProductionStatusName"]?.ToString() ?? "טרם בוצע"
                                 },
                                 Stage = new ProductionStage
                                 {
                                     ProductionStageID = Convert.ToInt32(reader["ProductionStageID"]),
-                                    ProductionStageName = reader["ProductionStageName"].ToString(), // עכשיו זה יעבוד
-                                    StageOrder = Convert.ToInt32(reader["StageOrder"]) // קריטי ל-CurrentStage
+                                    ProductionStageName = reader["ProductionStageName"]?.ToString() ?? "-",
+                                    StageOrder = reader["StageOrder"] != DBNull.Value ? Convert.ToInt32(reader["StageOrder"]) : 0
                                 }
-                            });
+                            };
+                            itemsMap[itemKey].Stages.Add(stageStatus);
                         }
                     }
                 }
             }
             return projectsMap.Values.ToList();
         }
-        catch (Exception ex) { throw ex; }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("Error in GetFullProjectsStatus: " + ex.Message);
+            throw ex;
+        }
         finally { if (con != null) con.Close(); }
     }
 
@@ -2100,7 +2076,6 @@ INNER JOIN #BuyMethodUpdates u
             {
                 list.Add(new
                 {
-                    // שינוי כאן: שימוש ב-Convert במקום cast ישיר
                     ID = Convert.ToInt32(reader["PriorityID"]),
                     Name = reader["PriorityName"].ToString()
                 });
@@ -2118,7 +2093,6 @@ INNER JOIN #BuyMethodUpdates u
         try
         {
             con = connect("myProjDB");
-            // שליפת הנתונים הגולמיים
             string query = "SELECT PlaneID, PlaneTypeID, ProjectID FROM Planes";
             SqlCommand cmd = new SqlCommand(query, con);
             SqlDataReader reader = cmd.ExecuteReader();
@@ -2127,7 +2101,6 @@ INNER JOIN #BuyMethodUpdates u
                 list.Add(new
                 {
                     PlaneID = reader["PlaneID"].ToString(),
-                    // אנחנו שולפים את ה-ID כדי שיהיה קל להשוות ב-JS
                     TypeID = Convert.ToInt32(reader["PlaneTypeID"]),
                     ProjectID = Convert.ToInt32(reader["ProjectID"])
                 });
@@ -2149,7 +2122,6 @@ INNER JOIN #BuyMethodUpdates u
             if (con.State != System.Data.ConnectionState.Open) con.Open();
             trans = con.BeginTransaction();
 
-            // חילוץ נתונים מה-JSON
             string projectName = item["ProjectName"]?.ToString();
             string planeID = item["PlaneID"]?.ToString();
             string productionItemID = item["ProductionItemID"]?.ToString();
@@ -2157,11 +2129,9 @@ INNER JOIN #BuyMethodUpdates u
             int serialNumber = item["SerialNumber"]?.GetValue<int>() ?? 0;
             int planeTypeID = item["PlaneTypeID"]?.GetValue<int>() ?? 0;
 
-            // שלב 1: טיפול בישויות עזר (פרויקט, מטוס, פקודת עבודה)
             HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID);
-            HandleWorkOrder(con, trans, workOrderID); // פונקציית עזר חדשה
+            HandleWorkOrder(con, trans, workOrderID); 
 
-            // שלב 2: הכנסת הפריט לטבלת ItemsInProduction
             string insertSql = @"INSERT INTO ItemsInProduction 
                             (ProductionItemID, SerialNumber, PlaneID, PriorityLevel, WorkOrderID, PlannedQty, Comments) 
                             VALUES (@itemID, @serial, @planeID, @priority, @workOrder, @qty, @comments)";
@@ -2178,7 +2148,6 @@ INNER JOIN #BuyMethodUpdates u
                 mainCmd.ExecuteNonQuery();
             }
 
-            // שלב 3: הכנסת שורות לכל התחנות (סטטוס 1 = טרם בוצע)
             InsertStagesForProduct(con, trans, serialNumber, productionItemID);
 
             trans.Commit();
@@ -2191,8 +2160,6 @@ INNER JOIN #BuyMethodUpdates u
         }
         finally { if (con != null) con.Close(); }
     }
-
-    // --- פונקציות עזר לסדר וארגון ---
 
     private void HandleWorkOrder(SqlConnection con, SqlTransaction trans, string workOrderID)
     {
@@ -2235,7 +2202,6 @@ INNER JOIN #BuyMethodUpdates u
 
     private void InsertStagesForProduct(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID)
     {
-        // ודאי ששם הטבלה כאן הוא בדיוק כמו ב-DB (ProductionItemStage או ProductionItemStages)
         string query = @"INSERT INTO ProductionItemStage (SerialNumber, ProductionItemID, ProductionStageID, ProductionStatusID)
                      SELECT @serial, @itemID, ProductionStageID, 1 
                      FROM ProductionStages";
@@ -2246,5 +2212,60 @@ INNER JOIN #BuyMethodUpdates u
             cmd.Parameters.AddWithValue("@itemID", productionItemID);
             cmd.ExecuteNonQuery();
         }
+    }
+
+    public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime)
+    {
+        SqlConnection con = null;
+        SqlTransaction trans = null;
+        DateTime timeToUpdate = userTime ?? DateTime.Now;
+
+        try
+        {
+            con = connect("myProjDB");
+            trans = con.BeginTransaction();
+            string sqlUpdate = @"UPDATE ProductionItemStage 
+                            SET ProductionStatusID = @status, 
+                                Comment = @comment,
+                                StartTimeStamp = CASE WHEN @status = 2 THEN @time ELSE StartTimeStamp END,
+                                FinishTimeStamp = CASE WHEN @status = 4 THEN @time ELSE FinishTimeStamp END
+                            WHERE SerialNumber = @serial 
+                              AND ProductionItemID = @itemID 
+                              AND ProductionStageID = @stageID";
+
+            SqlCommand cmd = new SqlCommand(sqlUpdate, con, trans);
+            cmd.Parameters.AddWithValue("@status", newStatusID);
+            cmd.Parameters.AddWithValue("@comment", (object)comment ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@time", timeToUpdate);
+            cmd.Parameters.AddWithValue("@serial", serial);
+            cmd.Parameters.AddWithValue("@itemID", itemID);
+            cmd.Parameters.AddWithValue("@stageID", stageID);
+            cmd.ExecuteNonQuery();
+
+            if (stageID > 1 && (newStatusID == 2 || newStatusID == 4))
+            {
+                string sqlPrev = @"UPDATE ProductionItemStage 
+                               SET FinishTimeStamp = @time 
+                               WHERE SerialNumber = @serial 
+                                 AND ProductionItemID = @itemID 
+                                 AND ProductionStageID = @prevStageID";
+
+                SqlCommand cmdPrev = new SqlCommand(sqlPrev, con, trans);
+                cmdPrev.Parameters.AddWithValue("@time", timeToUpdate);
+                cmdPrev.Parameters.AddWithValue("@serial", serial);
+                cmdPrev.Parameters.AddWithValue("@itemID", itemID);
+                cmdPrev.Parameters.AddWithValue("@prevStageID", stageID - 1);
+                cmdPrev.ExecuteNonQuery();
+            }
+
+            trans.Commit();
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            if (trans != null) trans.Rollback();
+            throw ex;
+        }
+        finally { if (con != null) con.Close(); }
     }
 }

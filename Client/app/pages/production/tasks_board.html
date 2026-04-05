@@ -5,15 +5,36 @@
 
 <div id="genericModal" class="modal-overlay" onclick="window.closeGenericModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="modal-header-blue">
-            <h2 id="modalTitle">עדכון סטטוס תחנה</h2>
-            <button class="close-btn" onclick="window.closeGenericModal()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+        <div class="modal-header-blue" style="background: #0c2340; padding: 15px 20px;">
+            <h2 id="modalTitle" style="margin:0; font-size:1.2rem;">עדכון סטטוס תחנה</h2>
+            <button class="close-btn" onclick="window.closeGenericModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
         </div>
-        <div id="modalBody" class="modal-body">
+
+        <div id="modalBody" class="modal-body" style="padding: 20px;">
+            <div id="modalTaskInfo" style="background: #f8fafc; border-radius: 8px; padding: 15px; margin-bottom: 20px; font-size: 0.9rem; color: #1e293b;">
+                </div>
+
+            <label class="tb-label" style="display:block; margin-bottom:10px;">בחר סטטוס חדש</label>
+            
+            <div id="statusButtonsContainer" class="status-grid-new" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                </div>
+
+            <hr style="border:0; border-top:1px solid #e2e8f0; margin: 20px 0;" />
+
+            <div class="modal-inputs-section">
+                <label class="tb-label" style="display:block; margin-bottom:10px;">הערות (אופציונלי)</label>
+                <textarea id="statusCommentInput" class="generic-input" rows="4" placeholder="הוסף הערות או פרטים נוספים..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; resize:none;"></textarea>
+
+                <div id="timeInputContainer" style="display:none; margin-top:15px;">
+                    <label id="timeLabel" class="tb-label" style="display:block; margin-bottom:5px;"></label>
+                    <input type="datetime-local" id="userTimeInput" class="generic-input" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                </div>
+            </div>
         </div>
-        <div class="modal-footer">
-            <button class="btn-modal btn-cancel" onclick="window.closeGenericModal()">ביטול</button>
-            <button id="modalSubmitBtn" class="btn-modal btn-save" disabled>אישור</button>
+
+        <div class="modal-footer" style="padding: 15px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button class="btn-modal btn-save" id="modalSubmitBtn" disabled style="background:#0c2340; color:white; padding:10px 20px; border-radius:8px; border:none; font-weight:600; cursor:pointer;">שמור</button>
+            <button class="btn-modal btn-cancel" onclick="window.closeGenericModal()" style="background:white; color:#64748b; padding:10px 20px; border-radius:8px; border:1px solid #e2e8f0; font-weight:600; cursor:pointer;">ביטול</button>
         </div>
     </div>
 </div>

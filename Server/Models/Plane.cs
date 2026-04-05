@@ -15,12 +15,9 @@ namespace Server.Models
         {
             get
             {
-                // אם אין חלקים למטוס הזה, האחוז הוא 0
                 if (Items == null || Items.Count == 0) return 0;
-                // סופרים כמה חלקים סיימו לגמרי 
-                double fullyDoneItemsCount = Items.Count(i => i.IsFullyDone);
-                // חישוב אחוז
-                return (fullyDoneItemsCount / Items.Count) * 100;
+                double totalProgressSum = Items.Sum(i => i.Progress);
+                return totalProgressSum / Items.Count;
             }
         }
 

@@ -47,16 +47,15 @@ function loadInitialData() {
     }, err => console.error(err));
 }
 
-// פונקציה מעודכנת לסינון מטוסים לפי סוג ופרויקט
+// פונקציה לסינון מטוסים לפי סוג ופרויקט
 function renderFilteredPlanes() {
-    const selectedProjectID = $('#project-select').find(':selected').data('id'); // שליפת ה-ID של הפרויקט
-    const selectedTypeID = $('#plane-type-select').val(); // שליפת ה-ID של סוג הכטב"ם
+    const selectedProjectID = $('#project-select').find(':selected').data('id'); 
+    const selectedTypeID = $('#plane-type-select').val(); 
 
     const $el = $('#plane-select');
     $el.empty().append('<option value="">בחר מטוס...</option>');
 
     if (allData.planes) {
-        // מסננים: המטוס חייב להתאים לסוג שנבחר (אם נבחר) וגם לפרויקט שנבחר (אם נבחר)
         const filtered = allData.planes.filter(p => {
             const matchType = !selectedTypeID || p.typeID == selectedTypeID;
             const matchProject = !selectedProjectID || p.projectID == selectedProjectID;
@@ -69,7 +68,6 @@ function renderFilteredPlanes() {
     }
 }
 
-// פונקציות העזר נשארות אותו דבר...
 function renderSelect(selector, list, valField, textField) {
     let $el = $(selector);
     let placeholder = $el.find('option:first').text() || "בחר...";
@@ -111,11 +109,10 @@ function toggleInput(field) {
 $('#production-form').on('submit', function (e) {
     e.preventDefault();
 
-    // איסוף נתונים חכם (בודק אם השדה הגלוי הוא ה-Select או ה-Input החדש)
     const projectValue = $('#project-select').is(':visible') ? $('#project-select').val() : $('#project-new').val();
     const planeValue = $('#plane-select').is(':visible') ? $('#plane-select').val() : $('#plane-new').val();
 
-    // אובייקט הנתונים לשליחה
+
     const newItem = {
         ProductionItemID: $('#item-code-input').val(),
         PlaneTypeID: parseInt($('#plane-type-select').val()),

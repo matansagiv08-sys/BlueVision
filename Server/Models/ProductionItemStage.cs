@@ -6,8 +6,8 @@ namespace Server.Models
     {
         public ProductionStage Stage { get; set; }
         public ProductionStatus Status { get; set; }
-        public DateTime StartTimeStamp { get; set; }
-        public DateTime FinishTimeStamp { get; set; }
+        public DateTime? StartTimeStamp { get; set; }
+        public DateTime? FinishTimeStamp { get; set; }
         public string Comment { get; set; }
 
         public ProductionItemStage()

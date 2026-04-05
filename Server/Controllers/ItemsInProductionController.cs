@@ -63,5 +63,34 @@ namespace Server.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+        [HttpPut("updateStatus")]
+        public IActionResult UpdateStatus([FromBody] System.Text.Json.Nodes.JsonObject data)
+        {
+            try
+            {
+                int serial = data["SerialNumber"]?.GetValue<int>() ?? 0;
+                string itemID = data["ProductionItemID"]?.ToString();
+                int stageID = data["ProductionStageID"]?.GetValue<int>() ?? 0;
+                int statusID = data["ProductionStatusID"]?.GetValue<int>() ?? 0;
+                string comment = data["Comment"]?.ToString();
+
+                DateTime? userTime = null;
+                if (data["UserTime"] != null)
+                {
+                    userTime = DateTime.Parse(data["UserTime"].ToString());
+                }
+
+                DBservices dbs = new DBservices();
+                int res = dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime);
+
+                if (res > 0) return Ok(new { message = "Status updated successfully" });
+                return BadRequest("Could not update status");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }

@@ -658,6 +658,12 @@ body.mode-inventory .tab-inventory {
     }
 /* בוצע / הושלם */
 
+.status-pill..status-5 {
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+
 .ps-counter {
     background: #f1f5f9;
     color: #475569;
@@ -666,4 +672,11 @@ body.mode-inventory .tab-inventory {
     font-size: 11px;
     margin-right: 8px;
     font-weight: 500;
+}
+
+/* סימן חסום לבועות */
+.status-pill.blocked {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    filter: grayscale(0.5);
 }

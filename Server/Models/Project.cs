@@ -16,13 +16,7 @@ namespace Server.Models
             get
             {
                 if (Planes == null || Planes.Count == 0) return 0;
-
-                var allItems = Planes.SelectMany(p => p.Items).ToList();
-
-                if (allItems.Count == 0) return 0;
-
-                double totalDoneItems = allItems.Count(i => i.IsFullyDone);
-                return (totalDoneItems / allItems.Count) * 100;
+                return Planes.Average(p => p.Progress);
             }
         }
 

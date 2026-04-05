@@ -1,4 +1,5 @@
-﻿.tasks-board-page {
+﻿/* --- הגדרות כלליות לעמוד --- */
+.tasks-board-page {
     direction: rtl;
 }
 
@@ -14,77 +15,45 @@
     margin-bottom: 15px;
     border-right: 4px solid #0c2340;
     padding-right: 10px;
+    color: #0c2340;
 }
 
-/* IMPORTANT: override global generic-table "cursor:pointer" */
+/* --- הגדרות טבלה --- */
 .tasks-board-page .generic-data-table tbody tr {
-    cursor: default;
+    cursor: default; /* ביטול היד על השורה, רק על הפיל */
 }
 
-/* Make columns align between WB / TBV */
 .tasks-board-page .tb-table {
     table-layout: fixed;
+    width: 100%;
 }
 
-/* Fixed widths so pills sit exactly under headers */
-.tasks-board-page .tb-col-order {
-    width: 90px;
-}
-
-.tasks-board-page .tb-col-part {
-    width: 140px;
-}
-
+/* רוחב עמודות */
 .tasks-board-page .tb-col-qty {
     width: 80px;
     text-align: center;
 }
 
-.tasks-board-page .tb-col-progress {
-    width: 110px;
-    text-align: center;
+.tasks-board-page .tb-col-item-name {
+    width: 200px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.tasks-board-page .tb-col-station {
-    width: 120px;
-    text-align: center;
+/* --- ה-Pills בתוך הטבלה --- */
+.status-pill {
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.tasks-board-page .tb-col-desc {
-    width: auto;
-}
+    .status-pill:hover {
+        transform: scale(1.05);
+        filter: brightness(0.95);
+    }
 
-.tasks-board-page .generic-data-table th.tb-col-station,
-.tasks-board-page .generic-data-table td.tb-col-station {
-    text-align: center;
-    vertical-align: middle;
-}
-
-
-/* NEW: keyboard accessibility (optional but recommended) */
-.status-pill:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(12, 35, 64, 0.18);
-}
-
-/* Modal content (Task Board) */
-.tb-modal-top {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 14px;
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    flex-wrap: wrap;
-}
-
-.tb-modal-line {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
+/* --- עיצוב המודל (עדכון סטטוס) --- */
 .tb-label {
     color: #64748b;
     font-weight: 700;
@@ -97,50 +66,88 @@
     font-size: 0.95rem;
 }
 
-.tb-status-title {
-    margin-top: 6px;
-    font-weight: 800;
-    color: #0f172a;
-}
-
-.tb-status-grid {
+/* גריד הכפתורים במודל */
+#statusButtonsContainer {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+    margin-top: 15px;
 }
 
-/*.tb-status-btn {
+/* הכפתור במצב נייטרלי */
+.btn-choice {
     padding: 12px;
-    //border: 2px solid #cbd5e1;
-    border-radius: 12px;
-    //background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #64748b;
     cursor: pointer;
-    font-weight: 800;
-    transition: all 0.15s;
-}*/
+    font-weight: 600;
+    transition: all 0.2s ease;
+    text-align: center;
+}
 
-    .tb-status-btn.active {
-        border-color: #0c2340;
-        box-shadow: 0 0 0 3px rgba(12,35,64,0.12);
+    .btn-choice:hover:not(:disabled) {
+        background-color: #f8fafc;
+        border-color: #94a3b8;
     }
 
-.tb-note-title {
-    font-weight: 800;
-    color: #0f172a;
-    margin: 10px 0 8px;
-}
+    .btn-choice.full-width {
+        grid-column: span 2;
+    }
 
-.tb-note {
+    /* --- צבעי כפתורים נבחרים (Active) --- */
+    /* שימוש בצבעים מה-styles.css עם התאמה למודל */
+
+    /* טרם בוצע */
+    .btn-choice.active.status-1 {
+        background-color: #f0f4f8 !important;
+        color: #64748b !important;
+        border: 2px solid #cbd5e1 !important;
+    }
+    /* בתהליך */
+    .btn-choice.active.status-2 {
+        background-color: #fff7ed !important;
+        color: #ea580c !important;
+        border: 2px solid #fdba74 !important;
+    }
+    /* תקוע */
+    .btn-choice.active.status-3 {
+        background-color: #fef2f2 !important;
+        color: #dc2626 !important;
+        border: 2px solid #fecaca !important;
+    }
+    /* בוצע */
+    .btn-choice.active.status-4 {
+        background-color: #f0fdf4 !important;
+        color: #16a34a !important;
+        border: 2px solid #bbf7d0 !important;
+    }
+    /* אחר */
+    .btn-choice.active.status-5 {
+        background-color: #f8fafc !important;
+        color: #475569 !important;
+        border: 2px solid #e2e8f0 !important;
+    }
+
+    /* מצב חסום (לתחנה קודמת שלא בוצעה) */
+    .btn-choice:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background-color: #f1f5f9;
+    }
+
+/* שדות קלט במודל */
+.generic-input {
     width: 100%;
-    min-height: 110px;
+    padding: 10px;
     border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    padding: 12px;
-    resize: vertical;
+    border-radius: 8px;
     font-family: inherit;
     outline: none;
+    transition: border-color 0.2s;
 }
 
-.tasks-board-page .status-pill:hover {
-    border: 2px solid #93c5fd !important;
-}
+    .generic-input:focus {
+        border-color: #0c2340;
+    }

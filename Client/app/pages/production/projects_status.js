@@ -1,18 +1,26 @@
 ﻿$(document).ready(function () {
-    loadFullProjectsStatus();
+    console.log("Projects Status: DOM ready.");
+    if (typeof ajaxCall === 'undefined') {
+        $.getScript("../../../JS/ajaxCalls.js").done(() => loadFullProjectsStatus());
+    } else {
+        loadFullProjectsStatus();
+    }
 });
 
 function loadFullProjectsStatus() {
-    const api = `https://localhost:7296/api/Projects/full-status`;
+    const api = server + "api/Projects/full-status";
 
     ajaxCall("GET", api, null,
         function (data) {
-            console.log("Success:", data);
-            let projects = Array.isArray(data) ? data : (data.$values || []);
+            console.log("Data received from server:", data);
+            let projects = data.$values ? data.$values : data;
+            if (!Array.isArray(projects)) projects = [];
+
             renderProjects(projects);
         },
         function (err) {
             console.error("Error:", err);
+            $("#projects-list").html("<p style='text-align:center; color:red; padding:20px;'>שגיאה בטעינת נתונים מהשרת.</p>");
         }
     );
 }
@@ -23,7 +31,10 @@ function renderProjects(projects) {
     projects.forEach(project => {
         const pProgress = Math.round(project.progress || 0);
         const dueDate = project.dueDate ? new Date(project.dueDate).toLocaleDateString('he-IL') : "אין תאריך";
-        const planeCount = project.planes ? project.planes.length : 0;
+
+        const planesList = project.planes && project.planes.$values ? project.planes.$values : (project.planes || []);
+        const planeCount = planesList.length;
+
         str += `
 <div class="ps-project-card" id="project-${project.projectID}">
     <button class="ps-project-head" onclick="toggleProject(${project.projectID})">
@@ -48,7 +59,7 @@ function renderProjects(projects) {
 
     <div class="ps-project-body" style="display:none;"> 
         <div class="ps-uav-list">
-            ${renderPlanes(project.planes || [])}
+            ${renderPlanes(planesList)}
         </div>
     </div>
 </div>`;
@@ -57,35 +68,13 @@ function renderProjects(projects) {
     $("#projects-list").html(str);
 }
 
-function toggleProject(projectId) {
-    const currentCard = $(`#project-${projectId}`);
-    const currentBody = currentCard.find('.ps-project-body');
-    const isOpening = !currentBody.is(':visible');
-
-
-    $('.ps-project-body').slideUp();
-    $('.ps-project-card').removeClass('highlight-blue'); 
-    $('.ps-project-card').find('.ps-uav-body').slideUp();
-    $('.ps-chev').removeClass('up');
-
-    if (isOpening) {
-        currentBody.slideDown();
-        currentCard.addClass('highlight-blue'); 
-        currentCard.find('.ps-chev').addClass('up');
-    } else {
-        currentBody.slideUp();
-        currentCard.removeClass('highlight-blue');
-        currentCard.find('.ps-uav-body').slideUp();
-        currentCard.find('.ps-chev').removeClass('up');
-    }
-}
-
 function renderPlanes(planes) {
-    if (planes.length === 0) return "<div class='ps-uav-row'>אין מטוסים רשומים לפרויקט זה</div>";
+    if (!planes || planes.length === 0) return "<div class='ps-uav-row'>אין מטוסים רשומים לפרויקט זה</div>";
 
     return planes.map(plane => {
         const plProgress = Math.round(plane.progress || 0);
         const typeName = (plane.type && plane.type.planeTypeName) ? plane.type.planeTypeName : "UAV";
+        const itemsList = plane.items && plane.items.$values ? plane.items.$values : (plane.items || []);
 
         return `
         <div class="ps-uav-container">
@@ -118,7 +107,7 @@ function renderPlanes(planes) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${renderItems(plane.items || [])}
+                            ${renderItems(itemsList)}
                         </tbody>
                     </table>
                 </div>
@@ -127,25 +116,8 @@ function renderPlanes(planes) {
     }).join("");
 }
 
-function togglePlane(element) {
-    const $row = $(element);
-    const $body = $row.next('.ps-uav-body');
-    const $container = $row.closest('.ps-project-body'); // מוצא את גוף הפרויקט הנוכחי
-
-    // אם אתה רוצה שכשפותחים מטוס, שאר המטוסים באותו פרויקט יסגרו:
-    if (!$body.is(':visible')) {
-        $container.find('.ps-uav-body').slideUp();
-        $container.find('.ps-uav-row').removeClass('active');
-    }
-
-    $body.slideToggle();
-    $row.toggleClass('active');
-}
-
-function renderItems(items) {
-    if (!items || items.length === 0) return "<tr><td colspan='7' style='text-align:center;'>אין פריטים בייצור</td></tr>";
-
-    const itemsArray = items.$values ? items.$values : items;
+function renderItems(itemsArray) {
+    if (!itemsArray || itemsArray.length === 0) return "<tr><td colspan='7' style='text-align:center;'>אין פריטים בייצור</td></tr>";
 
     return itemsArray.map(item => {
         const current = item.currentStage;
@@ -170,4 +142,30 @@ function renderItems(items) {
             <td><span class="status-pill ${statusClass}">${statusName}</span></td>
         </tr>`;
     }).join("");
+}
+
+function toggleProject(projectId) {
+    const currentCard = $(`#project-${projectId}`);
+    const currentBody = currentCard.find('.ps-project-body');
+    const isOpening = !currentBody.is(':visible');
+    $('.ps-project-body').slideUp();
+    $('.ps-project-card').removeClass('highlight-blue');
+    $('.ps-chev').removeClass('up');
+    if (isOpening) {
+        currentBody.slideDown();
+        currentCard.addClass('highlight-blue');
+        currentCard.find('.ps-chev').addClass('up');
+    }
+}
+
+function togglePlane(element) {
+    const $row = $(element);
+    const $body = $row.next('.ps-uav-body');
+    const $container = $row.closest('.ps-project-body');
+    if (!$body.is(':visible')) {
+        $container.find('.ps-uav-body').slideUp();
+        $container.find('.ps-uav-row').removeClass('active');
+    }
+    $body.slideToggle();
+    $row.toggleClass('active');
 }

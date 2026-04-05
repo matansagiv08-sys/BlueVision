@@ -8,22 +8,14 @@
 });
 
 function initBoard() {
-    //  (שליפת התחנות (בשביל העמודות
-    let apiStages = "api/ProductionStages";
-    ajaxCall("GET", server + apiStages, "",
-        getStagesSuccess,
-        (err) => console.error("Error fetching stages:", err)
-    );
-}
-
-function getStagesSuccess(allStages) {
-    //   שליפת נתוני הלוח  
-    let apiBoard = "api/ItemsInProduction/boardData";
-    ajaxCall("GET", server + apiBoard, "",
-        (boardData) => {
-            renderTasksBoard(boardData, allStages);
+    ajaxCall("GET", server + "api/ProductionStages", "",
+        (allStages) => {
+            ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
+                (boardData) => renderTasksBoard(boardData, allStages),
+                (err) => console.error("Error board data:", err)
+            );
         },
-        (err) => console.error("Error fetching board data:", err)
+        (err) => console.error("Error stages:", err)
     );
 }
 
@@ -31,17 +23,10 @@ function renderTasksBoard(boardData, allStages) {
     const container = document.getElementById("tasks-board-container");
     if (!container) return;
 
-    //  קיבוץ הנתונים לפי סוג מטוס
+
     const grouped = boardData.reduce((acc, row) => {
-        let planeTypeName = "כללי"; // ברירת מחדל 
-        if (row.planeID && row.planeID.type && row.planeID.type.planeTypeName) {
-            planeTypeName = row.planeID.type.planeTypeName;
-        } else if (row.PlaneID && row.PlaneID.Type) {
-            planeTypeName = row.PlaneID.Type.PlaneTypeName;
-        }
-        if (!acc[planeTypeName]) {
-            acc[planeTypeName] = [];
-        }
+        let planeTypeName = row.planeID?.type?.planeTypeName || row.PlaneID?.Type?.PlaneTypeName || "כללי";
+        if (!acc[planeTypeName]) acc[planeTypeName] = [];
         acc[planeTypeName].push(row);
         return acc;
     }, {});
@@ -57,6 +42,7 @@ function renderTasksBoard(boardData, allStages) {
                             <tr>
                                 <th>פק"ע</th>
                                 <th>מק"ט</th>
+                                <th>שם פריט</th>
                                 <th>מספר סידורי</th>
                                 <th>כמות</th>
                                 ${allStages.map(s => `<th>${s.productionStageName}</th>`).join("")}
@@ -67,97 +53,162 @@ function renderTasksBoard(boardData, allStages) {
                         </tbody>
                     </table>
                 </div>
-            </section>
-        `;
+            </section>`;
     }
-
     container.innerHTML = html;
 }
 
 function renderRow(row, allStages) {
+    const item = row.productionItem || row.ProductionItem || {};
+    const itemID = item.productionItemID || item.ProductionItemID || '---';
+    const itemName = item.productionItemDescription || item.ItemName || item.itemName || "---";
+    const workOrder = row.workOrderID || row.WorkOrderID || '---';
+
     return `
         <tr>
-            <td>${row.workOrderID}</td>
-            <td>${row.productionItem ? row.productionItem.productionItemID : '---'}</td>
-            <td>${row.serialNumber}</td>
-            <td class="tb-col-qty">${row.plannedQty}</td>
+            <td>${workOrder}</td>
+            <td>${itemID}</td>
+            <td class="tb-col-item-name">${itemName}</td>
+            <td>${row.serialNumber || row.SerialNumber}</td>
+            <td class="tb-col-qty">${row.plannedQty || row.PlannedQty}</td>
             ${allStages.map(stage => {
-        const itemStage = row.stages.find(s => s.stage.productionStageID === stage.productionStageID);
+        const stagesList = row.stages || row.Stages || [];
+        const itemStage = stagesList.find(s =>
+            (s.stage?.productionStageID || s.Stage?.ProductionStageID) === stage.productionStageID
+        );
 
-        const statusID = itemStage && itemStage.status ? itemStage.status.productionStatusID : 1;
-        const statusName = itemStage && itemStage.status ? itemStage.status.productionStatusName : "טרם בוצע";
 
-        return `<td>${renderPill(row.serialNumber, stage.productionStageName, statusID, statusName, stage.productionStageID)}</td>`;
+        let isBlocked = false;
+        if (stage.productionStageID > 1) {
+            const prevStage = stagesList.find(s =>
+                (s.stage?.productionStageID || s.Stage?.ProductionStageID) === stage.productionStageID - 1
+            );
+            const prevStatusID = prevStage?.status?.productionStatusID || prevStage?.Status?.ProductionStatusID || 1;
+
+            if (prevStatusID !== 4) { 
+                isBlocked = true;
+            }
+        }
+
+        const status = itemStage?.status || itemStage?.Status || {};
+        const sID = status.productionStatusID || status.ProductionStatusID || 1;
+        const sName = status.productionStatusName || status.ProductionStatusName || "טרם בוצע";
+        const comment = itemStage?.comment || itemStage?.Comment || "";
+
+
+        const clickAttr = isBlocked ? "" : `onclick="window.openStatusModal('${row.serialNumber || row.SerialNumber}', '${itemID}', '${itemName}', '${workOrder}', ${stage.productionStageID}, '${stage.productionStageName}', ${sID}, this, '${comment.replace(/'/g, "\\'")}')"`;
+        const blockedClass = isBlocked ? "blocked" : "";
+        const titleText = isBlocked ? "חסום: בצע תחנה קודמת תחילה" : comment;
+
+        return `<td>
+                    <div class="status-pill status-${sID} ${blockedClass}" 
+                         title="${titleText}" 
+                         ${clickAttr}>
+                         ${sName}
+                    </div>
+                </td>`;
     }).join("")}
         </tr>`;
 }
-
-function renderPill(serialNumber, stationName, statusID, statusName, stageID) {
-    const sID = parseInt(statusID) || 1;
-    const statusClass = `status-${sID}`;
-
-    return `<div class="status-pill ${statusClass}" 
-                 data-statusid="${sID}" 
-                 data-stageid="${stageID}" 
-                 onclick="window.openStatusModal('${serialNumber}', '${stationName}', this)">
-                 ${statusName}
-            </div>`;
-}
-
-window.openStatusModal = function (serialNumber, station, pillEl) {
+window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, stageID, stageName, currentStatusID, pillEl, currentComment) {
     const modal = document.getElementById("genericModal");
-    const body = document.getElementById("modalBody");
     const submitBtn = document.getElementById("modalSubmitBtn");
+    const timeContainer = document.getElementById("timeInputContainer");
+    const timeLabel = document.getElementById("timeLabel");
+    const timeInput = document.getElementById("userTimeInput");
 
-    if (!modal || !body || !submitBtn) return;
 
-    tbActivePillEl = pillEl;
-    tbSelectedStatus = pillEl.dataset.status || "none";
-    const stageID = pillEl.dataset.stageid;
+    timeContainer.style.display = "none";
+    timeInput.value = "";
+    document.getElementById("statusCommentInput").value = currentComment || "";
+    submitBtn.disabled = true;
+    function setCurrentTime() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        timeInput.value = now.toISOString().slice(0, 16);
+    }
 
-    document.getElementById("modalTitle").innerText = "עדכון סטטוס תחנה";
 
-    body.innerHTML = `
-        <div class="tb-modal-top">
-            <div class="tb-modal-line"><span class="tb-label">מספר סידורי:</span><span class="tb-val">${serialNumber}</span></div>
-            <div class="tb-modal-line"><span class="tb-label">תחנה:</span><span class="tb-val">${station}</span></div>
-        </div>
-        <div class="tb-status-grid" style="margin-top: 20px;">
-            <button type="button" class="tb-status-btn" data-status="בוצע">בוצע</button>
-            <button type="button" class="tb-status-btn" data-status="בתהליך">בתהליך</button>
-            <button type="button" class="tb-status-btn" data-status="תקוע">תקוע</button>
-            <button type="button" class="tb-status-btn" data-status="טרם בוצע">טרם בוצע</button>
+    const displayItemName = (typeof itemName === 'object') ? "---" : itemName;
+    const displayWorkOrder = (typeof workOrder === 'object') ? "---" : workOrder;
+
+    document.getElementById("modalTaskInfo").innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div><span class="tb-label">פק"ע:</span> <span class="tb-val">${displayWorkOrder}</span></div>
+            <div><span class="tb-label">סידורי:</span> <span class="tb-val">${serialNumber}</span></div>
+            <div style="grid-column: span 2;"><span class="tb-label">פריט:</span> <span class="tb-val">${itemID} - ${displayItemName}</span></div>
+            <div style="grid-column: span 2; color:#3b82f6;"><span class="tb-label">תחנה:</span> <span class="tb-val">${stageName}</span></div>
         </div>`;
 
-    setTbStatusActive(tbSelectedStatus);
-    modal.style.display = "flex";
+ 
+    const statusContainer = document.getElementById("statusButtonsContainer");
+    statusContainer.innerHTML = `
+        <button type="button" class="btn-choice" data-id="4">בוצע</button>
+        <button type="button" class="btn-choice" data-id="2">בתהליך</button>
+        <button type="button" class="btn-choice" data-id="3">תקוע</button>
+        <button type="button" class="btn-choice" data-id="5">אחר</button>
+        <button type="button" class="btn-choice full-width" data-id="1">טרם בוצע / איפוס</button>
+    `;
 
-    $(body).find(".tb-status-btn").on("click", function () {
-        tbSelectedStatus = $(this).data("status");
-        setTbStatusActive(tbSelectedStatus);
+
+    const currentBtn = $(`.btn-choice[data-id="${currentStatusID}"]`);
+    if (currentBtn.length > 0) {
+        currentBtn.addClass(`active status-${currentStatusID}`);
+        if (currentStatusID == 2 || currentStatusID == 4) {
+            timeContainer.style.display = "block";
+            timeLabel.innerText = currentStatusID == 2 ? "זמן התחלה:" : "זמן סיום:";
+        }
+    }
+
+
+    $(".btn-choice").on("click", function () {
+        const sid = $(this).data("id"); 
+
+        $(".btn-choice").removeClass("active status-1 status-2 status-3 status-4 status-5");
+        $(this).addClass(`active status-${sid}`);
         submitBtn.disabled = false;
+
+        if (sid == 2 || sid == 4) {
+            timeContainer.style.display = "block";
+            timeLabel.innerText = sid == 2 ? "זמן התחלה:" : "זמן סיום:";
+            setCurrentTime(); 
+        } else {
+            timeContainer.style.display = "none";
+            timeInput.value = "";
+        }
     });
 
     submitBtn.onclick = function () {
-        const statusMap = { "טרם בוצע": 1, "בתהליך": 2, "תקוע": 3, "בוצע": 4 };
+        const activeBtn = $(".btn-choice.active");
+        const statusId = parseInt(activeBtn.data("id"));
+        const statusName = activeBtn.text();
+        const comment = document.getElementById("statusCommentInput").value;
+        const userTimeVal = timeInput.value;
 
         const updateData = {
             SerialNumber: parseInt(serialNumber),
+            ProductionItemID: itemID.toString(),
             ProductionStageID: parseInt(stageID),
-            ProductionStatusID: statusMap[tbSelectedStatus]
+            ProductionStatusID: statusId,
+            Comment: comment
         };
 
+        if (userTimeVal && (statusId == 2 || statusId == 4)) {
+            updateData.UserTime = userTimeVal;
+        }
+
         ajaxCall("PUT", server + "api/ItemsInProduction/updateStatus", JSON.stringify(updateData),
-            (res) => {
-                applyStatusToPill(tbActivePillEl, tbSelectedStatus);
+            function (res) {
+                console.log("Update successful");
+                initBoard();
                 window.closeGenericModal();
-                console.log("Status updated!");
             },
-            (err) => {
-                console.error("Update failed:", err);
-                alert("שגיאה בעדכון הסטטוס בשרת");
+            function (err) {
+                alert("שגיאה בעדכון הסטטוס: " + err.responseText);
             }
         );
     };
+
+    modal.style.display = "flex";
 };
 
