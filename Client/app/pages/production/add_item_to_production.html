@@ -1,0 +1,88 @@
+﻿<div class="add-parts-production-page">
+    <div class="generic-card form-wrapper">
+        <form id="production-form" class="standard-grid-form">
+            <div class="form-columns">
+                <div class="column">
+                    <div class="form-row-parallel" style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>קוד פריט (מק״ט) <span class="req">*</span></label>
+                            <input type="text" id="item-code-input" list="item-code-list" placeholder="הקלד לחיפוש..." required>
+                            <datalist id="item-code-list"></datalist>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>שם הפריט</label>
+                            <input type="text" id="item-name-input" readonly class="readonly-input" style="background-color: #f1f5f9;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>סוג כטב״ם <span class="req">*</span></label>
+                        <select id="plane-type-select" required>
+                            <option value="">בחר סוג...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>מספר סריאלי <span class="req">*</span></label>
+                        <input type="number" id="serial-number-input" placeholder="לדוגמה: 50021" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>כמות לייצור</label>
+                        <input type="number" id="qty-input" value="1" min="1">
+                    </div>
+                </div>
+
+                <div class="column">
+                    <div class="form-group">
+                        <label>עדיפות לייצור</label>
+                        <select id="priority-select"></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>מספר עבודה (Work Order)</label>
+                        <input type="text" id="work-order-input" list="work-orders-list" placeholder="בחר או הקלד מספר עבודה">
+                        <datalist id="work-orders-list"></datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label>שיוך לפרויקט</label>
+                        <div class="input-with-action">
+                            <select id="project-select">
+                                <option value="">בחר פרויקט...</option>
+                            </select>
+                            <input type="text" id="project-new" style="display:none;" placeholder="שם פרויקט חדש">
+                            <button type="button" class="toggle-btn" onclick="toggleInput('project')">+</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>מספר מטוס (זנב)</label>
+                        <div class="input-with-action">
+                            <select id="plane-select">
+                                <option value="">בחר מטוס...</option>
+                            </select>
+                            <input type="text" id="plane-new" style="display:none;" placeholder="מספר מטוס חדש">
+                            <button type="button" class="toggle-btn" onclick="toggleInput('plane')">+</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>תאריך יעד</label>
+                        <input type="date" id="due-date-input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group full-width">
+                <label>הערות</label>
+                <textarea id="comments-input" rows="2"></textarea>
+            </div>
+
+            <div class="form-footer-actions">
+                <button type="button" class="btn-secondary" onclick="window.history.back()">ביטול</button>
+                <button type="submit" class="btn-primary">💾 שמור והוסף לייצור</button>
+            </div>
+        </form>
+    </div>
+</div>

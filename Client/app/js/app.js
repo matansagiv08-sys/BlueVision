@@ -57,11 +57,11 @@ const routes = {
         subtitle: "",
         mode: "production"
     },
-    "/production/add_parts_to_production": {
-        file: "./pages/production/add_parts_to_production.html",
-        js: "./pages/production/add_parts_to_production.js",
-        css: "./pages/production/add_parts_to_production.css",
-        init: "initAddPartsToProduction",
+    "/production/add_item_to_production": {
+        file: "./pages/production/add_item_to_production.html",
+        js: "./pages/production/add_item_to_production.js",
+        css: "./pages/production/add_item_to_production.css",
+        init: "initAddItemToProduction",
         title: "הוספת חלק לייצור",
         subtitle: "",
         mode: "production"

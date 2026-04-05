@@ -1806,27 +1806,6 @@ INNER JOIN #BuyMethodUpdates u
         return cmd.ExecuteNonQuery();
     }
 
-    //public List<Plane> GetPlanes()
-    //{
-    //    SqlConnection con = connect("myProjDB");
-    //    List<Plane> list = new List<Plane>();
-    //    // שימוש בפונקציה הכללית הקיימת אצלך
-    //    SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetAllPlanes", con, null);
-    //    SqlDataReader reader = cmd.ExecuteReader();
-    //    while (reader.Read())
-    //    {
-    //        list.Add(new Plane
-    //        {
-    //            PlaneID = (int)reader["PlaneID"],
-    //            PlaneTypeID = (int)reader["PlaneTypeID"],
-    //            ProjectID = (int)reader["ProjectID"],
-    //            PriorityLevel = (byte)reader["PriorityLevel"]
-    //        });
-    //    }
-    //    con.Close();
-    //    return list;
-    //}
-
     //public int InsertPlane(Plane p)
     //{
     //    Dictionary<string, object> d = new Dictionary<string, object> {
@@ -2064,4 +2043,208 @@ INNER JOIN #BuyMethodUpdates u
         finally { if (con != null) con.Close(); }
     }
 
+    public List<ProductionItem> GetProductionItems()
+    {
+        SqlConnection con = null;
+        List<ProductionItem> list = new List<ProductionItem>();
+        try
+        {
+            con = connect("myProjDB");
+            string query = "SELECT ProductionItemID, ItemName FROM ProductionItems ORDER BY ItemName";
+            SqlCommand cmd = new SqlCommand(query, con);
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new ProductionItem
+                {
+                    ProductionItemID = reader["ProductionItemID"].ToString(),
+                    ItemName = reader["ItemName"].ToString()
+                });
+            }
+            return list;
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public List<int> GetUniqueWorkOrders()
+    {
+        SqlConnection con = null;
+        List<int> list = new List<int>();
+        try
+        {
+            con = connect("myProjDB");
+            string query = "SELECT DISTINCT WorkOrderID FROM ItemsInProduction WHERE WorkOrderID IS NOT NULL ORDER BY WorkOrderID";
+            SqlCommand cmd = new SqlCommand(query, con);
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(Convert.ToInt32(reader["WorkOrderID"]));
+            }
+            return list;
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public List<object> GetPriorityLevels()
+    {
+        SqlConnection con = null;
+        List<object> list = new List<object>();
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = new SqlCommand("SELECT PriorityID, PriorityName FROM PriorityLevels ORDER BY PriorityID", con);
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new
+                {
+                    // שינוי כאן: שימוש ב-Convert במקום cast ישיר
+                    ID = Convert.ToInt32(reader["PriorityID"]),
+                    Name = reader["PriorityName"].ToString()
+                });
+            }
+            return list;
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public List<object> GetPlanes()
+    {
+        SqlConnection con = null;
+        List<object> list = new List<object>();
+        try
+        {
+            con = connect("myProjDB");
+            // שליפת הנתונים הגולמיים
+            string query = "SELECT PlaneID, PlaneTypeID, ProjectID FROM Planes";
+            SqlCommand cmd = new SqlCommand(query, con);
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new
+                {
+                    PlaneID = reader["PlaneID"].ToString(),
+                    // אנחנו שולפים את ה-ID כדי שיהיה קל להשוות ב-JS
+                    TypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                    ProjectID = Convert.ToInt32(reader["ProjectID"])
+                });
+            }
+            return list;
+        }
+        catch (Exception ex) { throw ex; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int InsertItemInProduction(System.Text.Json.Nodes.JsonObject item)
+    {
+        SqlConnection con = null;
+        SqlTransaction trans = null;
+
+        try
+        {
+            con = connect("myProjDB");
+            if (con.State != System.Data.ConnectionState.Open) con.Open();
+            trans = con.BeginTransaction();
+
+            // חילוץ נתונים מה-JSON
+            string projectName = item["ProjectName"]?.ToString();
+            string planeID = item["PlaneID"]?.ToString();
+            string productionItemID = item["ProductionItemID"]?.ToString();
+            string workOrderID = item["WorkOrderID"]?.ToString();
+            int serialNumber = item["SerialNumber"]?.GetValue<int>() ?? 0;
+            int planeTypeID = item["PlaneTypeID"]?.GetValue<int>() ?? 0;
+
+            // שלב 1: טיפול בישויות עזר (פרויקט, מטוס, פקודת עבודה)
+            HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID);
+            HandleWorkOrder(con, trans, workOrderID); // פונקציית עזר חדשה
+
+            // שלב 2: הכנסת הפריט לטבלת ItemsInProduction
+            string insertSql = @"INSERT INTO ItemsInProduction 
+                            (ProductionItemID, SerialNumber, PlaneID, PriorityLevel, WorkOrderID, PlannedQty, Comments) 
+                            VALUES (@itemID, @serial, @planeID, @priority, @workOrder, @qty, @comments)";
+
+            using (SqlCommand mainCmd = new SqlCommand(insertSql, con, trans))
+            {
+                mainCmd.Parameters.AddWithValue("@itemID", productionItemID);
+                mainCmd.Parameters.AddWithValue("@serial", serialNumber);
+                mainCmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
+                mainCmd.Parameters.AddWithValue("@priority", item["PriorityID"]?.GetValue<int>() ?? 1);
+                mainCmd.Parameters.AddWithValue("@workOrder", (object)workOrderID ?? DBNull.Value);
+                mainCmd.Parameters.AddWithValue("@qty", item["Quantity"]?.GetValue<int>() ?? 1);
+                mainCmd.Parameters.AddWithValue("@comments", (object)item["Comments"]?.ToString() ?? DBNull.Value);
+                mainCmd.ExecuteNonQuery();
+            }
+
+            // שלב 3: הכנסת שורות לכל התחנות (סטטוס 1 = טרם בוצע)
+            InsertStagesForProduct(con, trans, serialNumber, productionItemID);
+
+            trans.Commit();
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            if (trans != null) trans.Rollback();
+            throw ex;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    // --- פונקציות עזר לסדר וארגון ---
+
+    private void HandleWorkOrder(SqlConnection con, SqlTransaction trans, string workOrderID)
+    {
+        if (string.IsNullOrEmpty(workOrderID)) return;
+
+        string sql = "IF NOT EXISTS (SELECT 1 FROM WorkOrders WHERE WorkOrderID = @woID) INSERT INTO WorkOrders (WorkOrderID) VALUES (@woID)";
+        using (SqlCommand cmd = new SqlCommand(sql, con, trans))
+        {
+            cmd.Parameters.AddWithValue("@woID", workOrderID);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    private void HandleProjectAndPlane(SqlConnection con, SqlTransaction trans, string projectName, string planeID, int planeTypeID)
+    {
+        if (!string.IsNullOrEmpty(projectName))
+        {
+            string sqlProj = "IF NOT EXISTS (SELECT 1 FROM Projects WHERE ProjectName = @pName) INSERT INTO Projects (ProjectName) VALUES (@pName)";
+            using (SqlCommand cmd = new SqlCommand(sqlProj, con, trans))
+            {
+                cmd.Parameters.AddWithValue("@pName", projectName);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        if (!string.IsNullOrEmpty(planeID))
+        {
+            string sqlPlane = @"IF NOT EXISTS (SELECT 1 FROM Planes WHERE PlaneID = @planeID) 
+                            INSERT INTO Planes (PlaneID, PlaneTypeID, ProjectID) 
+                            SELECT @planeID, @typeID, ProjectID FROM Projects WHERE ProjectName = @pName";
+            using (SqlCommand cmd = new SqlCommand(sqlPlane, con, trans))
+            {
+                cmd.Parameters.AddWithValue("@planeID", planeID);
+                cmd.Parameters.AddWithValue("@typeID", planeTypeID);
+                cmd.Parameters.AddWithValue("@pName", (object)projectName ?? DBNull.Value);
+                cmd.ExecuteNonQuery();
+            }
+        }
+    }
+
+    private void InsertStagesForProduct(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID)
+    {
+        // ודאי ששם הטבלה כאן הוא בדיוק כמו ב-DB (ProductionItemStage או ProductionItemStages)
+        string query = @"INSERT INTO ProductionItemStage (SerialNumber, ProductionItemID, ProductionStageID, ProductionStatusID)
+                     SELECT @serial, @itemID, ProductionStageID, 1 
+                     FROM ProductionStages";
+
+        using (SqlCommand cmd = new SqlCommand(query, con, trans))
+        {
+            cmd.Parameters.AddWithValue("@serial", serialNumber);
+            cmd.Parameters.AddWithValue("@itemID", productionItemID);
+            cmd.ExecuteNonQuery();
+        }
+    }
 }
