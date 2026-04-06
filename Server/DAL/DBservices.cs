@@ -2199,7 +2199,6 @@ INNER JOIN #BuyMethodUpdates u
             }
         }
     }
-
     private void InsertStagesForProduct(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID)
     {
         string query = @"INSERT INTO ProductionItemStage (SerialNumber, ProductionItemID, ProductionStageID, ProductionStatusID)
@@ -2213,7 +2212,6 @@ INNER JOIN #BuyMethodUpdates u
             cmd.ExecuteNonQuery();
         }
     }
-
     public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime)
     {
         SqlConnection con = null;

@@ -2,8 +2,6 @@
 using Server.DAL;
 using Server.Models;
 
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-
 namespace Server.Controllers
 {
     [Route("api/[controller]")]
@@ -11,7 +9,6 @@ namespace Server.Controllers
     public class ProjectsController : ControllerBase
     {
         [HttpGet]
-        // GET: api/Projects
         [HttpGet]
         public IEnumerable<Project> Get()
         {
@@ -35,7 +32,6 @@ namespace Server.Controllers
             }
             catch (Exception ex)
             {
-                // מחזיר שגיאה 500 עם פירוט במידה ומשהו השתבש בדרך
                 return StatusCode(500, ex.Message);
             }
         }
