@@ -10,6 +10,9 @@ namespace Server.Models
         public DateTime? FinishTimeStamp { get; set; }
         public string Comment { get; set; }
 
+        // The ? after DateTime indicates that these properties are nullable, allowing them to be null if the timestamps are not set yet.
+
+        // Constructor to initializes Stage and Status to avoid null values
         public ProductionItemStage()
         {
             this.Stage = new ProductionStage();

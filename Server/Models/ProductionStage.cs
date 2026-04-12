@@ -11,6 +11,8 @@ namespace Server.Models
 
         public ProductionStage() { }
 
+
+        // Calls DBservices to fetch and return all production stages from the database
         public List<ProductionStage> GetProductionStages()
         {
             DBservices dbs = new DBservices();

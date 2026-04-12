@@ -13,12 +13,16 @@ public class InventoryController : ControllerBase
         try
         {
             InventoryItem inventoryItem = new InventoryItem();
-            int importedRows = inventoryItem.ImportFromExcel(null);
+            InventoryImportResult importResult = inventoryItem.ImportFromExcel(null);
 
             return Ok(new
             {
                 message = "Inventory import completed successfully",
-                importedRows
+                importedRows = importResult.ImportedRows,
+                deletedProductionItems = importResult.DeletedProductionItems,
+                insertedProductionItems = importResult.InsertedProductionItems,
+                updatedProductionItems = importResult.UpdatedProductionItems,
+                finalProductionItemsCount = importResult.FinalProductionItemsCount
             });
         }
         catch (Exception ex)

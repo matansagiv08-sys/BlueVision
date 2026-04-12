@@ -22,9 +22,20 @@ public class InventoryItem
     public string? BodyPlane { get; set; }
     public DateTime? LastPODate { get; set; }
 
-    public int ImportFromExcel(string filePath)
+    // Calls DBservices to import inventory data from Excel and returns the import results summary
+    public InventoryImportResult ImportFromExcel(string filePath)
     {
         DBservices dbs = new DBservices();
         return dbs.ImportInventoryItemsFromExcel(filePath);
     }
+}
+
+// Holds detailed results of the inventory import process, including ProductionItems sync statistics
+public class InventoryImportResult
+{
+    public int ImportedRows { get; set; }
+    public int DeletedProductionItems { get; set; }
+    public int InsertedProductionItems { get; set; }
+    public int UpdatedProductionItems { get; set; }
+    public int FinalProductionItemsCount { get; set; }
 }

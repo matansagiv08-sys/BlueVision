@@ -863,7 +863,7 @@ ORDER BY BodyPlaneValue";
         return options;
     }
 
-    public int ImportInventoryItemsFromExcel(string? filePath)
+    public InventoryImportResult ImportInventoryItemsFromExcel(string? filePath)
     {
         Console.WriteLine("Import started");
         string finalPath = ResolveExcelPath(filePath);
@@ -948,6 +948,11 @@ ORDER BY BodyPlaneValue";
         int updatedSupplierRows = 0;
         Dictionary<string, int> groupNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, int> supplierNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        int deletedProductionItems = 0;
+        int insertedProductionItems = 0;
+        int updatedProductionItems = 0;
+        int finalProductionItemsCount = 0;
 
         using (SqlConnection con = connect("myProjDB"))
         {
@@ -1041,6 +1046,90 @@ ORDER BY BodyPlaneValue";
                 bomBulkCopy.WriteToServer(bomTable);
             }
             Debug.WriteLine("Inserted " + bomTable.Rows.Count + " BOM rows into BOM");
+
+            // Sync ProductionItems from BOM without breaking FK references from ItemsInProduction.
+            // Source set: DISTINCT InventoryItemID where BuyMethod='M' and BodyPlane='B'.
+            const string createProductionItemsSourceSql = @"
+CREATE TABLE #ProductionItemsSource
+(
+    ProductionItemID NVARCHAR(100) NOT NULL,
+    ItemName NVARCHAR(255) NULL
+);
+
+INSERT INTO #ProductionItemsSource (ProductionItemID, ItemName)
+SELECT
+    LTRIM(RTRIM(b.InventoryItemID)) AS ProductionItemID,
+    MAX(NULLIF(LTRIM(RTRIM(b.ItemName)), '')) AS ItemName
+FROM BOM b
+WHERE
+    NULLIF(LTRIM(RTRIM(b.InventoryItemID)), '') IS NOT NULL
+    AND LTRIM(RTRIM(b.BuyMethod)) = 'M'
+    AND LTRIM(RTRIM(b.BodyPlane)) = 'B'
+GROUP BY LTRIM(RTRIM(b.InventoryItemID));";
+
+            using (SqlCommand createSourceCmd = new SqlCommand(createProductionItemsSourceSql, con))
+            {
+                createSourceCmd.CommandTimeout = 120;
+                createSourceCmd.ExecuteNonQuery();
+            }
+
+            const string insertProductionItemsSql = @"
+INSERT INTO ProductionItems (ProductionItemID, ItemName)
+SELECT s.ProductionItemID, s.ItemName
+FROM #ProductionItemsSource s
+LEFT JOIN ProductionItems p ON p.ProductionItemID = s.ProductionItemID
+WHERE p.ProductionItemID IS NULL;";
+
+            using (SqlCommand insertProductionItemsCmd = new SqlCommand(insertProductionItemsSql, con))
+            {
+                insertProductionItemsCmd.CommandTimeout = 120;
+                insertedProductionItems = insertProductionItemsCmd.ExecuteNonQuery();
+            }
+
+            const string updateProductionItemsSql = @"
+UPDATE p
+SET p.ItemName = s.ItemName
+FROM ProductionItems p
+INNER JOIN #ProductionItemsSource s ON s.ProductionItemID = p.ProductionItemID
+WHERE ISNULL(p.ItemName, '') <> ISNULL(s.ItemName, '');";
+
+            using (SqlCommand updateProductionItemsCmd = new SqlCommand(updateProductionItemsSql, con))
+            {
+                updateProductionItemsCmd.CommandTimeout = 120;
+                updatedProductionItems = updateProductionItemsCmd.ExecuteNonQuery();
+            }
+
+            const string deleteProductionItemsSql = @"
+DELETE p
+FROM ProductionItems p
+WHERE
+    NOT EXISTS (SELECT 1 FROM #ProductionItemsSource s WHERE s.ProductionItemID = p.ProductionItemID)
+    AND NOT EXISTS (SELECT 1 FROM ItemsInProduction iip WHERE iip.ProductionItemID = p.ProductionItemID);";
+
+            using (SqlCommand deleteProductionItemsCmd = new SqlCommand(deleteProductionItemsSql, con))
+            {
+                deleteProductionItemsCmd.CommandTimeout = 120;
+                deletedProductionItems = deleteProductionItemsCmd.ExecuteNonQuery();
+            }
+
+            using (SqlCommand countProductionItemsCmd = new SqlCommand("SELECT COUNT(*) FROM ProductionItems", con))
+            {
+                countProductionItemsCmd.CommandTimeout = 120;
+                object? scalar = countProductionItemsCmd.ExecuteScalar();
+                finalProductionItemsCount = scalar == null || scalar == DBNull.Value ? 0 : Convert.ToInt32(scalar);
+            }
+
+            if (insertedProductionItems < 0)
+            {
+                insertedProductionItems = finalProductionItemsCount;
+            }
+
+            if (updatedProductionItems < 0)
+            {
+                updatedProductionItems = 0;
+            }
+
+            Debug.WriteLine("Synced ProductionItems from BOM: inserted=" + insertedProductionItems + ", updated=" + updatedProductionItems + ", deleted=" + deletedProductionItems + ", finalCount=" + finalProductionItemsCount);
 
             const string insertSupplierIfMissingSql = @"
 IF NOT EXISTS (SELECT 1 FROM Suppliers WHERE SupplierName = @SupplierName)
@@ -1357,7 +1446,14 @@ INNER JOIN #BuyMethodUpdates u
         }
 
         Console.WriteLine("Import finished successfully");
-        return updatedRows;
+        return new InventoryImportResult
+        {
+            ImportedRows = updatedRows,
+            DeletedProductionItems = deletedProductionItems,
+            InsertedProductionItems = insertedProductionItems,
+            UpdatedProductionItems = updatedProductionItems,
+            FinalProductionItemsCount = finalProductionItemsCount
+        };
     }
 
     private static Dictionary<string, string> BuildItemToGroupMap(IXLWorksheet sheet)
@@ -2026,7 +2122,17 @@ INNER JOIN #BuyMethodUpdates u
         try
         {
             con = connect("myProjDB");
-            string query = "SELECT ProductionItemID, ItemName FROM ProductionItems ORDER BY ItemName";
+            string query = @"
+                SELECT
+                    LTRIM(RTRIM(b.InventoryItemID)) AS ProductionItemID,
+                    MAX(NULLIF(LTRIM(RTRIM(b.ItemName)), '')) AS ItemName
+                FROM BOM b
+                WHERE
+                    NULLIF(LTRIM(RTRIM(b.InventoryItemID)), '') IS NOT NULL
+                    AND LTRIM(RTRIM(b.BuyMethod)) = 'M'
+                    AND LTRIM(RTRIM(b.BodyPlane)) = 'B'
+                GROUP BY LTRIM(RTRIM(b.InventoryItemID))
+                ORDER BY MAX(NULLIF(LTRIM(RTRIM(b.ItemName)), '')), LTRIM(RTRIM(b.InventoryItemID))";
             SqlCommand cmd = new SqlCommand(query, con);
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -2034,7 +2140,7 @@ INNER JOIN #BuyMethodUpdates u
                 list.Add(new ProductionItem
                 {
                     ProductionItemID = reader["ProductionItemID"].ToString(),
-                    ItemName = reader["ItemName"].ToString()
+                    ItemName = reader["ItemName"] == DBNull.Value ? string.Empty : reader["ItemName"].ToString()
                 });
             }
             return list;

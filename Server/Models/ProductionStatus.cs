@@ -1,5 +1,7 @@
 ﻿using Server.DAL;
 
+// Represents fixed production status values from the database (lookup table)
+
 namespace Server.Models
 {
     public class ProductionStatus
