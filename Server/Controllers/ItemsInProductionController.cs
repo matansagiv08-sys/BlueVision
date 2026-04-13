@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Server.DAL;
+using Microsoft.AspNetCore.Mvc;
 using Server.Models;
 
 namespace Server.Controllers
@@ -29,16 +28,8 @@ namespace Server.Controllers
         {
             try
             {
-                DBservices dbs = new DBservices();
-                var formData = new
-                {
-                    ProductionItems = dbs.GetProductionItems(),
-                    Projects = dbs.GetProjects(), 
-                    PlaneTypes = dbs.GetPlaneTypes(),
-                    ExistingWorkOrders = dbs.GetUniqueWorkOrders(),
-                    Priorities = dbs.GetPriorityLevels(),
-                    Planes = dbs.GetPlanes()
-                };
+                ItemInProduction model = new ItemInProduction();
+                object formData = model.GetInitialFormData();
                 return Ok(formData);
             }
             catch (Exception ex)
@@ -52,8 +43,8 @@ namespace Server.Controllers
         {
             try
             {
-                DBservices dbs = new DBservices();
-                int numEffected = dbs.InsertItemInProduction(itemData);
+                ItemInProduction model = new ItemInProduction();
+                int numEffected = model.InsertItem(itemData);
 
                 if (numEffected > 0) return Ok(new { message = "Success" });
                 else return BadRequest(new { error = "Failed to insert" });
@@ -81,8 +72,8 @@ namespace Server.Controllers
                     userTime = DateTime.Parse(data["UserTime"].ToString());
                 }
 
-                DBservices dbs = new DBservices();
-                int res = dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime);
+                ItemInProduction model = new ItemInProduction();
+                int res = model.UpdateStatus(serial, itemID, stageID, statusID, comment, userTime);
 
                 if (res > 0) return Ok(new { message = "Status updated successfully" });
                 return BadRequest("Could not update status");

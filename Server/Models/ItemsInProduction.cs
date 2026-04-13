@@ -1,4 +1,5 @@
-﻿using Server.DAL;
+using Server.DAL;
+using System.Text.Json.Nodes;
 
 namespace Server.Models
 {
@@ -46,6 +47,32 @@ namespace Server.Models
         {
             DBservices dbs = new DBservices();
             return dbs.GetTasksBoard(); 
+        }
+
+        public object GetInitialFormData()
+        {
+            DBservices dbs = new DBservices();
+            return new
+            {
+                ProductionItems = dbs.GetProductionItems(),
+                Projects = dbs.GetProjects(),
+                PlaneTypes = dbs.GetPlaneTypes(),
+                ExistingWorkOrders = dbs.GetUniqueWorkOrders(),
+                Priorities = dbs.GetPriorityLevels(),
+                Planes = dbs.GetPlanes()
+            };
+        }
+
+        public int InsertItem(JsonObject itemData)
+        {
+            DBservices dbs = new DBservices();
+            return dbs.InsertItemInProduction(itemData);
+        }
+
+        public int UpdateStatus(int serial, string itemID, int stageID, int statusID, string comment, DateTime? userTime)
+        {
+            DBservices dbs = new DBservices();
+            return dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime);
         }
 
     }

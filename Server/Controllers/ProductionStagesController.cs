@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Server.DAL;
 using Server.Models;
 
 namespace Server.Controllers
@@ -11,8 +10,8 @@ namespace Server.Controllers
         [HttpGet]
         public IEnumerable<ProductionStage> GetProductionStages()
         {
-            DBservices dbs = new DBservices();
-            return dbs.GetProductionStages();
+            ProductionStage stage = new ProductionStage();
+            return stage.GetProductionStages();
         }
     }
 }

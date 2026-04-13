@@ -28,6 +28,28 @@ public class InventoryItem
         DBservices dbs = new DBservices();
         return dbs.ImportInventoryItemsFromExcel(filePath);
     }
+
+    public List<InventoryItem> GetInventoryItems(
+        int page = 1,
+        int pageSize = 100,
+        string? search = null,
+        string? stockStatus = "all",
+        int? planeTypeId = null,
+        int? itemGrpID = null,
+        string? buyMethod = null,
+        int? supplierID = null,
+        string? bodyPlane = null,
+        DateTime? lastPODate = null)
+    {
+        DBservices dbs = new DBservices();
+        return dbs.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate);
+    }
+
+    public InventoryFilterOptions GetInventoryFilterOptions()
+    {
+        DBservices dbs = new DBservices();
+        return dbs.GetInventoryFilterOptions();
+    }
 }
 
 // Holds detailed results of the inventory import process, including ProductionItems sync statistics

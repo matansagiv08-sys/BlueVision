@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Server.DAL;
 using Server.Models;
 
 namespace Server.Controllers;
@@ -21,14 +20,14 @@ public class InventoryItemsController : ControllerBase
         [FromQuery] string? bodyPlane = null,
         [FromQuery] DateTime? lastPODate = null)
     {
-        DBservices dbs = new DBservices();
-        return dbs.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate);
+        InventoryItem inventoryItem = new InventoryItem();
+        return inventoryItem.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate);
     }
 
     [HttpGet("filter-options")]
     public InventoryFilterOptions GetFilterOptions()
     {
-        DBservices dbs = new DBservices();
-        return dbs.GetInventoryFilterOptions();
+        InventoryItem inventoryItem = new InventoryItem();
+        return inventoryItem.GetInventoryFilterOptions();
     }
 }

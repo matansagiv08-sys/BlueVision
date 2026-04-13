@@ -25,5 +25,11 @@ namespace Server.Models
 
         // Calls DBservices to retrieve the list of projects from the database and returns it
         public List<Project> GetProjects() { DBservices dbs = new DBservices(); return dbs.GetProjects(); }
+
+        public List<Project> GetFullProjectsStatus()
+        {
+            DBservices dbs = new DBservices();
+            return dbs.GetFullProjectsStatus();
+        }
     }
 }

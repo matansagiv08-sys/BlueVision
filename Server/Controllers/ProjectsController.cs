@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Server.DAL;
+using Microsoft.AspNetCore.Mvc;
 using Server.Models;
 
 namespace Server.Controllers
@@ -8,7 +7,6 @@ namespace Server.Controllers
     [ApiController]
     public class ProjectsController : ControllerBase
     {
-        [HttpGet]
         [HttpGet]
         public IEnumerable<Project> Get()
         {
@@ -20,8 +18,8 @@ namespace Server.Controllers
         {
             try
             {
-                DBservices dbs = new DBservices();
-                List<Project> projects = dbs.GetFullProjectsStatus();
+                Project project = new Project();
+                List<Project> projects = project.GetFullProjectsStatus();
 
                 if (projects == null || projects.Count == 0)
                 {
