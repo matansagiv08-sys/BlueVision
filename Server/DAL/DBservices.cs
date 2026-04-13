@@ -421,288 +421,94 @@ ORDER BY Value";
         return options;
     }
 
-    public InventoryCheckResponse CalculateInventoryCheck(InventoryCheckRequest? request)
+    public Dictionary<int, string> GetPlaneTypeNames(List<int> planeTypeIds)
     {
-        InventoryCheckResponse response = new InventoryCheckResponse();
-
-        if (request == null)
-        {
-            return response;
-        }
-
-        string mode = (request.Mode ?? "uav").Trim().ToLowerInvariant();
-        response.Mode = mode;
-        string targetBodyPlane = mode == "body" ? "B" : "P";
-
-        //since we allow multiple requests for the same plane type, this returns a dictionary of plane type ID to total requested quantity for that plane type
-        Dictionary<int, int> planeRequests = request.Requests
-            .Where(r => r != null && r.PlaneTypeID > 0 && r.Quantity > 0)
-            .GroupBy(r => r.PlaneTypeID)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
-
-        if (planeRequests.Count == 0)
-        {
-            return response;
-        }
-
-        List<int> planeTypeIds = planeRequests.Keys.ToList();
         Dictionary<int, string> planeTypeNames = new Dictionary<int, string>();
+
+        if (planeTypeIds == null || planeTypeIds.Count == 0)
+        {
+            return planeTypeNames;
+        }
+
+        using SqlConnection con = connect("myProjDB");
+
+        string idsCsv = string.Join(",", planeTypeIds.Select((_, i) => $"@PlaneTypeID{i}"));
+
+        StringBuilder planeTypesSql = new StringBuilder();
+        planeTypesSql.Append("SELECT PlaneTypeID, PlaneTypeName FROM PlaneTypes WHERE PlaneTypeID IN (");
+        planeTypesSql.Append(idsCsv);
+        planeTypesSql.Append(")");
+
+        using SqlCommand planeTypesCmd = new SqlCommand(planeTypesSql.ToString(), con);
+        planeTypesCmd.CommandType = CommandType.Text;
+        planeTypesCmd.CommandTimeout = 120;
+        for (int i = 0; i < planeTypeIds.Count; i++)
+        {
+            planeTypesCmd.Parameters.AddWithValue($"@PlaneTypeID{i}", planeTypeIds[i]);
+        }
+
+        using SqlDataReader reader = planeTypesCmd.ExecuteReader();
+        while (reader.Read())
+        {
+            int planeTypeId = Convert.ToInt32(reader["PlaneTypeID"]);
+            string planeTypeName = reader["PlaneTypeName"]?.ToString() ?? planeTypeId.ToString();
+            planeTypeNames[planeTypeId] = planeTypeName;
+        }
+
+        return planeTypeNames;
+    }
+
+    public List<BomRow> GetBomRowsForPlanes(List<int> planeTypeIds, string bodyPlane)
+    {
         List<BomRow> bomRows = new List<BomRow>();
 
-        using (SqlConnection con = connect("myProjDB"))
+        if (planeTypeIds == null || planeTypeIds.Count == 0)
         {
-            //Make placeholders for each plane ID so we can use them safely in SQL
-            string idsCsv = string.Join(",", planeTypeIds.Select((_, i) => $"@PlaneTypeID{i}"));
-
-            //Build the SQL query with the results from the idccsv string above to get the plane type names for the requested plane type IDs
-            StringBuilder planeTypesSql = new StringBuilder();
-            planeTypesSql.Append("SELECT PlaneTypeID, PlaneTypeName FROM PlaneTypes WHERE PlaneTypeID IN (");
-            planeTypesSql.Append(idsCsv);
-            planeTypesSql.Append(")");
-
-            //Send the query above to SQL
-            //From this we get a dictionary mapping each PlaneTypeID to its PlaneTypeName
-            using (SqlCommand planeTypesCmd = new SqlCommand(planeTypesSql.ToString(), con))
-            {
-                planeTypesCmd.CommandType = CommandType.Text;
-                planeTypesCmd.CommandTimeout = 120;
-                for (int i = 0; i < planeTypeIds.Count; i++)
-                {
-                    planeTypesCmd.Parameters.AddWithValue($"@PlaneTypeID{i}", planeTypeIds[i]);
-                }
-
-                //execution
-                using SqlDataReader reader = planeTypesCmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    int planeTypeId = Convert.ToInt32(reader["PlaneTypeID"]);
-                    string planeTypeName = reader["PlaneTypeName"]?.ToString() ?? planeTypeId.ToString();
-                    planeTypeNames[planeTypeId] = planeTypeName;
-                }
-            }
-
-            //building the query to get the relevant BOM rows for the requested plane type IDs and body plane (P or B depending on mode)
-            StringBuilder bomSql = new StringBuilder();
-            bomSql.Append("SELECT PlaneTypeID, RowOrder, InventoryItemID, ItemName, Quantity, MeasureUnit, BomLevel, BuyMethod, BodyPlane ");
-            bomSql.Append("FROM BOM WHERE PlaneTypeID IN (");
-            bomSql.Append(idsCsv);
-            bomSql.Append(") AND BodyPlane = @BodyPlane ORDER BY PlaneTypeID, RowOrder");
-
-            using (SqlCommand bomCmd = new SqlCommand(bomSql.ToString(), con))
-            {
-                bomCmd.CommandType = CommandType.Text;
-                bomCmd.CommandTimeout = 120;
-                for (int i = 0; i < planeTypeIds.Count; i++)
-                {
-                    bomCmd.Parameters.AddWithValue($"@PlaneTypeID{i}", planeTypeIds[i]);
-                }
-                bomCmd.Parameters.AddWithValue("@BodyPlane", targetBodyPlane);
-
-                using SqlDataReader reader = bomCmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    bomRows.Add(new BomRow
-                    {
-                        PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
-                        RowOrder = Convert.ToInt32(reader["RowOrder"]),
-                        InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
-                        ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
-                        Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
-                        MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
-                        BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
-                        BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
-                        BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
-                    });
-                }
-            }
+            return bomRows;
         }
 
-        //dictonary to accumulate total required quantities per item
-        Dictionary<string, AggregatedBomNeed> needsByItem = new Dictionary<string, AggregatedBomNeed>(StringComparer.OrdinalIgnoreCase);
-        bool debugBomExplosion = false;
+        using SqlConnection con = connect("myProjDB");
 
-        //loop through each requested plane type and its requested quantity
-        foreach (KeyValuePair<int, int> requestEntry in planeRequests)
+        string idsCsv = string.Join(",", planeTypeIds.Select((_, i) => $"@PlaneTypeID{i}"));
+
+        StringBuilder bomSql = new StringBuilder();
+        bomSql.Append("SELECT PlaneTypeID, RowOrder, InventoryItemID, ItemName, Quantity, MeasureUnit, BomLevel, BuyMethod, BodyPlane ");
+        bomSql.Append("FROM BOM WHERE PlaneTypeID IN (");
+        bomSql.Append(idsCsv);
+        bomSql.Append(") AND BodyPlane = @BodyPlane ORDER BY PlaneTypeID, RowOrder");
+
+        using SqlCommand bomCmd = new SqlCommand(bomSql.ToString(), con);
+        bomCmd.CommandType = CommandType.Text;
+        bomCmd.CommandTimeout = 120;
+        for (int i = 0; i < planeTypeIds.Count; i++)
         {
-            int planeTypeId = requestEntry.Key;
-            int requestedQty = requestEntry.Value;
+            bomCmd.Parameters.AddWithValue($"@PlaneTypeID{i}", planeTypeIds[i]);
+        }
+        bomCmd.Parameters.AddWithValue("@BodyPlane", bodyPlane);
 
-            //Creates a list of BOM rows for the current plane type, ordered by their position in the BOM
-            List<BomRow> rowsForPlane = bomRows
-                .Where(r => r.PlaneTypeID == planeTypeId)
-                .OrderBy(r => r.RowOrder)
-                .ToList();
-
-            if (rowsForPlane.Count == 0)
+        using SqlDataReader reader = bomCmd.ExecuteReader();
+        while (reader.Read())
+        {
+            bomRows.Add(new BomRow
             {
-                continue;
-            }
-
-            // Literal BOM explosion algorithm (as requested):
-            // For each BUY row, scan upward by RowOrder and at each step pick the FIRST row
-            // with level exactly one less (L-1, then L-2, ...), multiply quantities, then
-            // multiply once by requested plane quantity.
-            for (int rowIndex = 0; rowIndex < rowsForPlane.Count; rowIndex++)
-            {
-                BomRow row = rowsForPlane[rowIndex];
-
-                if (!string.Equals(row.BuyMethod?.Trim(), "B", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                //Get item ID and validate
-                string itemId = (row.InventoryItemID ?? string.Empty).Trim();
-                if (string.IsNullOrWhiteSpace(itemId))
-                {
-                    continue;
-                }
-
-                decimal effectiveQty = CalculateBuyRowRequiredQtyByUpwardScan(rowsForPlane, rowIndex, requestedQty, debugBomExplosion);
-
-                if (!needsByItem.TryGetValue(itemId, out AggregatedBomNeed? existing))
-                {
-                    existing = new AggregatedBomNeed
-                    {
-                        InventoryItemID = itemId,
-                        ItemName = row.ItemName ?? string.Empty,
-                        MeasureUnit = string.IsNullOrWhiteSpace(row.MeasureUnit) ? "each" : row.MeasureUnit.Trim()
-                    };
-                    needsByItem[itemId] = existing;
-                }
-
-                existing.RequiredQty += effectiveQty;
-                existing.PlaneTypeIDs.Add(planeTypeId);
-            }
+                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                RowOrder = Convert.ToInt32(reader["RowOrder"]),
+                InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
+                ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
+                Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
+                MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
+                BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
+                BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
+                BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
+            });
         }
 
-        if (needsByItem.Count == 0)
-        {
-            return response;
-        }
-
-        //This gets the current stock data from the database for all the items we calculated we need.
-        Dictionary<string, InventorySnapshot> stockByItem = GetInventorySnapshotsForItems(needsByItem.Keys.ToList());
-
-        foreach (AggregatedBomNeed need in needsByItem.Values)
-        {
-            stockByItem.TryGetValue(need.InventoryItemID, out InventorySnapshot? stock);
-
-            decimal totalStock = stock?.TotalStock ?? 0m;
-            decimal shortage = need.RequiredQty - totalStock;
-
-            if (shortage <= 0)
-            {
-                continue;
-            }
-
-            string itemName = need.ItemName;
-            if (string.IsNullOrWhiteSpace(itemName) && !string.IsNullOrWhiteSpace(stock?.ItemName))
-            {
-                itemName = stock.ItemName;
-            }
-
-            string planeNames = string.Join(", ", need.PlaneTypeIDs
-                .Distinct()
-                .OrderBy(id => id)
-                .Select(id => planeTypeNames.TryGetValue(id, out string? name) ? name : id.ToString()));
-
-            InventoryCheckShortageItem item = new InventoryCheckShortageItem
-            {
-                InventoryItemID = need.InventoryItemID,
-                ItemName = itemName,
-                MeasureUnit = string.IsNullOrWhiteSpace(need.MeasureUnit) ? "each" : need.MeasureUnit,
-                RequiredQty = Decimal.Round(need.RequiredQty, 4),
-                TotalStock = Decimal.Round(totalStock, 4),
-                ShortageQty = Decimal.Round(shortage, 4),
-                SupplierName = stock?.SupplierName ?? string.Empty,
-                Price = stock?.Price,
-                IsSharedAcrossPlanes = need.PlaneTypeIDs.Count > 1,
-                ContributingPlaneTypes = planeNames
-            };
-
-            response.Items.Add(item);
-        }
-
-        response.Items = response.Items
-            .OrderByDescending(i => i.ShortageQty)
-            .ThenBy(i => i.InventoryItemID)
-            .ToList();
-
-        response.TotalShortageItems = response.Items.Count;
-        response.TotalShortageUnits = Decimal.Round(response.Items.Sum(i => i.ShortageQty), 4);
-        response.TotalEstimatedCost = Decimal.Round(response.Items.Sum(i => (decimal)(i.Price ?? 0d) * i.ShortageQty), 2);
-
-        return response;
+        return bomRows;
     }
 
-    private static decimal CalculateBuyRowRequiredQtyByUpwardScan(
-        List<BomRow> rowsForPlane,
-        int currentRowIndex,
-        int requestedPlaneQty,
-        bool debugBomExplosion)
+    public Dictionary<string, InventoryCheck.InventorySnapshot> GetInventorySnapshotsForItems(List<string> itemIds)
     {
-        BomRow currentRow = rowsForPlane[currentRowIndex];
-        int currentLevel = currentRow.BomLevel <= 0 ? 1 : currentRow.BomLevel;
-        decimal effectiveQty = currentRow.Quantity ?? 0m;
-
-        if (debugBomExplosion)
-        {
-            Debug.WriteLine($"[BOM UPWARD] Start Item={currentRow.InventoryItemID} RowOrder={currentRow.RowOrder} Level={currentLevel} RowQty={currentRow.Quantity ?? 0m}");
-        }
-
-        int targetLevel = currentLevel - 1;
-        int searchIndex = currentRowIndex - 1;
-
-        while (targetLevel >= 1)
-        {
-            int foundIndex = -1;
-
-            for (int i = searchIndex; i >= 0; i--)
-            {
-                int candidateLevel = rowsForPlane[i].BomLevel <= 0 ? 1 : rowsForPlane[i].BomLevel;
-                if (candidateLevel == targetLevel)
-                {
-                    foundIndex = i;
-                    break;
-                }
-            }
-
-            if (foundIndex < 0)
-            {
-                if (debugBomExplosion)
-                {
-                    Debug.WriteLine($"[BOM UPWARD] Item={currentRow.InventoryItemID} Missing ancestor at level={targetLevel}");
-                }
-                break;
-            }
-
-            BomRow ancestor = rowsForPlane[foundIndex];
-            decimal ancestorQty = ancestor.Quantity ?? 0m;
-            effectiveQty *= ancestorQty;
-
-            if (debugBomExplosion)
-            {
-                Debug.WriteLine($"[BOM UPWARD] Item={currentRow.InventoryItemID} AncestorLevel={targetLevel} AncestorRowOrder={ancestor.RowOrder} AncestorItem={ancestor.InventoryItemID} AncestorQty={ancestorQty} RunningQty={effectiveQty}");
-            }
-
-            searchIndex = foundIndex - 1;
-            targetLevel--;
-        }
-
-        effectiveQty *= requestedPlaneQty;
-
-        if (debugBomExplosion)
-        {
-            Debug.WriteLine($"[BOM UPWARD] Final Item={currentRow.InventoryItemID} RequestedPlanes={requestedPlaneQty} EffectiveQty={effectiveQty}");
-        }
-
-        return effectiveQty;
-    }
-
-    private Dictionary<string, InventorySnapshot> GetInventorySnapshotsForItems(List<string> itemIds)
-    {
-        Dictionary<string, InventorySnapshot> snapshots = new Dictionary<string, InventorySnapshot>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, InventoryCheck.InventorySnapshot> snapshots = new Dictionary<string, InventoryCheck.InventorySnapshot>(StringComparer.OrdinalIgnoreCase);
 
         if (itemIds.Count == 0)
         {
@@ -736,7 +542,7 @@ ORDER BY Value";
                 continue;
             }
 
-            snapshots[itemId] = new InventorySnapshot
+            snapshots[itemId] = new InventoryCheck.InventorySnapshot
             {
                 ItemName = reader["ItemName"] == DBNull.Value ? string.Empty : reader["ItemName"].ToString() ?? string.Empty,
                 TotalStock = reader["TotalStock"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["TotalStock"]),
@@ -746,23 +552,6 @@ ORDER BY Value";
         }
 
         return snapshots;
-    }
-
-    private class AggregatedBomNeed
-    {
-        public string InventoryItemID { get; set; } = string.Empty;
-        public string ItemName { get; set; } = string.Empty;
-        public string MeasureUnit { get; set; } = "each";
-        public decimal RequiredQty { get; set; }
-        public HashSet<int> PlaneTypeIDs { get; set; } = new HashSet<int>();
-    }
-
-    private class InventorySnapshot
-    {
-        public string ItemName { get; set; } = string.Empty;
-        public decimal TotalStock { get; set; }
-        public string SupplierName { get; set; } = string.Empty;
-        public double? Price { get; set; }
     }
 
     public InventoryFilterOptions GetInventoryFilterOptions()

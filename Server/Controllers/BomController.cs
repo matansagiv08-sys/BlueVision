@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Server.DAL;
 using Server.Models;
 
 namespace Server.Controllers;
@@ -21,21 +20,21 @@ public class BomController : ControllerBase
         [FromQuery] string? buyMethod = null,
         [FromQuery] string? bodyPlane = null)
     {
-        DBservices dbs = new DBservices();
-        return dbs.GetBomRows(page, pageSize, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
+        Bom bom = new Bom();
+        return bom.GetBomRows(page, pageSize, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
     }
 
     [HttpGet("planes")]
     public IEnumerable<BomPlaneOption> GetPlaneOptions()
     {
-        DBservices dbs = new DBservices();
-        return dbs.GetBomPlaneOptions();
+        Bom bom = new Bom();
+        return bom.GetBomPlaneOptions();
     }
 
     [HttpGet("filter-options")]
     public BomFilterOptions GetFilterOptions([FromQuery] int? planeTypeId = null)
     {
-        DBservices dbs = new DBservices();
-        return dbs.GetBomFilterOptions(planeTypeId);
+        Bom bom = new Bom();
+        return bom.GetBomFilterOptions(planeTypeId);
     }
 }

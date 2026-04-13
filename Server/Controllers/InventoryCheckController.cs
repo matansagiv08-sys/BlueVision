@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Server.DAL;
 using Server.Models;
 
 namespace Server.Controllers;
@@ -11,8 +10,8 @@ public class InventoryCheckController : ControllerBase
     [HttpPost("calculate")]
     public ActionResult<InventoryCheckResponse> Calculate([FromBody] InventoryCheckRequest request)
     {
-        DBservices dbs = new DBservices();
-        InventoryCheckResponse response = dbs.CalculateInventoryCheck(request);
+        InventoryCheck inventoryCheck = new InventoryCheck();
+        InventoryCheckResponse response = inventoryCheck.Calculate(request);
         return Ok(response);
     }
 }
