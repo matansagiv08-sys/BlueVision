@@ -1,6 +1,7 @@
 let currentCheckMode = "uav";
 let bomPlaneTypeOptions = [];
 
+//When the page loads, initInventoryCheck() runs, commanded by app.js. It sets up the page and loads the plane types for the dropdowns.
 window.initInventoryCheck = function () {
     const app = document.getElementById("app");
     if (app) {
@@ -11,6 +12,8 @@ window.initInventoryCheck = function () {
     loadBomPlaneTypes();
 };
 
+//Fetches plane types from the server and stores them for use in dropdowns.
+//ajaxCall(method, url, data, successCallback, errorCallback)
 function loadBomPlaneTypes() {
     ajaxCall(
         "GET",
@@ -31,6 +34,7 @@ function loadBomPlaneTypes() {
     );
 }
 
+//Clears all rows and creates a fresh starting row.
 function resetCheckPage() {
     const container = document.getElementById("check-rows-container");
     if (container) {
@@ -40,6 +44,7 @@ function resetCheckPage() {
     updateCalculateButton();
 }
 
+//Switches between UAV/body mode and updates UI accordingly.
 window.switchCheckMode = function (mode) {
     currentCheckMode = mode;
 
@@ -49,12 +54,14 @@ window.switchCheckMode = function (mode) {
     updateAddRowButtonText();
 };
 
+//Changes the “add row” button text based on the selected mode.
 function updateAddRowButtonText() {
     const addBtn = document.querySelector(".btn-add-row");
     if (!addBtn) return;
     addBtn.innerText = currentCheckMode === "uav" ? "הוסף כטב\"ם נוסף" : "הוסף גוף נוסף";
 }
 
+//Creates and adds a new input row (plane type + quantity).
 window.addNewCheckRow = function () {
     const container = document.getElementById("check-rows-container");
     if (!container) return;
@@ -96,11 +103,13 @@ window.addNewCheckRow = function () {
     updateCalculateButton();
 };
 
+//Deletes a specific row from the page.
 window.removeRow = function (id) {
     document.getElementById(id)?.remove();
     updateCalculateButton();
 };
 
+//Checks if a row has valid inputs and marks it as complete if valid.
 window.validateRow = function (rowId) {
     const row = document.getElementById(rowId);
     if (!row) return;
@@ -114,6 +123,7 @@ window.validateRow = function (rowId) {
     updateCalculateButton();
 };
 
+//Enables the calculate button only if all rows are complete and there is at least one row.
 function updateCalculateButton() {
     const btn = document.getElementById("btn-calculate");
     const rows = document.querySelectorAll(".check-row-card");
@@ -124,6 +134,7 @@ function updateCalculateButton() {
     }
 }
 
+//Gathers all input data, saves it to sessionStorage, and navigates to the results page.
 window.navigateToResults = function () {
     const rows = document.querySelectorAll(".check-row-card");
     const requests = [];
@@ -137,15 +148,18 @@ window.navigateToResults = function () {
         }
     });
 
+    //Wraps everything in a payload, for example mode: Body, requests: [{planeTypeID: 1, quantity: 5}, ...]
     const payload = {
         mode: currentCheckMode,
         requests
     };
 
+    //Saves the payload in sessionStorage as a JSON string so the results page can retrieve and send it to the server.
     sessionStorage.setItem("inventoryCheckPayload", JSON.stringify(payload));
     window.location.hash = "/inventory/inventory_check/results";
 };
 
+//Simple function to escape HTML special characters to prevent injection issues.
 function escapeHtml(value) {
     return String(value)
         .replace(/&/g, "&amp;")

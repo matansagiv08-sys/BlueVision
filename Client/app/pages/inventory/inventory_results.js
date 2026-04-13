@@ -27,6 +27,7 @@ window.initInventoryResults = function () {
         "POST",
         "https://localhost:7296/api/InventoryCheck/calculate",
         JSON.stringify(payload),
+        //success callback
         function (data) {
             currentResultsData = Array.isArray(data?.items)
                 ? data.items
@@ -206,7 +207,7 @@ function displayNumber(value) {
     return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
-function escapeHtml(value) {
+function escapeHtml(value) {    
     return String(value)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")

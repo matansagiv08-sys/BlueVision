@@ -18,12 +18,5 @@ namespace Server.Models
             this.Stage = new ProductionStage();
             this.Status = new ProductionStatus();
         }
-
-        // עדכון סטטוס תחנה עבור פריט ביצור
-        //public int UpdateProgress()
-        //{
-        //    DBservices dbs = new DBservices();
-        //    return dbs.UpdateItemProgress(this);
-        //}
     }
 }

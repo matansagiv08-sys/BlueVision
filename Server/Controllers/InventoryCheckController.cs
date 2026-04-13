@@ -16,3 +16,4 @@ public class InventoryCheckController : ControllerBase
         return Ok(response);
     }
 }
+    

@@ -179,12 +179,12 @@ public class DBservices
         List<BomPlaneOption> options = new List<BomPlaneOption>();
 
         const string sql = @"
-SELECT DISTINCT
-    b.PlaneTypeID,
-    COALESCE(NULLIF(LTRIM(RTRIM(pt.PlaneTypeName)), ''), CAST(b.PlaneTypeID AS NVARCHAR(20))) AS PlaneTypeName
-FROM BOM b
-LEFT JOIN PlaneTypes pt ON pt.PlaneTypeID = b.PlaneTypeID
-ORDER BY PlaneTypeName";
+                            SELECT DISTINCT
+                                b.PlaneTypeID,
+                                COALESCE(NULLIF(LTRIM(RTRIM(pt.PlaneTypeName)), ''), CAST(b.PlaneTypeID AS NVARCHAR(20))) AS PlaneTypeName
+                            FROM BOM b
+                            LEFT JOIN PlaneTypes pt ON pt.PlaneTypeID = b.PlaneTypeID
+                            ORDER BY PlaneTypeName";
 
         using SqlConnection con = connect("myProjDB");
         using SqlCommand cmd = new SqlCommand(sql, con);
@@ -434,6 +434,7 @@ ORDER BY Value";
         response.Mode = mode;
         string targetBodyPlane = mode == "body" ? "B" : "P";
 
+        //since we allow multiple requests for the same plane type, this returns a dictionary of plane type ID to total requested quantity for that plane type
         Dictionary<int, int> planeRequests = request.Requests
             .Where(r => r != null && r.PlaneTypeID > 0 && r.Quantity > 0)
             .GroupBy(r => r.PlaneTypeID)
@@ -450,13 +451,17 @@ ORDER BY Value";
 
         using (SqlConnection con = connect("myProjDB"))
         {
+            //Make placeholders for each plane ID so we can use them safely in SQL
             string idsCsv = string.Join(",", planeTypeIds.Select((_, i) => $"@PlaneTypeID{i}"));
 
+            //Build the SQL query with the results from the idccsv string above to get the plane type names for the requested plane type IDs
             StringBuilder planeTypesSql = new StringBuilder();
             planeTypesSql.Append("SELECT PlaneTypeID, PlaneTypeName FROM PlaneTypes WHERE PlaneTypeID IN (");
             planeTypesSql.Append(idsCsv);
             planeTypesSql.Append(")");
 
+            //Send the query above to SQL
+            //From this we get a dictionary mapping each PlaneTypeID to its PlaneTypeName
             using (SqlCommand planeTypesCmd = new SqlCommand(planeTypesSql.ToString(), con))
             {
                 planeTypesCmd.CommandType = CommandType.Text;
@@ -466,6 +471,7 @@ ORDER BY Value";
                     planeTypesCmd.Parameters.AddWithValue($"@PlaneTypeID{i}", planeTypeIds[i]);
                 }
 
+                //execution
                 using SqlDataReader reader = planeTypesCmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -475,6 +481,7 @@ ORDER BY Value";
                 }
             }
 
+            //building the query to get the relevant BOM rows for the requested plane type IDs and body plane (P or B depending on mode)
             StringBuilder bomSql = new StringBuilder();
             bomSql.Append("SELECT PlaneTypeID, RowOrder, InventoryItemID, ItemName, Quantity, MeasureUnit, BomLevel, BuyMethod, BodyPlane ");
             bomSql.Append("FROM BOM WHERE PlaneTypeID IN (");
@@ -510,14 +517,17 @@ ORDER BY Value";
             }
         }
 
+        //dictonary to accumulate total required quantities per item
         Dictionary<string, AggregatedBomNeed> needsByItem = new Dictionary<string, AggregatedBomNeed>(StringComparer.OrdinalIgnoreCase);
         bool debugBomExplosion = false;
 
+        //loop through each requested plane type and its requested quantity
         foreach (KeyValuePair<int, int> requestEntry in planeRequests)
         {
             int planeTypeId = requestEntry.Key;
             int requestedQty = requestEntry.Value;
 
+            //Creates a list of BOM rows for the current plane type, ordered by their position in the BOM
             List<BomRow> rowsForPlane = bomRows
                 .Where(r => r.PlaneTypeID == planeTypeId)
                 .OrderBy(r => r.RowOrder)
@@ -541,6 +551,7 @@ ORDER BY Value";
                     continue;
                 }
 
+                //Get item ID and validate
                 string itemId = (row.InventoryItemID ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(itemId))
                 {
@@ -570,6 +581,7 @@ ORDER BY Value";
             return response;
         }
 
+        //This gets the current stock data from the database for all the items we calculated we need.
         Dictionary<string, InventorySnapshot> stockByItem = GetInventorySnapshotsForItems(needsByItem.Keys.ToList());
 
         foreach (AggregatedBomNeed need in needsByItem.Values)
