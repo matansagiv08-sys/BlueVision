@@ -178,17 +178,9 @@ public class DBservices
     {
         List<BomPlaneOption> options = new List<BomPlaneOption>();
 
-        const string sql = @"
-                            SELECT DISTINCT
-                                b.PlaneTypeID,
-                                COALESCE(NULLIF(LTRIM(RTRIM(pt.PlaneTypeName)), ''), CAST(b.PlaneTypeID AS NVARCHAR(20))) AS PlaneTypeName
-                            FROM BOM b
-                            LEFT JOIN PlaneTypes pt ON pt.PlaneTypeID = b.PlaneTypeID
-                            ORDER BY PlaneTypeName";
-
         using SqlConnection con = connect("myProjDB");
-        using SqlCommand cmd = new SqlCommand(sql, con);
-        cmd.CommandType = CommandType.Text;
+        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spBom_GetPlaneOptions", con, null);
+        cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandTimeout = 120;
 
         using SqlDataReader reader = cmd.ExecuteReader();
@@ -1923,18 +1915,8 @@ INNER JOIN #BuyMethodUpdates u
         try
         {
             con = connect("myProjDB");
-            string query = @"
-                SELECT
-                    LTRIM(RTRIM(b.InventoryItemID)) AS ProductionItemID,
-                    MAX(NULLIF(LTRIM(RTRIM(b.ItemName)), '')) AS ItemName
-                FROM BOM b
-                WHERE
-                    NULLIF(LTRIM(RTRIM(b.InventoryItemID)), '') IS NOT NULL
-                    AND LTRIM(RTRIM(b.BuyMethod)) = 'M'
-                    AND LTRIM(RTRIM(b.BodyPlane)) = 'B'
-                GROUP BY LTRIM(RTRIM(b.InventoryItemID))
-                ORDER BY MAX(NULLIF(LTRIM(RTRIM(b.ItemName)), '')), LTRIM(RTRIM(b.InventoryItemID))";
-            SqlCommand cmd = new SqlCommand(query, con);
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spProductionItems_GetFromBom", con, null);
+            cmd.CommandType = CommandType.StoredProcedure;
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -1957,8 +1939,8 @@ INNER JOIN #BuyMethodUpdates u
         try
         {
             con = connect("myProjDB");
-            string query = "SELECT DISTINCT WorkOrderID FROM ItemsInProduction WHERE WorkOrderID IS NOT NULL ORDER BY WorkOrderID";
-            SqlCommand cmd = new SqlCommand(query, con);
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spWorkOrders_GetDistinctFromItemsInProduction", con, null);
+            cmd.CommandType = CommandType.StoredProcedure;
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -1977,7 +1959,8 @@ INNER JOIN #BuyMethodUpdates u
         try
         {
             con = connect("myProjDB");
-            SqlCommand cmd = new SqlCommand("SELECT PriorityID, PriorityName FROM PriorityLevels ORDER BY PriorityID", con);
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spPriorityLevels_GetAll", con, null);
+            cmd.CommandType = CommandType.StoredProcedure;
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -2000,8 +1983,8 @@ INNER JOIN #BuyMethodUpdates u
         try
         {
             con = connect("myProjDB");
-            string query = "SELECT PlaneID, PlaneTypeID, ProjectID FROM Planes";
-            SqlCommand cmd = new SqlCommand(query, con);
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spPlanes_GetBasic", con, null);
+            cmd.CommandType = CommandType.StoredProcedure;
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {

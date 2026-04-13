@@ -1,7 +1,7 @@
-﻿const server = "https://localhost:7296/";
+const server = "https://localhost:7296/";
 let allData = {};
 
-$(document).ready(function () {
+window.initAddItemToProduction = function () {
     if (typeof ajaxCall === 'undefined') {
         $.getScript("../../../JS/ajaxCalls.js").done(() => loadInitialData());
     } else {
@@ -9,7 +9,7 @@ $(document).ready(function () {
     }
 
     // 1. סנכרון שם פריט לפי הקלדת מק"ט
-    $('#item-code-input').on('input', function () {
+    $('#item-code-input').off('input').on('input', function () {
         const val = $(this).val();
         if (allData.productionItems) {
             const item = allData.productionItems.find(i => i.productionItemID === val);
@@ -18,10 +18,56 @@ $(document).ready(function () {
     });
 
     // 2.  מאזינים לשינוי בשני השדות (סוג כטב"ם ופרויקט
-    $('#project-select, #plane-type-select').on('change', function () {
+    $('#project-select, #plane-type-select').off('change').on('change', function () {
         renderFilteredPlanes();
     });
-});
+
+    $('#production-form').off('submit').on('submit', function (e) {
+        e.preventDefault();
+
+        const projectValue = $('#project-select').is(':visible') ? $('#project-select').val() : $('#project-new').val();
+        const planeValue = $('#plane-select').is(':visible') ? $('#plane-select').val() : $('#plane-new').val();
+
+
+        const newItem = {
+            ProductionItemID: $('#item-code-input').val(),
+            PlaneTypeID: parseInt($('#plane-type-select').val()),
+            SerialNumber: parseInt($('#serial-number-input').val()),
+            Quantity: parseInt($('#qty-input').val()),
+            PriorityID: parseInt($('#priority-select').val()),
+            WorkOrderID: $('#work-order-input').val(),
+            ProjectName: projectValue,
+            PlaneID: planeValue,
+            DueDate: $('#due-date-input').val(),
+            Comments: $('#comments-input').val()
+        };
+
+        let api = server + "api/ItemsInProduction/InsertItem";
+
+        ajaxCall("POST", api, JSON.stringify(newItem),
+            function (response) {
+                alert("הפריט נוסף בהצלחה לייצור!");
+                $('#production-form')[0].reset();
+                $('.input-with-action').each(function () {
+                    const $select = $(this).find('select');
+                    const $input = $(this).find('input[type="text"]');
+                    const $btn = $(this).find('.toggle-btn');
+
+                    $input.hide().val('');
+                    $select.show().val('');
+                    $btn.text('+').removeClass('active');
+                });
+                $('#item-name-input').val('');
+                $('#priority-select').val(2);
+                $('#item-code-input').focus();
+            },
+            function (err) {
+                console.error("Error saving item:", err);
+                alert("שגיאה בשמירת הנתונים: " + (err.responseJSON ? err.responseJSON.error : "שגיאה כללית"));
+            }
+        );
+    });
+};
 
 function loadInitialData() {
     let api = server + "api/ItemsInProduction/GetInitialFormData";
@@ -106,48 +152,3 @@ function toggleInput(field) {
     }
 }
 
-$('#production-form').on('submit', function (e) {
-    e.preventDefault();
-
-    const projectValue = $('#project-select').is(':visible') ? $('#project-select').val() : $('#project-new').val();
-    const planeValue = $('#plane-select').is(':visible') ? $('#plane-select').val() : $('#plane-new').val();
-
-
-    const newItem = {
-        ProductionItemID: $('#item-code-input').val(),
-        PlaneTypeID: parseInt($('#plane-type-select').val()),
-        SerialNumber: parseInt($('#serial-number-input').val()),
-        Quantity: parseInt($('#qty-input').val()),
-        PriorityID: parseInt($('#priority-select').val()),
-        WorkOrderID: $('#work-order-input').val(),
-        ProjectName: projectValue,
-        PlaneID: planeValue,
-        DueDate: $('#due-date-input').val(),
-        Comments: $('#comments-input').val()
-    };
-
-    let api = server + "api/ItemsInProduction/InsertItem";
-
-    ajaxCall("POST", api, JSON.stringify(newItem),
-        function (response) {
-            alert("הפריט נוסף בהצלחה לייצור!");
-            $('#production-form')[0].reset();
-            $('.input-with-action').each(function () {
-                const $select = $(this).find('select');
-                const $input = $(this).find('input[type="text"]');
-                const $btn = $(this).find('.toggle-btn');
-
-                $input.hide().val('');
-                $select.show().val('');
-                $btn.text('+').removeClass('active');
-            });
-            $('#item-name-input').val('');
-            $('#priority-select').val(2);
-            $('#item-code-input').focus();
-        },
-        function (err) {
-            console.error("Error saving item:", err);
-            alert("שגיאה בשמירת הנתונים: " + (err.responseJSON ? err.responseJSON.error : "שגיאה כללית"));
-        }
-    );
-});
