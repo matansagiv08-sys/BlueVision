@@ -61,7 +61,7 @@ function renderTasksBoard(boardData, allStages) {
 function renderRow(row, allStages) {
     const item = row.productionItem || row.ProductionItem || {};
     const itemID = item.productionItemID || item.ProductionItemID || '---';
-    const itemName = item.productionItemDescription || item.ItemName || item.itemName || "---";
+    const itemName = (item.productionItemDescription || item.ItemName || item.itemName || "---").replace(/['"]/g, "");
     const workOrder = row.workOrderID || row.WorkOrderID || '---';
 
     return `
@@ -181,34 +181,72 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
     submitBtn.onclick = function () {
         const activeBtn = $(".btn-choice.active");
         const statusId = parseInt(activeBtn.data("id"));
-        const statusName = activeBtn.text();
         const comment = document.getElementById("statusCommentInput").value;
         const userTimeVal = timeInput.value;
 
-        const updateData = {
-            SerialNumber: parseInt(serialNumber),
-            ProductionItemID: itemID.toString(),
-            ProductionStageID: parseInt(stageID),
-            ProductionStatusID: statusId,
-            Comment: comment
+        // 1. קודם כל מגדירים את הדגל: האם צריך לאפס תחנות עתידיות?
+        // התנאי: הסטטוס המקורי היה "בוצע" (4) והסטטוס החדש הוא לא "בוצע"
+        const shouldResetFuture = (currentStatusID === 4 && statusId !== 4);
+
+        const executeUpdate = () => {
+            const updateData = {
+                SerialNumber: parseInt(serialNumber),
+                ProductionItemID: itemID.toString(),
+                ProductionStageID: parseInt(stageID),
+                ProductionStatusID: statusId,
+                Comment: comment,
+                // 2. עכשיו המשתנה מוכר לקוד ולא יזרוק שגיאת Identifier
+                ResetFuture: shouldResetFuture
+            };
+
+            if (userTimeVal && (statusId == 2 || statusId == 4)) {
+                updateData.UserTime = userTimeVal;
+            }
+
+            ajaxCall("PUT", server + "api/ItemsInProduction/updateStatus", JSON.stringify(updateData),
+                function (res) {
+                    initBoard();
+                    window.closeGenericModal();
+                },
+                function (err) {
+                    alert("שגיאה בעדכון: " + err.responseText);
+                }
+            );
         };
 
-        if (userTimeVal && (statusId == 2 || statusId == 4)) {
-            updateData.UserTime = userTimeVal;
+        // בדיקה אם להציג את האזהרה
+        if (shouldResetFuture) {
+            showConfirm("אזהרה", "שינוי הסטטוס יאפס את כל התחנות הבאות של פריט זה. להמשיך?", executeUpdate);
+        } else {
+            executeUpdate();
         }
-
-        ajaxCall("PUT", server + "api/ItemsInProduction/updateStatus", JSON.stringify(updateData),
-            function (res) {
-                console.log("Update successful");
-                initBoard();
-                window.closeGenericModal();
-            },
-            function (err) {
-                alert("שגיאה בעדכון הסטטוס: " + err.responseText);
-            }
-        );
     };
 
     modal.style.display = "flex";
 };
+
+function showConfirm(title, message, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) {
+        // גיבוי למקרה שהמודל המעוצב לא קיים ב-HTML
+        if (confirm(message)) onConfirm();
+        return;
+    }
+
+    document.getElementById('confirmTitle').innerText = title;
+    document.getElementById('confirmMessage').innerText = message;
+
+    // הצגת המודל
+    modal.style.display = 'flex';
+
+    // הגדרת הכפתורים
+    document.getElementById('confirmYesBtn').onclick = function () {
+        modal.style.display = 'none';
+        onConfirm();
+    };
+
+    document.getElementById('confirmNoBtn').onclick = function () {
+        modal.style.display = 'none';
+    };
+}
 

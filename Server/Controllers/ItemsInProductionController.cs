@@ -65,6 +65,7 @@ namespace Server.Controllers
                 int stageID = data["ProductionStageID"]?.GetValue<int>() ?? 0;
                 int statusID = data["ProductionStatusID"]?.GetValue<int>() ?? 0;
                 string comment = data["Comment"]?.ToString();
+                bool resetFuture = data["ResetFuture"]?.GetValue<bool>() ?? false;
 
                 DateTime? userTime = null;
                 if (data["UserTime"] != null)
@@ -73,7 +74,7 @@ namespace Server.Controllers
                 }
 
                 ItemInProduction model = new ItemInProduction();
-                int res = model.UpdateStatus(serial, itemID, stageID, statusID, comment, userTime);
+                int res = model.UpdateStatus(serial, itemID, stageID, statusID, comment, userTime, resetFuture);
 
                 if (res > 0) return Ok(new { message = "Status updated successfully" });
                 return BadRequest("Could not update status");

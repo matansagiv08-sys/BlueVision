@@ -69,10 +69,10 @@ namespace Server.Models
             return dbs.InsertItemInProduction(itemData);
         }
 
-        public int UpdateStatus(int serial, string itemID, int stageID, int statusID, string comment, DateTime? userTime)
+        public int UpdateStatus(int serial, string itemID, int stageID, int statusID, string comment, DateTime? userTime, bool resetFuture)
         {
             DBservices dbs = new DBservices();
-            return dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime);
+            return dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime, resetFuture);
         }
 
     }

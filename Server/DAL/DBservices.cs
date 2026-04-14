@@ -1,10 +1,11 @@
+using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Office2016.Excel;
+using Server.Models;
 using System.Data;
 using System.Data.SqlClient;
-using System.Globalization;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
-using ClosedXML.Excel;
-using Server.Models;
 
 namespace Server.DAL;
 
@@ -1887,27 +1888,26 @@ INNER JOIN #BuyMethodUpdates u
             cmd.ExecuteNonQuery();
         }
     }
-    public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime)
+    public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime, bool resetFuture)
     {
         SqlConnection con = null;
-
         try
         {
             con = connect("myProjDB");
 
             Dictionary<string, object> paramDic = new Dictionary<string, object>
-            {
-                { "@Serial", serial },
-                { "@ItemID", itemID },
-                { "@StageID", stageID },
-                { "@NewStatusID", newStatusID },
-                { "@Comment", (object)comment ?? DBNull.Value },
-                { "@UserTime", userTime.HasValue ? userTime.Value : DBNull.Value }
-            };
+        {
+            { "@Serial", serial },
+            { "@ItemID", itemID },
+            { "@StageID", stageID },
+            { "@NewStatusID", newStatusID },
+            { "@Comment", (object)comment ?? DBNull.Value },
+            { "@UserTime", (object)userTime ?? DBNull.Value },
+            { "@ResetFuture", resetFuture } // הוספת הפרמטר שחסר ל-SQL
+        };
 
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spItemsInProduction_UpdateStageStatus", con, paramDic);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandTimeout = 120;
+            // שים לב: CreateCommandWithStoredProcedureGeneral כבר מגדירה CommandType ו-Parameters
             cmd.ExecuteNonQuery();
 
             return 1;
