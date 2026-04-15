@@ -257,20 +257,12 @@ public class DBservices
 
         using SqlConnection con = connect("myProjDB");
 
-        string idsCsv = string.Join(",", planeTypeIds.Select((_, i) => $"@PlaneTypeID{i}"));
+        string idsCsv = string.Join(",", planeTypeIds);
 
-        StringBuilder planeTypesSql = new StringBuilder();
-        planeTypesSql.Append("SELECT PlaneTypeID, PlaneTypeName FROM PlaneTypes WHERE PlaneTypeID IN (");
-        planeTypesSql.Append(idsCsv);
-        planeTypesSql.Append(")");
-
-        using SqlCommand planeTypesCmd = new SqlCommand(planeTypesSql.ToString(), con);
-        planeTypesCmd.CommandType = CommandType.Text;
+        using SqlCommand planeTypesCmd = new SqlCommand("SP_GetPlaneTypeNamesByIds", con);
+        planeTypesCmd.CommandType = CommandType.StoredProcedure;
         planeTypesCmd.CommandTimeout = 120;
-        for (int i = 0; i < planeTypeIds.Count; i++)
-        {
-            planeTypesCmd.Parameters.AddWithValue($"@PlaneTypeID{i}", planeTypeIds[i]);
-        }
+        planeTypesCmd.Parameters.AddWithValue("@PlaneTypeIds", idsCsv);
 
         using SqlDataReader reader = planeTypesCmd.ExecuteReader();
         while (reader.Read())
@@ -294,26 +286,22 @@ public class DBservices
 
         using SqlConnection con = connect("myProjDB");
 
-        string idsCsv = string.Join(",", planeTypeIds.Select((_, i) => $"@PlaneTypeID{i}"));
+        string idsCsv = string.Join(",", planeTypeIds);
 
-        StringBuilder bomSql = new StringBuilder();
-        bomSql.Append("SELECT PlaneTypeID, RowOrder, InventoryItemID, ItemName, Quantity, MeasureUnit, BomLevel, BuyMethod, BodyPlane ");
-        bomSql.Append("FROM BOM WHERE PlaneTypeID IN (");
-        bomSql.Append(idsCsv);
-        bomSql.Append(") AND BodyPlane = @BodyPlane ORDER BY PlaneTypeID, RowOrder");
-
-        using SqlCommand bomCmd = new SqlCommand(bomSql.ToString(), con);
-        bomCmd.CommandType = CommandType.Text;
+        using SqlCommand bomCmd = new SqlCommand("dbo.SP_GetBomRowsForPlanes", con);
+        bomCmd.CommandType = CommandType.StoredProcedure;
         bomCmd.CommandTimeout = 120;
-        for (int i = 0; i < planeTypeIds.Count; i++)
-        {
-            bomCmd.Parameters.AddWithValue($"@PlaneTypeID{i}", planeTypeIds[i]);
-        }
-        bomCmd.Parameters.AddWithValue("@BodyPlane", bodyPlane);
+        bomCmd.Parameters.AddWithValue("@PlaneTypeIds", idsCsv);
 
         using SqlDataReader reader = bomCmd.ExecuteReader();
         while (reader.Read())
         {
+            string rowBodyPlane = reader["BodyPlane"] == DBNull.Value ? string.Empty : reader["BodyPlane"].ToString() ?? string.Empty;
+            if (!string.Equals(rowBodyPlane.Trim(), bodyPlane?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             bomRows.Add(new BomRow
             {
                 PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
@@ -322,7 +310,9 @@ public class DBservices
                 ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
                 Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
                 MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
+                Warehouse = reader["Warehouse"] == DBNull.Value ? null : reader["Warehouse"].ToString(),
                 BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
+                HasChild = reader["HasChild"] == DBNull.Value ? null : Convert.ToBoolean(reader["HasChild"]),
                 BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
                 BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
             });
@@ -335,28 +325,19 @@ public class DBservices
     {
         Dictionary<string, InventoryCheck.InventorySnapshot> snapshots = new Dictionary<string, InventoryCheck.InventorySnapshot>(StringComparer.OrdinalIgnoreCase);
 
-        if (itemIds.Count == 0)
+        if (itemIds == null || itemIds.Count == 0)
         {
             return snapshots;
         }
 
         using SqlConnection con = connect("myProjDB");
 
-        StringBuilder sql = new StringBuilder();
-        sql.Append("SELECT i.InventoryItemID, i.ItemName, i.Price, s.SupplierName, ");
-        sql.Append("(ISNULL(i.Whse01_QTY,0) + ISNULL(i.Whse03_QTY,0) + ISNULL(i.Whse90_QTY,0)) AS TotalStock ");
-        sql.Append("FROM InventoryItems i LEFT JOIN Suppliers s ON s.SupplierID = i.SupplierID WHERE i.InventoryItemID IN (");
-        sql.Append(string.Join(",", itemIds.Select((_, idx) => $"@ItemID{idx}")));
-        sql.Append(")");
+        string idsCsv = string.Join(",", itemIds);
 
-        using SqlCommand cmd = new SqlCommand(sql.ToString(), con);
-        cmd.CommandType = CommandType.Text;
+        using SqlCommand cmd = new SqlCommand("dbo.SP_GetInventorySnapshotsForItems", con);
+        cmd.CommandType = CommandType.StoredProcedure;
         cmd.CommandTimeout = 120;
-
-        for (int i = 0; i < itemIds.Count; i++)
-        {
-            cmd.Parameters.AddWithValue($"@ItemID{i}", itemIds[i]);
-        }
+        cmd.Parameters.AddWithValue("@ItemIds", idsCsv);
 
         using SqlDataReader reader = cmd.ExecuteReader();
         while (reader.Read())
@@ -369,10 +350,12 @@ public class DBservices
 
             snapshots[itemId] = new InventoryCheck.InventorySnapshot
             {
-                ItemName = reader["ItemName"] == DBNull.Value ? string.Empty : reader["ItemName"].ToString() ?? string.Empty,
-                TotalStock = reader["TotalStock"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["TotalStock"]),
-                SupplierName = reader["SupplierName"] == DBNull.Value ? string.Empty : reader["SupplierName"].ToString() ?? string.Empty,
-                Price = reader["Price"] == DBNull.Value ? null : Convert.ToDouble(reader["Price"])
+                ItemName = string.Empty,
+                TotalStock = (reader["Whse01_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse01_QTY"]))
+                           + (reader["Whse03_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse03_QTY"]))
+                           + (reader["Whse90_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse90_QTY"])),
+                SupplierName = string.Empty,
+                Price = null
             };
         }
 
@@ -536,8 +519,9 @@ public class DBservices
         using (SqlConnection con = connect("myProjDB"))
         {
             Dictionary<string, int> planeTypeNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            using (SqlCommand selectPlaneTypesCmd = new SqlCommand("SELECT PlaneTypeID, PlaneTypeName FROM PlaneTypes", con))
+            using (SqlCommand selectPlaneTypesCmd = new SqlCommand("dbo.SP_GetPlaneTypesForImport", con))
             {
+                selectPlaneTypesCmd.CommandType = CommandType.StoredProcedure;
                 selectPlaneTypesCmd.CommandTimeout = 120;
                 using SqlDataReader planeTypesReader = selectPlaneTypesCmd.ExecuteReader();
                 while (planeTypesReader.Read())
@@ -598,8 +582,9 @@ public class DBservices
 
             Debug.WriteLine("Prepared " + bomTable.Rows.Count + " BOM rows for insert");
 
-            using (SqlCommand deleteBomCmd = new SqlCommand("TRUNCATE TABLE BOM", con))
+            using (SqlCommand deleteBomCmd = new SqlCommand("dbo.SP_TruncateBom", con))
             {
+                deleteBomCmd.CommandType = CommandType.StoredProcedure;
                 deleteBomCmd.CommandTimeout = 120;
                 deleteBomCmd.ExecuteNonQuery();
             }
@@ -626,106 +611,33 @@ public class DBservices
             }
             Debug.WriteLine("Inserted " + bomTable.Rows.Count + " BOM rows into BOM");
 
-            // Sync ProductionItems from BOM without breaking FK references from ItemsInProduction.
-            // Source set: DISTINCT InventoryItemID where BuyMethod='M' and BodyPlane='B'.
-            const string createProductionItemsSourceSql = @"
-CREATE TABLE #ProductionItemsSource
-(
-    ProductionItemID NVARCHAR(100) NOT NULL,
-    ItemName NVARCHAR(255) NULL
-);
-
-INSERT INTO #ProductionItemsSource (ProductionItemID, ItemName)
-SELECT
-    LTRIM(RTRIM(b.InventoryItemID)) AS ProductionItemID,
-    MAX(NULLIF(LTRIM(RTRIM(b.ItemName)), '')) AS ItemName
-FROM BOM b
-WHERE
-    NULLIF(LTRIM(RTRIM(b.InventoryItemID)), '') IS NOT NULL
-    AND LTRIM(RTRIM(b.BuyMethod)) = 'M'
-    AND LTRIM(RTRIM(b.BodyPlane)) = 'B'
-GROUP BY LTRIM(RTRIM(b.InventoryItemID));";
-
-            using (SqlCommand createSourceCmd = new SqlCommand(createProductionItemsSourceSql, con))
+            using (SqlCommand syncProductionItemsCmd = new SqlCommand("dbo.SP_SyncProductionItemsFromBom", con))
             {
-                createSourceCmd.CommandTimeout = 120;
-                createSourceCmd.ExecuteNonQuery();
-            }
+                syncProductionItemsCmd.CommandType = CommandType.StoredProcedure;
+                syncProductionItemsCmd.CommandTimeout = 120;
 
-            const string insertProductionItemsSql = @"
-INSERT INTO ProductionItems (ProductionItemID, ItemName)
-SELECT s.ProductionItemID, s.ItemName
-FROM #ProductionItemsSource s
-LEFT JOIN ProductionItems p ON p.ProductionItemID = s.ProductionItemID
-WHERE p.ProductionItemID IS NULL;";
-
-            using (SqlCommand insertProductionItemsCmd = new SqlCommand(insertProductionItemsSql, con))
-            {
-                insertProductionItemsCmd.CommandTimeout = 120;
-                insertedProductionItems = insertProductionItemsCmd.ExecuteNonQuery();
-            }
-
-            const string updateProductionItemsSql = @"
-UPDATE p
-SET p.ItemName = s.ItemName
-FROM ProductionItems p
-INNER JOIN #ProductionItemsSource s ON s.ProductionItemID = p.ProductionItemID
-WHERE ISNULL(p.ItemName, '') <> ISNULL(s.ItemName, '');";
-
-            using (SqlCommand updateProductionItemsCmd = new SqlCommand(updateProductionItemsSql, con))
-            {
-                updateProductionItemsCmd.CommandTimeout = 120;
-                updatedProductionItems = updateProductionItemsCmd.ExecuteNonQuery();
-            }
-
-            const string deleteProductionItemsSql = @"
-DELETE p
-FROM ProductionItems p
-WHERE
-    NOT EXISTS (SELECT 1 FROM #ProductionItemsSource s WHERE s.ProductionItemID = p.ProductionItemID)
-    AND NOT EXISTS (SELECT 1 FROM ItemsInProduction iip WHERE iip.ProductionItemID = p.ProductionItemID);";
-
-            using (SqlCommand deleteProductionItemsCmd = new SqlCommand(deleteProductionItemsSql, con))
-            {
-                deleteProductionItemsCmd.CommandTimeout = 120;
-                deletedProductionItems = deleteProductionItemsCmd.ExecuteNonQuery();
-            }
-
-            using (SqlCommand countProductionItemsCmd = new SqlCommand("SELECT COUNT(*) FROM ProductionItems", con))
-            {
-                countProductionItemsCmd.CommandTimeout = 120;
-                object? scalar = countProductionItemsCmd.ExecuteScalar();
-                finalProductionItemsCount = scalar == null || scalar == DBNull.Value ? 0 : Convert.ToInt32(scalar);
-            }
-
-            if (insertedProductionItems < 0)
-            {
-                insertedProductionItems = finalProductionItemsCount;
-            }
-
-            if (updatedProductionItems < 0)
-            {
-                updatedProductionItems = 0;
+                using SqlDataReader syncReader = syncProductionItemsCmd.ExecuteReader();
+                if (syncReader.Read())
+                {
+                    insertedProductionItems = syncReader["InsertedProductionItems"] == DBNull.Value ? 0 : Convert.ToInt32(syncReader["InsertedProductionItems"]);
+                    updatedProductionItems = syncReader["UpdatedProductionItems"] == DBNull.Value ? 0 : Convert.ToInt32(syncReader["UpdatedProductionItems"]);
+                    deletedProductionItems = syncReader["DeletedProductionItems"] == DBNull.Value ? 0 : Convert.ToInt32(syncReader["DeletedProductionItems"]);
+                    finalProductionItemsCount = syncReader["FinalProductionItemsCount"] == DBNull.Value ? 0 : Convert.ToInt32(syncReader["FinalProductionItemsCount"]);
+                }
             }
 
             Debug.WriteLine("Synced ProductionItems from BOM: inserted=" + insertedProductionItems + ", updated=" + updatedProductionItems + ", deleted=" + deletedProductionItems + ", finalCount=" + finalProductionItemsCount);
 
-            const string insertSupplierIfMissingSql = @"
-IF NOT EXISTS (SELECT 1 FROM Suppliers WHERE SupplierName = @SupplierName)
-BEGIN
-    INSERT INTO Suppliers (SupplierName)
-    VALUES (@SupplierName)
-END";
-
-            using (SqlCommand supplierCmd = new SqlCommand(insertSupplierIfMissingSql, con))
+            using (SqlCommand supplierCmd = new SqlCommand("dbo.SP_InsertSupplierIfMissing", con))
             {
+                supplierCmd.CommandType = CommandType.StoredProcedure;
                 supplierCmd.Parameters.Add("@SupplierName", SqlDbType.NVarChar, 100);
                 supplierCmd.CommandTimeout = 120;
 
                 foreach (string supplierName in uniqueSuppliers)
                 {
                     supplierCmd.Parameters["@SupplierName"].Value = supplierName;
-                    int affectedRows = supplierCmd.ExecuteNonQuery();
+                    int affectedRows = Convert.ToInt32(supplierCmd.ExecuteScalar());
                     if (affectedRows > 0)
                     {
                         insertedSuppliers++;
@@ -735,11 +647,12 @@ END";
             Debug.WriteLine("Inserted " + insertedSuppliers + " new suppliers");
 
             {
-                using SqlCommand selectSuppliersCmd = new SqlCommand("SELECT SupplierID, SupplierName FROM Suppliers", con);
-                selectSuppliersCmd.CommandTimeout = 120;
-                using SqlDataReader supplierReader = selectSuppliersCmd.ExecuteReader();
-                while (supplierReader.Read())
-                {
+            using SqlCommand selectSuppliersCmd = new SqlCommand("dbo.SP_GetSuppliersForImport", con);
+            selectSuppliersCmd.CommandType = CommandType.StoredProcedure;
+            selectSuppliersCmd.CommandTimeout = 120;
+            using SqlDataReader supplierReader = selectSuppliersCmd.ExecuteReader();
+            while (supplierReader.Read())
+            {
                     int supplierId = Convert.ToInt32(supplierReader["SupplierID"]);
                     string supplierName = supplierReader["SupplierName"]?.ToString()?.Trim() ?? string.Empty;
 
@@ -779,15 +692,9 @@ END";
 
             if (supplierUpdatesTable.Rows.Count > 0)
             {
-                const string createSupplierTempTableSql = @"
-CREATE TABLE #SupplierUpdates
-(
-    ItemCode NVARCHAR(100) NOT NULL,
-    SupplierID INT NOT NULL
-)";
-
-                using (SqlCommand createTempCmd = new SqlCommand(createSupplierTempTableSql, con))
+                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateSupplierUpdatesTempTable", con))
                 {
+                    createTempCmd.CommandType = CommandType.StoredProcedure;
                     createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
@@ -803,14 +710,8 @@ CREATE TABLE #SupplierUpdates
                 }
                 Debug.WriteLine("Bulk copied supplier temp table");
 
-                const string updateSupplierSql = @"
-UPDATE i
-SET i.SupplierID = u.SupplierID
-FROM InventoryItems i
-INNER JOIN #SupplierUpdates u
-    ON i.InventoryItemID = u.ItemCode";
-
-                using SqlCommand updateSupplierCmd = new SqlCommand(updateSupplierSql, con);
+                using SqlCommand updateSupplierCmd = new SqlCommand("dbo.SP_UpdateInventorySuppliersFromTemp", con);
+                updateSupplierCmd.CommandType = CommandType.StoredProcedure;
                 updateSupplierCmd.CommandTimeout = 120;
                 updatedSupplierRows = updateSupplierCmd.ExecuteNonQuery();
             }
@@ -831,15 +732,9 @@ INNER JOIN #SupplierUpdates u
             int updatedLastPoDateRows = 0;
             if (lastPoDateUpdatesTable.Rows.Count > 0)
             {
-                const string createLastPoDateTempTableSql = @"
-CREATE TABLE #LastPODateUpdates
-(
-    ItemCode NVARCHAR(100) NOT NULL,
-    LastPODate DATE NOT NULL
-)";
-
-                using (SqlCommand createTempCmd = new SqlCommand(createLastPoDateTempTableSql, con))
+                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateLastPoDateUpdatesTempTable", con))
                 {
+                    createTempCmd.CommandType = CommandType.StoredProcedure;
                     createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
@@ -855,35 +750,23 @@ CREATE TABLE #LastPODateUpdates
                 }
                 Debug.WriteLine("Bulk copied LastPODate temp table");
 
-                const string updateLastPoDateSql = @"
-UPDATE i
-SET i.LastPODate = u.LastPODate
-FROM InventoryItems i
-INNER JOIN #LastPODateUpdates u
-    ON i.InventoryItemID = u.ItemCode";
-
-                using SqlCommand updateLastPoDateCmd = new SqlCommand(updateLastPoDateSql, con);
+                using SqlCommand updateLastPoDateCmd = new SqlCommand("dbo.SP_UpdateInventoryLastPoDateFromTemp", con);
+                updateLastPoDateCmd.CommandType = CommandType.StoredProcedure;
                 updateLastPoDateCmd.CommandTimeout = 120;
                 updatedLastPoDateRows = updateLastPoDateCmd.ExecuteNonQuery();
             }
 
             Debug.WriteLine("Updated " + updatedLastPoDateRows + " inventory LastPODate rows");
 
-            const string insertIfMissingSql = @"
-IF NOT EXISTS (SELECT 1 FROM Groups WHERE ItemGrpName = @GroupName)
-BEGIN
-    INSERT INTO Groups (ItemGrpName)
-    VALUES (@GroupName)
-END";
-
-            using SqlCommand cmd = new SqlCommand(insertIfMissingSql, con);
+            using SqlCommand cmd = new SqlCommand("dbo.SP_InsertGroupIfMissing", con);
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.Add("@GroupName", SqlDbType.NVarChar, 255);
             cmd.CommandTimeout = 120;
 
             foreach (string groupName in uniqueGroupNames)
             {
                 cmd.Parameters["@GroupName"].Value = groupName;
-                int affectedRows = cmd.ExecuteNonQuery();
+                int affectedRows = Convert.ToInt32(cmd.ExecuteScalar());
                 if (affectedRows > 0)
                 {
                     insertedGroups++;
@@ -892,11 +775,12 @@ END";
             Console.WriteLine("Inserted " + insertedGroups + " new groups");
 
             {
-                using SqlCommand selectGroupsCmd = new SqlCommand("SELECT ItemGrpID, ItemGrpName FROM Groups", con);
-                selectGroupsCmd.CommandTimeout = 120;
-                using SqlDataReader reader = selectGroupsCmd.ExecuteReader();
-                while (reader.Read())
-                {
+            using SqlCommand selectGroupsCmd = new SqlCommand("dbo.SP_GetGroupsForImport", con);
+            selectGroupsCmd.CommandType = CommandType.StoredProcedure;
+            selectGroupsCmd.CommandTimeout = 120;
+            using SqlDataReader reader = selectGroupsCmd.ExecuteReader();
+            while (reader.Read())
+            {
                     int itemGrpId = Convert.ToInt32(reader["ItemGrpID"]);
                     string groupName = reader["ItemGrpName"]?.ToString()?.Trim() ?? string.Empty;
 
@@ -931,15 +815,9 @@ END";
 
             if (updatesTable.Rows.Count > 0)
             {
-                const string createTempTableSql = @"
-CREATE TABLE #ItemGroupUpdates
-(
-    ItemCode NVARCHAR(100) NOT NULL,
-    ItemGrpID INT NOT NULL
-)";
-
-                using (SqlCommand createTempCmd = new SqlCommand(createTempTableSql, con))
+                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateItemGroupUpdatesTempTable", con))
                 {
+                    createTempCmd.CommandType = CommandType.StoredProcedure;
                     createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
@@ -955,14 +833,8 @@ CREATE TABLE #ItemGroupUpdates
                 }
                 Console.WriteLine("Bulk copied temp update table");
 
-                const string updateInventorySql = @"
-UPDATE i
-SET i.ItemGrpID = u.ItemGrpID
-FROM InventoryItems i
-INNER JOIN #ItemGroupUpdates u
-    ON i.InventoryItemID = u.ItemCode";
-
-                using SqlCommand updateCmd = new SqlCommand(updateInventorySql, con);
+                using SqlCommand updateCmd = new SqlCommand("dbo.SP_UpdateInventoryGroupsFromTemp", con);
+                updateCmd.CommandType = CommandType.StoredProcedure;
                 updateCmd.CommandTimeout = 120;
                 updatedRows = updateCmd.ExecuteNonQuery();
             }
@@ -985,15 +857,9 @@ INNER JOIN #ItemGroupUpdates u
             int updatedBuyMethodRows = 0;
             if (buyMethodUpdatesTable.Rows.Count > 0)
             {
-                const string createBuyMethodTempTableSql = @"
-CREATE TABLE #BuyMethodUpdates
-(
-    ItemCode NVARCHAR(100) NOT NULL,
-    BuyMethod CHAR(1) NOT NULL
-)";
-
-                using (SqlCommand createTempCmd = new SqlCommand(createBuyMethodTempTableSql, con))
+                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateBuyMethodUpdatesTempTable", con))
                 {
+                    createTempCmd.CommandType = CommandType.StoredProcedure;
                     createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
@@ -1009,14 +875,8 @@ CREATE TABLE #BuyMethodUpdates
                 }
                 Console.WriteLine("Bulk copied BuyMethod temp table");
 
-                const string updateBuyMethodSql = @"
-UPDATE i
-SET i.BuyMethod = u.BuyMethod
-FROM InventoryItems i
-INNER JOIN #BuyMethodUpdates u
-    ON i.InventoryItemID = u.ItemCode";
-
-                using SqlCommand updateBuyMethodCmd = new SqlCommand(updateBuyMethodSql, con);
+                using SqlCommand updateBuyMethodCmd = new SqlCommand("dbo.SP_UpdateInventoryBuyMethodFromTemp", con);
+                updateBuyMethodCmd.CommandType = CommandType.StoredProcedure;
                 updateBuyMethodCmd.CommandTimeout = 120;
                 updatedBuyMethodRows = updateBuyMethodCmd.ExecuteNonQuery();
             }
@@ -1812,12 +1672,10 @@ INNER JOIN #BuyMethodUpdates u
             HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID);
             HandleWorkOrder(con, trans, workOrderID); 
 
-            string insertSql = @"INSERT INTO ItemsInProduction 
-                            (ProductionItemID, SerialNumber, PlaneID, PriorityLevel, WorkOrderID, PlannedQty, Comments) 
-                            VALUES (@itemID, @serial, @planeID, @priority, @workOrder, @qty, @comments)";
-
-            using (SqlCommand mainCmd = new SqlCommand(insertSql, con, trans))
+            using (SqlCommand mainCmd = new SqlCommand("dbo.SP_InsertItemInProduction", con, trans))
             {
+                mainCmd.CommandType = CommandType.StoredProcedure;
+                mainCmd.CommandTimeout = 120;
                 mainCmd.Parameters.AddWithValue("@itemID", productionItemID);
                 mainCmd.Parameters.AddWithValue("@serial", serialNumber);
                 mainCmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
@@ -1845,9 +1703,9 @@ INNER JOIN #BuyMethodUpdates u
     {
         if (string.IsNullOrEmpty(workOrderID)) return;
 
-        string sql = "IF NOT EXISTS (SELECT 1 FROM WorkOrders WHERE WorkOrderID = @woID) INSERT INTO WorkOrders (WorkOrderID) VALUES (@woID)";
-        using (SqlCommand cmd = new SqlCommand(sql, con, trans))
+        using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleWorkOrder", con, trans))
         {
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@woID", workOrderID);
             cmd.ExecuteNonQuery();
         }
@@ -1855,38 +1713,20 @@ INNER JOIN #BuyMethodUpdates u
 
     private void HandleProjectAndPlane(SqlConnection con, SqlTransaction trans, string projectName, string planeID, int planeTypeID)
     {
-        if (!string.IsNullOrEmpty(projectName))
+        using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleProjectAndPlane", con, trans))
         {
-            string sqlProj = "IF NOT EXISTS (SELECT 1 FROM Projects WHERE ProjectName = @pName) INSERT INTO Projects (ProjectName) VALUES (@pName)";
-            using (SqlCommand cmd = new SqlCommand(sqlProj, con, trans))
-            {
-                cmd.Parameters.AddWithValue("@pName", projectName);
-                cmd.ExecuteNonQuery();
-            }
-        }
-
-        if (!string.IsNullOrEmpty(planeID))
-        {
-            string sqlPlane = @"IF NOT EXISTS (SELECT 1 FROM Planes WHERE PlaneID = @planeID) 
-                            INSERT INTO Planes (PlaneID, PlaneTypeID, ProjectID) 
-                            SELECT @planeID, @typeID, ProjectID FROM Projects WHERE ProjectName = @pName";
-            using (SqlCommand cmd = new SqlCommand(sqlPlane, con, trans))
-            {
-                cmd.Parameters.AddWithValue("@planeID", planeID);
-                cmd.Parameters.AddWithValue("@typeID", planeTypeID);
-                cmd.Parameters.AddWithValue("@pName", (object)projectName ?? DBNull.Value);
-                cmd.ExecuteNonQuery();
-            }
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@pName", (object)projectName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@typeID", planeTypeID);
+            cmd.ExecuteNonQuery();
         }
     }
     private void InsertStagesForProduct(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID)
     {
-        string query = @"INSERT INTO ProductionItemStage (SerialNumber, ProductionItemID, ProductionStageID, ProductionStatusID)
-                     SELECT @serial, @itemID, ProductionStageID, 1 
-                     FROM ProductionStages";
-
-        using (SqlCommand cmd = new SqlCommand(query, con, trans))
+        using (SqlCommand cmd = new SqlCommand("dbo.SP_InsertStagesForProduct", con, trans))
         {
+            cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.AddWithValue("@serial", serialNumber);
             cmd.Parameters.AddWithValue("@itemID", productionItemID);
             cmd.ExecuteNonQuery();
