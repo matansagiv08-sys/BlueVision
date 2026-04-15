@@ -1400,7 +1400,11 @@ INNER JOIN #BuyMethodUpdates u
                     {
                         SerialNumber = sn,
                         WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
-                        ProductionItem = new ProductionItem { ProductionItemID = reader["ProductionItemID"].ToString() },
+                        ProductionItem = new ProductionItem
+                        {
+                            ProductionItemID = reader["ProductionItemID"].ToString(),
+                            ItemName = reader["ItemName"].ToString()
+                        },
                         PlannedQty = Convert.ToInt32(reader["PlannedQty"]),
                         PlaneID = new Plane
                         {
