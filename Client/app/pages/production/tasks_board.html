@@ -1,6 +1,31 @@
 ﻿<div class="tasks-board-page">
-    <div id="tasks-board-container">
+    <div class="global-toolbar">
+        <div class="search-container">
+            <input type="text" id="filter-search" class="standard-input" placeholder="חפש פקע, מקט או שם פריט..." oninput="window.applyFilters()">
+            <span class="search-icon-inside">🔍</span>
+        </div>
+
+        <div class="filter-actions">
+            <select id="filter-project" class="standard-select" onchange="window.applyFilters()">
+                <option value="">כל הפרויקטים</option>
+            </select>
+
+            <select id="filter-stage" class="standard-select" onchange="window.applyFilters()">
+                <option value="">התחנה שלי (הכל)</option>
+            </select>
+
+            <div class="checkbox-filter-container">
+                <input type="checkbox" id="filter-not-done" onchange="window.applyFilters()">
+                <label for="filter-not-done">רק משימות שלא הסתיימו</label>
+            </div>
+
+            <button class="btn-secondary-action clear-filters-btn" onclick="window.clearAllFilters()">
+                נקה
+            </button>
+        </div>
     </div>
+
+    <div id="tasks-board-container"></div>
 </div>
 
 <div id="genericModal" class="modal-overlay" onclick="window.closeGenericModal()">
@@ -12,12 +37,12 @@
 
         <div id="modalBody" class="modal-body" style="padding: 20px;">
             <div id="modalTaskInfo" style="background: #f8fafc; border-radius: 8px; padding: 15px; margin-bottom: 20px; font-size: 0.9rem; color: #1e293b;">
-                </div>
+            </div>
 
             <label class="tb-label" style="display:block; margin-bottom:10px;">בחר סטטוס חדש</label>
-            
+
             <div id="statusButtonsContainer" class="status-grid-new" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                </div>
+            </div>
 
             <hr style="border:0; border-top:1px solid #e2e8f0; margin: 20px 0;" />
 

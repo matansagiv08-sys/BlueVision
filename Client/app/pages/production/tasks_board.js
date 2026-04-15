@@ -7,11 +7,21 @@
     }
 });
 
+let allBoardData = []; 
+let allStagesData = []; 
+
 function initBoard() {
     ajaxCall("GET", server + "api/ProductionStages", "",
         (allStages) => {
+            allStagesData = allStages; // שומרים את התחנות
+            populateStageFilter(allStages); 
+
             ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
-                (boardData) => renderTasksBoard(boardData, allStages),
+                (boardData) => {
+                    allBoardData = boardData; // שומרים את כל הנתונים
+                    populateProjectFilter(boardData); 
+                    applyFilters(); 
+                },
                 (err) => console.error("Error board data:", err)
             );
         },
@@ -250,3 +260,168 @@ function showConfirm(title, message, onConfirm) {
     };
 }
 
+function populateProjectFilter(data) {
+    const projectSelect = document.getElementById("filter-project");
+    if (!projectSelect) return;
+
+    // שליפת שמות ייחודיים - תעדוף מוחלט ל-ProjectName מה-SQL החדש
+    const projects = [...new Set(data.map(row =>
+        row.ProjectName || row.projectName || "ללא פרויקט"
+    ))].filter(p => p !== null && p !== ""); // מנקה ערכים ריקים
+
+    projectSelect.innerHTML = '<option value="">כל הפרויקטים</option>';
+    projects.sort().forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.innerText = p;
+        projectSelect.appendChild(opt);
+    });
+}
+
+function populateStageFilter(stages) {
+    const stageSelect = document.getElementById("filter-stage");
+    if (!stageSelect) return;
+
+    stages.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.productionStageID;
+        opt.innerText = s.productionStageName;
+        stageSelect.appendChild(opt);
+    });
+}
+
+window.applyFilters = function () {
+    try {
+        const searchEl = document.getElementById("filter-search");
+        const projectEl = document.getElementById("filter-project");
+        const stageEl = document.getElementById("filter-stage");
+        const notDoneEl = document.getElementById("filter-not-done");
+
+        if (!searchEl || !projectEl || !stageEl || !notDoneEl) return;
+
+        const searchTerm = searchEl.value.toLowerCase();
+        const selectedProject = projectEl.value;
+        const selectedStageId = stageEl.value;
+        const onlyNotDone = notDoneEl.checked;
+
+        const filteredData = allBoardData.filter(row => {
+            const item = row.productionItem || row.ProductionItem || {};
+            const itemName = (item.ItemName || item.productionItemDescription || "").toLowerCase();
+            const itemID = (item.productionItemID || "").toString().toLowerCase();
+            const workOrder = (row.workOrderID || row.WorkOrderID || "").toString().toLowerCase();
+
+            // שימוש בשם הפרויקט לסינון
+            const projectValue = row.ProjectName || row.projectName || "ללא פרויקט";
+
+            const matchesSearch = itemName.includes(searchTerm) ||
+                itemID.includes(searchTerm) ||
+                workOrder.includes(searchTerm);
+
+            const matchesProject = !selectedProject || projectValue === selectedProject;
+
+            const isDone = (row.progress || row.Progress) >= 100;
+            const matchesNotDone = !onlyNotDone || !isDone;
+
+            let matchesStage = true;
+            if (selectedStageId) {
+                const stages = row.stages || row.Stages || [];
+                const targetStageId = parseInt(selectedStageId);
+                const currentStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId);
+                const currentStatus = currentStageObj?.status?.productionStatusID || currentStageObj?.Status?.ProductionStatusID || 1;
+
+                if (targetStageId === 1) {
+                    matchesStage = (currentStatus !== 4);
+                } else {
+                    const prevStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId - 1);
+                    const prevStatus = prevStageObj?.status?.productionStatusID || prevStageObj?.Status?.ProductionStatusID || 1;
+                    matchesStage = (prevStatus === 4 && currentStatus !== 4);
+                }
+            }
+
+            return matchesSearch && matchesProject && matchesNotDone && matchesStage;
+        });
+
+        renderTasksBoard(filteredData, allStagesData);
+
+    } catch (error) {
+        console.error("שגיאה בסינון:", error);
+    }
+};
+
+window.clearAllFilters = function () {
+    try {
+        const searchEl = document.getElementById("filter-search");
+        const projectEl = document.getElementById("filter-project");
+        const stageEl = document.getElementById("filter-stage");
+        const notDoneEl = document.getElementById("filter-not-done");
+
+        if (searchEl) searchEl.value = "";
+        if (projectEl) projectEl.value = "";
+        if (stageEl) stageEl.value = "";
+        if (notDoneEl) notDoneEl.checked = false;
+
+        window.applyFilters();
+    } catch (e) {
+        console.error("Error clearing filters:", e);
+    }
+};
+
+window.applyFilters = function () {
+    try {
+        const searchEl = document.getElementById("filter-search");
+        const projectEl = document.getElementById("filter-project");
+        const stageEl = document.getElementById("filter-stage");
+        const notDoneEl = document.getElementById("filter-not-done");
+
+        if (!searchEl || !projectEl || !stageEl || !notDoneEl) return;
+
+        const searchTerm = searchEl.value.toLowerCase();
+        const selectedProject = projectEl.value;
+        const selectedStageId = stageEl.value;
+        const onlyNotDone = notDoneEl.checked;
+
+        const filteredData = allBoardData.filter(row => {
+            // הגדרת משתני השורה
+            const item = row.productionItem || row.ProductionItem || {};
+            const itemName = (item.productionItemDescription || item.ItemName || "").toLowerCase();
+            const itemID = (item.productionItemID || "").toString().toLowerCase();
+            const workOrder = (row.workOrderID || row.WorkOrderID || "").toString().toLowerCase();
+
+            // זיהוי פרויקט (כאן כדאי לוודא שה-API שולח projectName)
+            const project = row.projectName || row.ProjectName ||
+                row.planeID?.type?.planeTypeName || row.PlaneID?.Type?.PlaneTypeName || "כללי";
+
+            const matchesSearch = itemName.includes(searchTerm) ||
+                itemID.includes(searchTerm) ||
+                workOrder.includes(searchTerm);
+
+            const matchesProject = !selectedProject || project === selectedProject;
+
+            const isDone = (row.progress || row.Progress) >= 100;
+            const matchesNotDone = !onlyNotDone || !isDone;
+
+            let matchesStage = true;
+            if (selectedStageId) {
+                const stages = row.stages || row.Stages || [];
+                const targetStageId = parseInt(selectedStageId);
+                const currentStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId);
+                const currentStatus = currentStageObj?.status?.productionStatusID || currentStageObj?.Status?.ProductionStatusID || 1;
+
+                if (targetStageId === 1) {
+                    matchesStage = (currentStatus !== 4);
+                } else {
+                    const prevStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId - 1);
+                    const prevStatus = prevStageObj?.status?.productionStatusID || prevStageObj?.Status?.ProductionStatusID || 1;
+                    matchesStage = (prevStatus === 4 && currentStatus !== 4);
+                }
+            }
+
+            return matchesSearch && matchesProject && matchesNotDone && matchesStage;
+        });
+
+        renderTasksBoard(filteredData, allStagesData);
+
+    } catch (error) {
+        console.error("Critical error in applyFilters:", error);
+    }
+};
