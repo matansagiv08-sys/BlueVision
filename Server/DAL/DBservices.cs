@@ -425,85 +425,8 @@ public class DBservices
         return options;
     }
 
-    public InventoryImportResult ImportInventoryItemsFromExcel(string? filePath)
+    public InventoryImportResult ImportInventoryDataToDatabase(InventoryImportData importData)
     {
-        Console.WriteLine("Import started");
-        string finalPath = ResolveExcelPath(filePath);
-        Console.WriteLine("Using Excel file: " + finalPath);
-        Console.WriteLine("Excel last modified: " + File.GetLastWriteTime(finalPath).ToString("yyyy-MM-dd HH:mm:ss"));
-
-        // Always open a fresh stream from disk for each import run.
-        using FileStream excelStream = new FileStream(finalPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using XLWorkbook workbook = new XLWorkbook(excelStream);
-        Console.WriteLine("Loaded workbook");
-
-        Console.WriteLine("Reading sheet: פריטים ומלאים");
-        IXLWorksheet detailsSheet = workbook.Worksheet("פריטים ומלאים");
-        Debug.WriteLine("Reading sheet: ספק אחרון לפריט");
-        IXLWorksheet supplierSheet = workbook.Worksheet("ספק אחרון לפריט");
-        Debug.WriteLine("Reading BOM sheet: עץ מוצר WB");
-        IXLWorksheet wbBomSheet = workbook.Worksheet("עץ מוצר WB");
-        Debug.WriteLine("Reading BOM sheet: עץ מוצר TBV");
-        IXLWorksheet tbvBomSheet = workbook.Worksheet("עץ מוצר TBV");
-        Dictionary<string, string> itemToGroupMap = BuildItemToGroupMap(detailsSheet);
-        Dictionary<string, string> itemToBuyMethod = BuildItemToBuyMethodMap(detailsSheet);
-        Dictionary<string, string> itemToSupplierMap = BuildItemToSupplierMap(supplierSheet);
-        Dictionary<string, DateTime> itemToLastPODateMap = BuildItemToLastPODateMap(supplierSheet);
-        List<BomRow> wbBomRows = BuildBomRowsForSheet(wbBomSheet, "WB");
-        List<BomRow> tbvBomRows = BuildBomRowsForSheet(tbvBomSheet, "TBV");
-
-        Debug.WriteLine("Calculating BodyPlane for BOM rows");
-        CalculateBodyPlaneForBomRows(wbBomRows);
-        CalculateBodyPlaneForBomRows(tbvBomRows);
-
-        foreach (BomRow row in wbBomRows.Take(10))
-        {
-            Debug.WriteLine($"WB | RowOrder={row.RowOrder} | BomLevel={row.BomLevel} | BodyPlane={row.BodyPlane}");
-        }
-
-        foreach (BomRow row in tbvBomRows.Take(10))
-        {
-            Debug.WriteLine($"TBV | RowOrder={row.RowOrder} | BomLevel={row.BomLevel} | BodyPlane={row.BodyPlane}");
-        }
-
-        Console.WriteLine("Built item-to-group map with " + itemToGroupMap.Count + " entries");
-        Console.WriteLine("Built item-to-buyMethod map with " + itemToBuyMethod.Count + " entries");
-        Debug.WriteLine("Built item-to-supplier map with " + itemToSupplierMap.Count + " entries");
-        Debug.WriteLine("Built item-to-lastPODate map with " + itemToLastPODateMap.Count + " entries");
-        Debug.WriteLine("Built " + wbBomRows.Count + " BOM rows for WB");
-        Debug.WriteLine("Built " + tbvBomRows.Count + " BOM rows for TBV");
-
-        foreach (var mapping in itemToSupplierMap.Take(5))
-        {
-            Debug.WriteLine(mapping.Key + " -> " + mapping.Value);
-        }
-
-        foreach (BomRow row in wbBomRows.Take(5))
-        {
-            Debug.WriteLine($"WB | {row.RowOrder} | {row.InventoryItemID} | {row.ItemName} | {row.Quantity} | {row.MeasureUnit} | {row.Warehouse} | {row.BomLevel} | {row.HasChildRaw} | {row.BuyMethod} | {row.BodyPlane}");
-        }
-
-        foreach (BomRow row in tbvBomRows.Take(5))
-        {
-            Debug.WriteLine($"TBV | {row.RowOrder} | {row.InventoryItemID} | {row.ItemName} | {row.Quantity} | {row.MeasureUnit} | {row.Warehouse} | {row.BomLevel} | {row.HasChildRaw} | {row.BuyMethod} | {row.BodyPlane}");
-        }
-
-        List<string> uniqueSuppliers = itemToSupplierMap.Values
-            .Select(v => v.Trim())
-            .Where(v => !string.IsNullOrWhiteSpace(v))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        Debug.WriteLine("Found " + uniqueSuppliers.Count + " unique suppliers");
-
-        List<string> uniqueGroupNames = itemToGroupMap.Values
-            .Select(v => v.Trim())
-            .Where(v => !string.IsNullOrWhiteSpace(v))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        Console.WriteLine("Found " + uniqueGroupNames.Count + " unique group names");
-
         int insertedGroups = 0;
         int insertedSuppliers = 0;
         int updatedRows = 0;
@@ -537,7 +460,6 @@ public class DBservices
                     planeTypeNameToId[planeTypeName] = planeTypeId;
                 }
             }
-            Debug.WriteLine("Loaded PlaneTypes dictionary with " + planeTypeNameToId.Count + " entries");
 
             DataTable bomTable = new DataTable();
             bomTable.Columns.Add("PlaneTypeID", typeof(int));
@@ -552,7 +474,7 @@ public class DBservices
             bomTable.Columns.Add("BuyMethod", typeof(string));
             bomTable.Columns.Add("BodyPlane", typeof(string));
 
-            foreach (BomRow bomRow in wbBomRows.Concat(tbvBomRows))
+            foreach (BomRow bomRow in importData.WbBomRows.Concat(importData.TbvBomRows))
             {
                 if (!planeTypeNameToId.TryGetValue((bomRow.PlaneTypeName ?? string.Empty).Trim(), out int planeTypeId))
                 {
@@ -580,15 +502,12 @@ public class DBservices
                 );
             }
 
-            Debug.WriteLine("Prepared " + bomTable.Rows.Count + " BOM rows for insert");
-
             using (SqlCommand deleteBomCmd = new SqlCommand("dbo.SP_TruncateBom", con))
             {
                 deleteBomCmd.CommandType = CommandType.StoredProcedure;
                 deleteBomCmd.CommandTimeout = 120;
                 deleteBomCmd.ExecuteNonQuery();
             }
-            Debug.WriteLine("Truncated BOM table");
 
             if (bomTable.Rows.Count > 0)
             {
@@ -609,7 +528,6 @@ public class DBservices
                 bomBulkCopy.ColumnMappings.Add("BodyPlane", "BodyPlane");
                 bomBulkCopy.WriteToServer(bomTable);
             }
-            Debug.WriteLine("Inserted " + bomTable.Rows.Count + " BOM rows into BOM");
 
             using (SqlCommand syncProductionItemsCmd = new SqlCommand("dbo.SP_SyncProductionItemsFromBom", con))
             {
@@ -626,15 +544,13 @@ public class DBservices
                 }
             }
 
-            Debug.WriteLine("Synced ProductionItems from BOM: inserted=" + insertedProductionItems + ", updated=" + updatedProductionItems + ", deleted=" + deletedProductionItems + ", finalCount=" + finalProductionItemsCount);
-
             using (SqlCommand supplierCmd = new SqlCommand("dbo.SP_InsertSupplierIfMissing", con))
             {
                 supplierCmd.CommandType = CommandType.StoredProcedure;
                 supplierCmd.Parameters.Add("@SupplierName", SqlDbType.NVarChar, 100);
                 supplierCmd.CommandTimeout = 120;
 
-                foreach (string supplierName in uniqueSuppliers)
+                foreach (string supplierName in importData.UniqueSuppliers)
                 {
                     supplierCmd.Parameters["@SupplierName"].Value = supplierName;
                     int affectedRows = Convert.ToInt32(supplierCmd.ExecuteScalar());
@@ -644,15 +560,14 @@ public class DBservices
                     }
                 }
             }
-            Debug.WriteLine("Inserted " + insertedSuppliers + " new suppliers");
 
+            using (SqlCommand selectSuppliersCmd = new SqlCommand("dbo.SP_GetSuppliersForImport", con))
             {
-            using SqlCommand selectSuppliersCmd = new SqlCommand("dbo.SP_GetSuppliersForImport", con);
-            selectSuppliersCmd.CommandType = CommandType.StoredProcedure;
-            selectSuppliersCmd.CommandTimeout = 120;
-            using SqlDataReader supplierReader = selectSuppliersCmd.ExecuteReader();
-            while (supplierReader.Read())
-            {
+                selectSuppliersCmd.CommandType = CommandType.StoredProcedure;
+                selectSuppliersCmd.CommandTimeout = 120;
+                using SqlDataReader supplierReader = selectSuppliersCmd.ExecuteReader();
+                while (supplierReader.Read())
+                {
                     int supplierId = Convert.ToInt32(supplierReader["SupplierID"]);
                     string supplierName = supplierReader["SupplierName"]?.ToString()?.Trim() ?? string.Empty;
 
@@ -665,17 +580,11 @@ public class DBservices
                 }
             }
 
-            Debug.WriteLine("Loaded " + supplierNameToId.Count + " suppliers from database");
-            foreach (var supplier in supplierNameToId.Take(5))
-            {
-                Debug.WriteLine(supplier.Key + " -> " + supplier.Value);
-            }
-
             DataTable supplierUpdatesTable = new DataTable();
             supplierUpdatesTable.Columns.Add("ItemCode", typeof(string));
             supplierUpdatesTable.Columns.Add("SupplierID", typeof(int));
 
-            foreach (var mapping in itemToSupplierMap)
+            foreach (var mapping in importData.ItemToSupplierMap)
             {
                 string itemCode = mapping.Key;
                 string supplierName = mapping.Value?.Trim() ?? string.Empty;
@@ -687,8 +596,6 @@ public class DBservices
 
                 supplierUpdatesTable.Rows.Add(itemCode, supplierId);
             }
-
-            Debug.WriteLine("Prepared " + supplierUpdatesTable.Rows.Count + " supplier updates");
 
             if (supplierUpdatesTable.Rows.Count > 0)
             {
@@ -708,7 +615,6 @@ public class DBservices
                     bulkCopy.ColumnMappings.Add("SupplierID", "SupplierID");
                     bulkCopy.WriteToServer(supplierUpdatesTable);
                 }
-                Debug.WriteLine("Bulk copied supplier temp table");
 
                 using SqlCommand updateSupplierCmd = new SqlCommand("dbo.SP_UpdateInventorySuppliersFromTemp", con);
                 updateSupplierCmd.CommandType = CommandType.StoredProcedure;
@@ -716,20 +622,15 @@ public class DBservices
                 updatedSupplierRows = updateSupplierCmd.ExecuteNonQuery();
             }
 
-            Debug.WriteLine("Updated " + updatedSupplierRows + " inventory supplier rows");
-
             DataTable lastPoDateUpdatesTable = new DataTable();
             lastPoDateUpdatesTable.Columns.Add("ItemCode", typeof(string));
             lastPoDateUpdatesTable.Columns.Add("LastPODate", typeof(DateTime));
 
-            foreach (var mapping in itemToLastPODateMap)
+            foreach (var mapping in importData.ItemToLastPODateMap)
             {
                 lastPoDateUpdatesTable.Rows.Add(mapping.Key, mapping.Value.Date);
             }
 
-            Debug.WriteLine("Prepared " + lastPoDateUpdatesTable.Rows.Count + " LastPODate updates");
-
-            int updatedLastPoDateRows = 0;
             if (lastPoDateUpdatesTable.Rows.Count > 0)
             {
                 using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateLastPoDateUpdatesTempTable", con))
@@ -748,22 +649,19 @@ public class DBservices
                     bulkCopy.ColumnMappings.Add("LastPODate", "LastPODate");
                     bulkCopy.WriteToServer(lastPoDateUpdatesTable);
                 }
-                Debug.WriteLine("Bulk copied LastPODate temp table");
 
                 using SqlCommand updateLastPoDateCmd = new SqlCommand("dbo.SP_UpdateInventoryLastPoDateFromTemp", con);
                 updateLastPoDateCmd.CommandType = CommandType.StoredProcedure;
                 updateLastPoDateCmd.CommandTimeout = 120;
-                updatedLastPoDateRows = updateLastPoDateCmd.ExecuteNonQuery();
+                updateLastPoDateCmd.ExecuteNonQuery();
             }
-
-            Debug.WriteLine("Updated " + updatedLastPoDateRows + " inventory LastPODate rows");
 
             using SqlCommand cmd = new SqlCommand("dbo.SP_InsertGroupIfMissing", con);
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.Add("@GroupName", SqlDbType.NVarChar, 255);
             cmd.CommandTimeout = 120;
 
-            foreach (string groupName in uniqueGroupNames)
+            foreach (string groupName in importData.UniqueGroupNames)
             {
                 cmd.Parameters["@GroupName"].Value = groupName;
                 int affectedRows = Convert.ToInt32(cmd.ExecuteScalar());
@@ -772,15 +670,14 @@ public class DBservices
                     insertedGroups++;
                 }
             }
-            Console.WriteLine("Inserted " + insertedGroups + " new groups");
 
+            using (SqlCommand selectGroupsCmd = new SqlCommand("dbo.SP_GetGroupsForImport", con))
             {
-            using SqlCommand selectGroupsCmd = new SqlCommand("dbo.SP_GetGroupsForImport", con);
-            selectGroupsCmd.CommandType = CommandType.StoredProcedure;
-            selectGroupsCmd.CommandTimeout = 120;
-            using SqlDataReader reader = selectGroupsCmd.ExecuteReader();
-            while (reader.Read())
-            {
+                selectGroupsCmd.CommandType = CommandType.StoredProcedure;
+                selectGroupsCmd.CommandTimeout = 120;
+                using SqlDataReader reader = selectGroupsCmd.ExecuteReader();
+                while (reader.Read())
+                {
                     int itemGrpId = Convert.ToInt32(reader["ItemGrpID"]);
                     string groupName = reader["ItemGrpName"]?.ToString()?.Trim() ?? string.Empty;
 
@@ -792,13 +689,12 @@ public class DBservices
                     groupNameToId[groupName] = itemGrpId;
                 }
             }
-            Console.WriteLine("Loaded " + groupNameToId.Count + " groups from database");
 
             DataTable updatesTable = new DataTable();
             updatesTable.Columns.Add("ItemCode", typeof(string));
             updatesTable.Columns.Add("ItemGrpID", typeof(int));
 
-            foreach (var mapping in itemToGroupMap)
+            foreach (var mapping in importData.ItemToGroupMap)
             {
                 string itemCode = mapping.Key;
                 string groupName = mapping.Value?.Trim() ?? string.Empty;
@@ -810,8 +706,6 @@ public class DBservices
 
                 updatesTable.Rows.Add(itemCode, itemGrpId);
             }
-
-            Console.WriteLine("Prepared " + updatesTable.Rows.Count + " inventory item/group matches for update");
 
             if (updatesTable.Rows.Count > 0)
             {
@@ -831,7 +725,6 @@ public class DBservices
                     bulkCopy.ColumnMappings.Add("ItemGrpID", "ItemGrpID");
                     bulkCopy.WriteToServer(updatesTable);
                 }
-                Console.WriteLine("Bulk copied temp update table");
 
                 using SqlCommand updateCmd = new SqlCommand("dbo.SP_UpdateInventoryGroupsFromTemp", con);
                 updateCmd.CommandType = CommandType.StoredProcedure;
@@ -839,22 +732,15 @@ public class DBservices
                 updatedRows = updateCmd.ExecuteNonQuery();
             }
 
-            Console.WriteLine("Updated " + updatedRows + " inventory rows");
-
-            Console.WriteLine("Updating BuyMethod for " + itemToBuyMethod.Count + " items");
-
             DataTable buyMethodUpdatesTable = new DataTable();
             buyMethodUpdatesTable.Columns.Add("ItemCode", typeof(string));
             buyMethodUpdatesTable.Columns.Add("BuyMethod", typeof(string));
 
-            foreach (var mapping in itemToBuyMethod)
+            foreach (var mapping in importData.ItemToBuyMethod)
             {
                 buyMethodUpdatesTable.Rows.Add(mapping.Key, mapping.Value);
             }
 
-            Console.WriteLine("Prepared " + buyMethodUpdatesTable.Rows.Count + " BuyMethod updates");
-
-            int updatedBuyMethodRows = 0;
             if (buyMethodUpdatesTable.Rows.Count > 0)
             {
                 using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateBuyMethodUpdatesTempTable", con))
@@ -873,18 +759,14 @@ public class DBservices
                     bulkCopy.ColumnMappings.Add("BuyMethod", "BuyMethod");
                     bulkCopy.WriteToServer(buyMethodUpdatesTable);
                 }
-                Console.WriteLine("Bulk copied BuyMethod temp table");
 
                 using SqlCommand updateBuyMethodCmd = new SqlCommand("dbo.SP_UpdateInventoryBuyMethodFromTemp", con);
                 updateBuyMethodCmd.CommandType = CommandType.StoredProcedure;
                 updateBuyMethodCmd.CommandTimeout = 120;
-                updatedBuyMethodRows = updateBuyMethodCmd.ExecuteNonQuery();
+                updateBuyMethodCmd.ExecuteNonQuery();
             }
-
-            Console.WriteLine("Updated " + updatedBuyMethodRows + " inventory BuyMethod rows");
         }
 
-        Console.WriteLine("Import finished successfully");
         return new InventoryImportResult
         {
             ImportedRows = updatedRows,
@@ -894,349 +776,6 @@ public class DBservices
             FinalProductionItemsCount = finalProductionItemsCount
         };
     }
-
-    private static Dictionary<string, string> BuildItemToGroupMap(IXLWorksheet sheet)
-    {
-        Dictionary<string, string> itemToGroupMap = new Dictionary<string, string>();
-
-        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            string itmsGrpNam = row.Cell(3).GetValue<string>().Trim();
-
-            if (string.IsNullOrWhiteSpace(itemCode) || string.IsNullOrWhiteSpace(itmsGrpNam))
-            {
-                continue;
-            }
-
-            // If ItemCode appears more than once, keep the latest value.
-            itemToGroupMap[itemCode] = itmsGrpNam;
-        }
-
-        return itemToGroupMap;
-    }
-
-    private static Dictionary<string, string> BuildItemToBuyMethodMap(IXLWorksheet sheet)
-    {
-        Dictionary<string, string> itemToBuyMethod = new Dictionary<string, string>();
-
-        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            if (string.IsNullOrWhiteSpace(itemCode))
-            {
-                continue;
-            }
-
-            string buyMethod = row.Cell(4).GetValue<string>().Trim().ToUpper();
-            if (buyMethod != "B" && buyMethod != "M")
-            {
-                continue;
-            }
-
-            itemToBuyMethod[itemCode] = buyMethod;
-        }
-
-        return itemToBuyMethod;
-    }
-
-    private static Dictionary<string, string> BuildItemToSupplierMap(IXLWorksheet sheet)
-    {
-        Dictionary<string, string> itemToSupplier = new Dictionary<string, string>();
-
-        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            string lastVendor = row.Cell(2).GetValue<string>().Trim();
-
-            if (string.IsNullOrWhiteSpace(itemCode) || string.IsNullOrWhiteSpace(lastVendor))
-            {
-                continue;
-            }
-
-            // If ItemCode appears more than once, keep the latest value.
-            itemToSupplier[itemCode] = lastVendor;
-        }
-
-        return itemToSupplier;
-    }
-
-    private static Dictionary<string, DateTime> BuildItemToLastPODateMap(IXLWorksheet sheet)
-    {
-        Dictionary<string, DateTime> itemToLastPODate = new Dictionary<string, DateTime>();
-
-        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            if (string.IsNullOrWhiteSpace(itemCode))
-            {
-                continue;
-            }
-
-            IXLCell dateCell = row.Cell(3);
-            if (dateCell.IsEmpty())
-            {
-                continue;
-            }
-
-            DateTime parsedDate;
-            bool validDate = false;
-
-            if (dateCell.TryGetValue<DateTime>(out parsedDate))
-            {
-                validDate = true;
-            }
-            else
-            {
-                string rawDate = dateCell.GetValue<string>().Trim();
-                if (DateTime.TryParse(rawDate, CultureInfo.CurrentCulture, DateTimeStyles.None, out parsedDate) ||
-                    DateTime.TryParse(rawDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate) ||
-                    DateTime.TryParse(rawDate, new CultureInfo("he-IL"), DateTimeStyles.None, out parsedDate))
-                {
-                    validDate = true;
-                }
-            }
-
-            if (!validDate)
-            {
-                continue;
-            }
-
-            itemToLastPODate[itemCode] = parsedDate.Date;
-        }
-
-        return itemToLastPODate;
-    }
-
-    private static List<BomRow> BuildBomRowsForSheet(IXLWorksheet sheet, string planeTypeName)
-    {
-        List<BomRow> rows = new List<BomRow>();
-        int rowOrder = 1;
-
-        foreach (IXLRow row in sheet.RowsUsed().Where(r => r.RowNumber() >= 4))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            if (string.IsNullOrWhiteSpace(itemCode))
-            {
-                continue;
-            }
-
-            string itemName = row.Cell(2).GetValue<string>().Trim();
-            string measureUnit = row.Cell(3).GetValue<string>().Trim();
-            decimal quantity = ToSafeDecimal(row.Cell(4));
-            string warehouse = row.Cell(5).GetValue<string>().Trim();
-            int bomLevel = ToSafeInt(row.Cell(6));
-            string hasChildRaw = row.Cell(7).GetValue<string>().Trim();
-            string buyMethod = row.Cell(8).GetValue<string>().Trim();
-
-            rows.Add(new BomRow
-            {
-                PlaneTypeName = planeTypeName,
-                RowOrder = rowOrder,
-                InventoryItemID = itemCode,
-                ItemName = NullIfEmpty(itemName),
-                Quantity = quantity,
-                MeasureUnit = NullIfEmpty(measureUnit),
-                Warehouse = NullIfEmpty(warehouse),
-                BomLevel = bomLevel,
-                HasChildRaw = NullIfEmpty(hasChildRaw),
-                BuyMethod = NullIfEmpty(buyMethod),
-                BodyPlane = null
-            });
-
-            rowOrder++;
-        }
-
-        return rows;
-    }
-
-    private static void CalculateBodyPlaneForBomRows(List<BomRow> rows)
-    {
-        int level2CounterInBlock = 0;
-
-        foreach (BomRow row in rows.OrderBy(r => r.RowOrder))
-        {
-            if (row.BomLevel == 1)
-            {
-                row.BodyPlane = null;
-                level2CounterInBlock = 0;
-                continue;
-            }
-
-            if (row.BomLevel == 2)
-            {
-                level2CounterInBlock++;
-                row.BodyPlane = level2CounterInBlock == 1 ? "B" : "P";
-                continue;
-            }
-
-            if (level2CounterInBlock == 1)
-            {
-                row.BodyPlane = "B";
-            }
-            else if (level2CounterInBlock >= 2)
-            {
-                row.BodyPlane = "P";
-            }
-            else
-            {
-                row.BodyPlane = null;
-            }
-        }
-    }
-
-    private static decimal ToSafeDecimal(IXLCell cell)
-    {
-        if (cell.IsEmpty())
-        {
-            return 0;
-        }
-
-        if (cell.DataType == XLDataType.Number)
-        {
-            return Convert.ToDecimal(cell.GetDouble());
-        }
-
-        string raw = cell.GetValue<string>().Trim();
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return 0;
-        }
-
-        if (double.TryParse(raw, NumberStyles.Any, CultureInfo.CurrentCulture, out double currentCultureValue))
-        {
-            return Convert.ToDecimal(currentCultureValue);
-        }
-
-        if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double invariantValue))
-        {
-            return Convert.ToDecimal(invariantValue);
-        }
-
-        return 0;
-    }
-
-    private static Dictionary<string, int> BuildSingleValueDictionary(IXLWorksheet sheet, int valueColumnIndex)
-    {
-        Dictionary<string, int> dictionary = new Dictionary<string, int>();
-
-        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            if (string.IsNullOrWhiteSpace(itemCode))
-            {
-                continue;
-            }
-
-            dictionary[itemCode] = ToSafeInt(row.Cell(valueColumnIndex));
-        }
-
-        return dictionary;
-    }
-
-    private static Dictionary<string, (int OpenPo, int Approved, int Unapproved)> BuildOpenPoDictionary(IXLWorksheet sheet)
-    {
-        Dictionary<string, (int OpenPo, int Approved, int Unapproved)> dictionary = new Dictionary<string, (int OpenPo, int Approved, int Unapproved)>();
-
-        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            if (string.IsNullOrWhiteSpace(itemCode))
-            {
-                continue;
-            }
-
-            dictionary[itemCode] = (
-                ToSafeInt(row.Cell(2)),
-                ToSafeInt(row.Cell(3)),
-                ToSafeInt(row.Cell(4))
-            );
-        }
-
-        return dictionary;
-    }
-
-    private static int ToSafeInt(IXLCell cell)
-    {
-        if (cell.IsEmpty())
-        {
-            return 0;
-        }
-
-        if (cell.DataType == XLDataType.Number)
-        {
-            return Convert.ToInt32(Math.Round(cell.GetDouble(), MidpointRounding.AwayFromZero));
-        }
-
-        string raw = cell.GetValue<string>().Trim();
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return 0;
-        }
-
-        if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double invariantNumber))
-        {
-            return Convert.ToInt32(Math.Round(invariantNumber, MidpointRounding.AwayFromZero));
-        }
-
-        if (double.TryParse(raw, NumberStyles.Any, CultureInfo.CurrentCulture, out double currentCultureNumber))
-        {
-            return Convert.ToInt32(Math.Round(currentCultureNumber, MidpointRounding.AwayFromZero));
-        }
-
-        return 0;
-    }
-
-    private string ResolveExcelPath(string? filePath)
-    {
-        string finalPath;
-
-        bool missingFromRequest = string.IsNullOrWhiteSpace(filePath)
-            || string.Equals(filePath.Trim(), "null", StringComparison.OrdinalIgnoreCase);
-
-        if (!missingFromRequest)
-        {
-            finalPath = filePath.Trim();
-        }
-        else
-        {
-            IConfiguration configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json")
-                .Build();
-
-            finalPath = (configuration["InventoryImport:DefaultExcelPath"] ?? string.Empty).Trim();
-        }
-
-        if (string.IsNullOrWhiteSpace(finalPath))
-        {
-            throw new Exception("Excel file path was not provided and InventoryImport:DefaultExcelPath is empty in appsettings.json.");
-        }
-
-        if (!File.Exists(finalPath))
-        {
-            throw new Exception($"Excel file was not found at path: {finalPath}");
-        }
-
-        return finalPath;
-    }
-
-    private static string? NullIfEmpty(string value)
-    {
-        string clean = value.Trim();
-        return string.IsNullOrWhiteSpace(clean) ? null : clean;
-    }
-
-    private static string GetExcelCellTextPreserveFormatting(IXLCell cell)
-    {
-        if (cell == null || cell.IsEmpty())
-            return string.Empty;
-
-        return cell.GetFormattedString().Trim();
-    }
-
-
-
 
     //ייצור
     public List<ItemInProduction> GetTasksBoard()
@@ -1602,10 +1141,10 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
-    public List<object> GetPriorityLevels()
+    public List<PriorityOption> GetPriorityLevels()
     {
         SqlConnection con = null;
-        List<object> list = new List<object>();
+        List<PriorityOption> list = new List<PriorityOption>();
         try
         {
             con = connect("myProjDB");
@@ -1614,10 +1153,10 @@ public class DBservices
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                list.Add(new
+                list.Add(new PriorityOption
                 {
                     ID = Convert.ToInt32(reader["PriorityID"]),
-                    Name = reader["PriorityName"].ToString()
+                    Name = reader["PriorityName"]?.ToString() ?? string.Empty
                 });
             }
             return list;
@@ -1626,10 +1165,10 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
-    public List<object> GetPlanes()
+    public List<PlaneOption> GetPlanes()
     {
         SqlConnection con = null;
-        List<object> list = new List<object>();
+        List<PlaneOption> list = new List<PlaneOption>();
         try
         {
             con = connect("myProjDB");
@@ -1638,9 +1177,9 @@ public class DBservices
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                list.Add(new
+                list.Add(new PlaneOption
                 {
-                    PlaneID = reader["PlaneID"].ToString(),
+                    PlaneID = reader["PlaneID"]?.ToString() ?? string.Empty,
                     TypeID = Convert.ToInt32(reader["PlaneTypeID"]),
                     ProjectID = Convert.ToInt32(reader["ProjectID"])
                 });
@@ -1651,7 +1190,7 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
-    public int InsertItemInProduction(System.Text.Json.Nodes.JsonObject item)
+    public int InsertItemInProduction(InsertItemInProductionRequest item)
     {
         SqlConnection con = null;
         SqlTransaction trans = null;
@@ -1662,12 +1201,12 @@ public class DBservices
             if (con.State != System.Data.ConnectionState.Open) con.Open();
             trans = con.BeginTransaction();
 
-            string projectName = item["ProjectName"]?.ToString();
-            string planeID = item["PlaneID"]?.ToString();
-            string productionItemID = item["ProductionItemID"]?.ToString();
-            string workOrderID = item["WorkOrderID"]?.ToString();
-            int serialNumber = item["SerialNumber"]?.GetValue<int>() ?? 0;
-            int planeTypeID = item["PlaneTypeID"]?.GetValue<int>() ?? 0;
+            string projectName = item.ProjectName;
+            string planeID = item.PlaneID;
+            string productionItemID = item.ProductionItemID;
+            string workOrderID = item.WorkOrderID;
+            int serialNumber = item.SerialNumber ?? 0;
+            int planeTypeID = item.PlaneTypeID ?? 0;
 
             HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID);
             HandleWorkOrder(con, trans, workOrderID); 
@@ -1679,10 +1218,10 @@ public class DBservices
                 mainCmd.Parameters.AddWithValue("@itemID", productionItemID);
                 mainCmd.Parameters.AddWithValue("@serial", serialNumber);
                 mainCmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
-                mainCmd.Parameters.AddWithValue("@priority", item["PriorityID"]?.GetValue<int>() ?? 1);
+                mainCmd.Parameters.AddWithValue("@priority", item.PriorityID ?? 1);
                 mainCmd.Parameters.AddWithValue("@workOrder", (object)workOrderID ?? DBNull.Value);
-                mainCmd.Parameters.AddWithValue("@qty", item["Quantity"]?.GetValue<int>() ?? 1);
-                mainCmd.Parameters.AddWithValue("@comments", (object)item["Comments"]?.ToString() ?? DBNull.Value);
+                mainCmd.Parameters.AddWithValue("@qty", item.Quantity ?? 1);
+                mainCmd.Parameters.AddWithValue("@comments", (object)item.Comments ?? DBNull.Value);
                 mainCmd.ExecuteNonQuery();
             }
 

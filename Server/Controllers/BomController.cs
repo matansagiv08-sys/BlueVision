@@ -20,21 +20,21 @@ public class BomController : ControllerBase
         [FromQuery] string? buyMethod = null,
         [FromQuery] string? bodyPlane = null)
     {
-        Bom bom = new Bom();
+        BomModel bom = new BomModel();
         return bom.GetBomRows(page, pageSize, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
     }
 
     [HttpGet("planes")]
     public IEnumerable<BomPlaneOption> GetPlaneOptions()
     {
-        Bom bom = new Bom();
+        BomModel bom = new BomModel();
         return bom.GetBomPlaneOptions();
     }
 
     [HttpGet("filter-options")]
     public BomFilterOptions GetFilterOptions([FromQuery] int? planeTypeId = null)
     {
-        Bom bom = new Bom();
+        BomModel bom = new BomModel();
         return bom.GetBomFilterOptions(planeTypeId);
     }
 }

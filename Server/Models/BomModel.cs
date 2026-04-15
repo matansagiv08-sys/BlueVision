@@ -2,7 +2,7 @@ using Server.DAL;
 
 namespace Server.Models;
 
-public class Bom
+public class BomModel
 {
     public List<BomRow> GetBomRows(
         int page = 1,
