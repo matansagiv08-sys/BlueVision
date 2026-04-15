@@ -1,16 +1,20 @@
-﻿$(document).ready(function () {
-    console.log("Tasks Board: DOM ready.");
+﻿window.initTasksBoard = function () {
     if (typeof ajaxCall === 'undefined') {
         $.getScript("../../../JS/ajaxCalls.js").done(() => initBoard());
     } else {
         initBoard();
     }
-});
+};
 
 let allBoardData = []; 
 let allStagesData = []; 
 
 function initBoard() {
+    const container = document.getElementById("tasks-board-container");
+    if (container) {
+        container.innerHTML = "";
+    }
+
     ajaxCall("GET", server + "api/ProductionStages", "",
         (allStages) => {
             allStagesData = allStages; // שומרים את התחנות

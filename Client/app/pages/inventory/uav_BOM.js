@@ -167,6 +167,26 @@ window.filterBomTable = function () {
     loadBomPage(1);
 };
 
+window.clearBomFilters = function () {
+    const searchEl = document.getElementById("bomSearch");
+    const measureUnitEl = document.getElementById("bomMeasureUnitFilter");
+    const warehouseEl = document.getElementById("bomWarehouseFilter");
+    const levelEl = document.getElementById("bomLevelFilter");
+    const hasChildEl = document.getElementById("bomHasChildFilter");
+    const buyMethodEl = document.getElementById("bomBuyMethodFilter");
+    const bodyPlaneEl = document.getElementById("bomBodyPlaneFilter");
+
+    if (searchEl) searchEl.value = "";
+    if (measureUnitEl) measureUnitEl.value = "";
+    if (warehouseEl) warehouseEl.value = "";
+    if (levelEl) levelEl.value = "";
+    if (hasChildEl) hasChildEl.value = "";
+    if (buyMethodEl) buyMethodEl.value = "";
+    if (bodyPlaneEl) bodyPlaneEl.value = "";
+
+    window.filterBomTable();
+};
+
 window.prevBomPage = function () {
     if (currentBomPage > 1) {
         loadBomPage(currentBomPage - 1);
