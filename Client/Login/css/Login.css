@@ -103,6 +103,25 @@ body, html {
         font-weight: 500;
     }
 
-        .forgot-password a:hover {
-            text-decoration: underline;
-        }
+    .forgot-password a:hover {
+        text-decoration: underline;
+    }
+
+.hidden-block {
+    display: none;
+}
+
+.auth-message {
+    min-height: 22px;
+    margin-top: 14px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.auth-message.error {
+    color: #b42318;
+}
+
+.auth-message.success {
+    color: #027a48;
+}

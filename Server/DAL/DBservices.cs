@@ -1334,6 +1334,252 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+    public AppUser? GetUserByUsername(string username)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@Username", username }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_GetByUsername", con, paramDic);
+            SqlDataReader reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return new AppUser
+            {
+                UserID = Convert.ToInt32(reader["UserID"]),
+                Username = reader["Username"]?.ToString() ?? string.Empty,
+                PasswordHash = reader["PasswordHash"]?.ToString() ?? string.Empty,
+                FullName = reader["FullName"]?.ToString() ?? string.Empty,
+                IsActive = Convert.ToBoolean(reader["IsActive"]),
+                MustChangePassword = Convert.ToBoolean(reader["MustChangePassword"]),
+                CanViewProduction = Convert.ToBoolean(reader["CanViewProduction"]),
+                CanViewStock = Convert.ToBoolean(reader["CanViewStock"]),
+                CanManageUsers = Convert.ToBoolean(reader["CanManageUsers"]),
+                CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
+                UpdatedAt = Convert.ToDateTime(reader["UpdatedAt"]),
+                CreatedByUserID = reader["CreatedByUserID"] == DBNull.Value ? null : Convert.ToInt32(reader["CreatedByUserID"])
+            };
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public AppUser? GetUserByID(int userID)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@UserID", userID }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_GetByID", con, paramDic);
+            SqlDataReader reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return new AppUser
+            {
+                UserID = Convert.ToInt32(reader["UserID"]),
+                Username = reader["Username"]?.ToString() ?? string.Empty,
+                PasswordHash = reader["PasswordHash"]?.ToString() ?? string.Empty,
+                FullName = reader["FullName"]?.ToString() ?? string.Empty,
+                IsActive = Convert.ToBoolean(reader["IsActive"]),
+                MustChangePassword = Convert.ToBoolean(reader["MustChangePassword"]),
+                CanViewProduction = Convert.ToBoolean(reader["CanViewProduction"]),
+                CanViewStock = Convert.ToBoolean(reader["CanViewStock"]),
+                CanManageUsers = Convert.ToBoolean(reader["CanManageUsers"]),
+                CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
+                UpdatedAt = Convert.ToDateTime(reader["UpdatedAt"]),
+                CreatedByUserID = reader["CreatedByUserID"] == DBNull.Value ? null : Convert.ToInt32(reader["CreatedByUserID"])
+            };
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public List<AppUser> GetAllUsers()
+    {
+        SqlConnection con = null;
+        List<AppUser> users = new List<AppUser>();
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_GetAll", con, null);
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                users.Add(new AppUser
+                {
+                    UserID = Convert.ToInt32(reader["UserID"]),
+                    Username = reader["Username"]?.ToString() ?? string.Empty,
+                    FullName = reader["FullName"]?.ToString() ?? string.Empty,
+                    IsActive = Convert.ToBoolean(reader["IsActive"]),
+                    MustChangePassword = Convert.ToBoolean(reader["MustChangePassword"]),
+                    CanViewProduction = Convert.ToBoolean(reader["CanViewProduction"]),
+                    CanViewStock = Convert.ToBoolean(reader["CanViewStock"]),
+                    CanManageUsers = Convert.ToBoolean(reader["CanManageUsers"]),
+                    CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
+                    UpdatedAt = Convert.ToDateTime(reader["UpdatedAt"]),
+                    CreatedByUserID = reader["CreatedByUserID"] == DBNull.Value ? null : Convert.ToInt32(reader["CreatedByUserID"])
+                });
+            }
+
+            return users;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int InsertUser(AppUser user)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@Username", user.Username },
+                { "@PasswordHash", user.PasswordHash },
+                { "@FullName", user.FullName },
+                { "@IsActive", user.IsActive },
+                { "@MustChangePassword", user.MustChangePassword },
+                { "@CanViewProduction", user.CanViewProduction },
+                { "@CanViewStock", user.CanViewStock },
+                { "@CanManageUsers", user.CanManageUsers },
+                { "@CreatedByUserID", user.CreatedByUserID.HasValue ? user.CreatedByUserID.Value : DBNull.Value }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_Insert", con, paramDic);
+            object result = cmd.ExecuteScalar();
+            return result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int UpdateUserAccess(AppUser user)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@UserID", user.UserID },
+                { "@IsActive", user.IsActive },
+                { "@CanViewProduction", user.CanViewProduction },
+                { "@CanViewStock", user.CanViewStock },
+                { "@CanManageUsers", user.CanManageUsers }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_UpdateAccess", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int UpdateUserDetails(AppUser user)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@UserID", user.UserID },
+                { "@FullName", user.FullName },
+                { "@IsActive", user.IsActive },
+                { "@CanViewProduction", user.CanViewProduction },
+                { "@CanViewStock", user.CanViewStock },
+                { "@CanManageUsers", user.CanManageUsers }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_UpdateDetails", con, paramDic);
+            cmd.ExecuteNonQuery();
+            return 1;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int UpdateUserPassword(int userID, string passwordHash, bool mustChangePassword)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@UserID", userID },
+                { "@PasswordHash", passwordHash },
+                { "@MustChangePassword", mustChangePassword }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_UpdatePassword", con, paramDic);
+            cmd.ExecuteNonQuery();
+            return 1;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    public int DeleteUser(int userID)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@UserID", userID }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUsers_Delete", con, paramDic);
+            cmd.ExecuteNonQuery();
+            return 1;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
     public int InsertItemInProduction(InsertItemInProductionRequest item)
     {
         SqlConnection con = null;

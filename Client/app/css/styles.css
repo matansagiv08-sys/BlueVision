@@ -118,6 +118,29 @@ body {
     border-top: 1px solid rgba(255,255,255,0.2);
 }
 
+.sidebar-logout-btn {
+    margin-top: 12px;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.06);
+    color: #f8fafc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sidebar-logout-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.sidebar.collapsed .sidebar-logout-btn {
+    padding: 10px 0;
+    font-size: 12px;
+}
+
 .user-avatar {
     width: 36px;
     height: 36px;
@@ -202,7 +225,7 @@ body {
 }
 
 /* הסתרה כללית של הטאבים */
-.tab-production, .tab-inventory {
+.tab-production, .tab-inventory, .tab-admin {
     display: none;
 }
 
@@ -213,6 +236,14 @@ body.mode-production .tab-production {
 
 body.mode-inventory .tab-inventory {
     display: inline-block !important;
+}
+
+body.mode-admin .tab-admin {
+    display: inline-block !important;
+}
+
+.perm-hidden {
+    display: none !important;
 }
 
 /* =========================================

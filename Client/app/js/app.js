@@ -24,6 +24,8 @@ const mockData = [
     }
 ];
 
+const USER_STORAGE_KEY = "bluevisionUser";
+
 /* =========================
    ROUTES
    IMPORTANT:
@@ -129,6 +131,15 @@ const routes = {
         title: "כמויות מעץ מוצר",
         subtitle: "פריטים וחלקים לייצור כטב״מים",
         mode: "inventory"
+    },
+    "/admin/users": {
+        file: "./pages/admin/users.html",
+        js: "./pages/admin/users.js",
+        css: "./pages/admin/users.css",
+        init: "initAdminUsers",
+        title: "ניהול משתמשים",
+        subtitle: "ניהול הרשאות משתמשים",
+        mode: "admin"
     }
 };
 
@@ -139,6 +150,76 @@ function setActiveMenu(path) {
     document.querySelectorAll(".top-menu a[data-route]").forEach(a => {
         a.classList.toggle("active", a.getAttribute("href") === `#${path}`);
     });
+}
+
+function getCurrentUser() {
+    const raw = sessionStorage.getItem(USER_STORAGE_KEY);
+    if (!raw) return null;
+
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        sessionStorage.removeItem(USER_STORAGE_KEY);
+        return null;
+    }
+}
+
+function redirectToLogin() {
+    window.location.href = "../Login/login.html";
+}
+
+function logoutUser() {
+    sessionStorage.removeItem(USER_STORAGE_KEY);
+    redirectToLogin();
+}
+
+function canAccessRoute(path, user) {
+    if (!user || !path) return false;
+
+    if (path.startsWith("/production/")) {
+        return !!user.canViewProduction;
+    }
+
+    if (path.startsWith("/inventory/")) {
+        return !!user.canViewStock;
+    }
+
+    if (path.startsWith("/admin/")) {
+        return !!user.canManageUsers;
+    }
+
+    return false;
+}
+
+function getFirstAllowedRoute(user) {
+    if (user?.canViewProduction) return "/production/tasks_board";
+    if (user?.canViewStock) return "/inventory/inventory_dashboard";
+    if (user?.canManageUsers) return "/admin/users";
+    return null;
+}
+
+function applyPermissionVisibility(user) {
+    document.querySelectorAll("[data-permission='production']").forEach(el => {
+        el.classList.toggle("perm-hidden", !user?.canViewProduction);
+    });
+
+    document.querySelectorAll("[data-permission='stock']").forEach(el => {
+        el.classList.toggle("perm-hidden", !user?.canViewStock);
+    });
+
+    document.querySelectorAll("[data-permission='manageUsers']").forEach(el => {
+        el.classList.toggle("perm-hidden", !user?.canManageUsers);
+    });
+
+    const userNameEl = document.getElementById("sidebarUserName");
+    if (userNameEl) {
+        userNameEl.textContent = user?.fullName || user?.username || "משתמש";
+    }
+
+    const userRoleEl = document.getElementById("sidebarUserRole");
+    if (userRoleEl) {
+        userRoleEl.textContent = user?.canManageUsers ? "Admin" : "User";
+    }
 }
 
 /* Load a JS file once (prevents duplicates) */
@@ -208,7 +289,35 @@ function loadCssOnce(href) {
    ROUTER
 ========================= */
 async function loadRoute() {
-    const path = location.hash.replace("#", "") || "/production/tasks_board";
+    const user = getCurrentUser();
+    if (!user) {
+        redirectToLogin();
+        return;
+    }
+
+    applyPermissionVisibility(user);
+
+    const initialPath = location.hash.replace("#", "");
+    const path = initialPath || getFirstAllowedRoute(user) || "/admin/users";
+
+    if (!initialPath && path) {
+        location.hash = `#${path}`;
+        return;
+    }
+
+    if (!canAccessRoute(path, user)) {
+        const fallbackPath = getFirstAllowedRoute(user);
+        if (!fallbackPath) {
+            console.error("No permitted routes for current user.");
+            return;
+        }
+
+        if (location.hash.replace("#", "") !== fallbackPath) {
+            location.hash = `#${fallbackPath}`;
+        }
+        return;
+    }
+
     const route = routes[path];
     if (!route) return;
 
@@ -263,6 +372,8 @@ async function loadRoute() {
 document.getElementById("sidebarToggle")?.addEventListener("click", () => {
     document.getElementById("sidebar")?.classList.toggle("collapsed");
 });
+
+document.getElementById("logoutBtn")?.addEventListener("click", logoutUser);
 
 /* =========================
    EVENT LISTENERS

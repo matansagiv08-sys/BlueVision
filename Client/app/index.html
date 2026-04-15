@@ -24,22 +24,27 @@
             <button id="sidebarToggle" class="sidebar-toggle-btn">☰</button>
         </div>
         <nav class="sidebar-nav">
-            <a href="#/production/tasks_board" data-route>
+            <a href="#/production/tasks_board" data-route data-permission="production">
                 <span class="icon">🏭</span>
                 <span class="label">Production</span>
             </a>
-            <a href="#/inventory/inventory_dashboard" data-route>
+            <a href="#/inventory/inventory_dashboard" data-route data-permission="stock">
                 <span class="icon">📦</span>
                 <span class="label">Stock</span>
+            </a>
+            <a href="#/admin/users" data-route data-permission="manageUsers">
+                <span class="icon">👤</span>
+                <span class="label">Users</span>
             </a>
         </nav>
         <div class="sidebar-user">
             <div class="user-avatar">ד</div>
             <div class="user-info">
-                <div class="user-name">Dana</div>
-                <div class="user-role">Manager</div>
+                <div class="user-name" id="sidebarUserName">משתמש</div>
+                <div class="user-role" id="sidebarUserRole">-</div>
             </div>
         </div>
+        <button id="logoutBtn" class="sidebar-logout-btn" type="button">התנתק</button>
     </aside>
 
     <div class="main">
@@ -57,6 +62,7 @@
                     <a href="#/inventory/all_inventory" data-route class="tab-inventory">מלאי כולל</a>
                     <a href="#/inventory/orders_tracking" data-route class="tab-inventory">מעקב הזמנות רכש</a>
                     <a href="#/inventory/uav_BOM" data-route class="tab-inventory">כמויות מעץ מוצר</a>
+                    <a href="#/admin/users" data-route class="tab-admin" data-permission="manageUsers">ניהול משתמשים</a>
                 </div>
             </div>
         </header>

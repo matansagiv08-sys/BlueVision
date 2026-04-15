@@ -1,0 +1,97 @@
+<section class="users-admin-page">
+    <div class="users-toolbar">
+        <button id="createUserBtn" class="btn-primary" type="button">יצירת משתמש חדש</button>
+    </div>
+
+    <div id="usersAlert" class="users-alert" aria-live="polite"></div>
+
+    <div class="table-container">
+        <table class="generic-data-table">
+            <thead>
+                <tr>
+                    <th>שם משתמש</th>
+                    <th>שם מלא</th>
+                    <th>פעיל</th>
+                    <th>גישה לייצור</th>
+                    <th>גישה למלאי</th>
+                    <th>ניהול משתמשים</th>
+                    <th>חובה להחליף סיסמה</th>
+                </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="createUserModal" class="users-modal-overlay">
+        <div class="users-modal-card" onclick="event.stopPropagation()">
+            <div class="users-modal-header">
+                <h3>יצירת משתמש חדש</h3>
+                <button id="closeCreateUserModal" type="button" class="users-modal-close">&times;</button>
+            </div>
+
+            <form id="createUserForm" class="users-modal-form">
+                <div class="users-form-row">
+                    <label for="newUserUsername">שם משתמש</label>
+                    <input id="newUserUsername" type="text" required>
+                </div>
+
+                <div class="users-form-row">
+                    <label for="newUserFullName">שם מלא</label>
+                    <input id="newUserFullName" type="text" required>
+                </div>
+
+                <div class="users-form-row users-form-checkboxes">
+                    <label><input id="newUserIsActive" type="checkbox" checked> משתמש פעיל</label>
+                    <label><input id="newUserCanViewProduction" type="checkbox"> גישה לייצור</label>
+                    <label><input id="newUserCanViewStock" type="checkbox"> גישה למלאי</label>
+                    <label><input id="newUserCanManageUsers" type="checkbox"> ניהול משתמשים</label>
+                </div>
+
+                <div id="createUserResult" class="users-create-result"></div>
+
+                <div class="users-modal-actions">
+                    <button type="button" id="cancelCreateUserBtn" class="btn-cancel">ביטול</button>
+                    <button type="submit" class="btn-save">צור משתמש</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="manageUserModal" class="users-modal-overlay">
+        <div class="users-modal-card" onclick="event.stopPropagation()">
+            <div class="users-modal-header">
+                <h3>ניהול משתמש</h3>
+                <button id="closeManageUserModal" type="button" class="users-modal-close">&times;</button>
+            </div>
+
+            <form id="manageUserForm" class="users-modal-form">
+                <input id="editUserId" type="hidden">
+
+                <div class="users-form-row">
+                    <label for="editUsername">שם משתמש</label>
+                    <input id="editUsername" type="text" readonly>
+                </div>
+
+                <div class="users-form-row">
+                    <label for="editFullName">שם מלא</label>
+                    <input id="editFullName" type="text" required>
+                </div>
+
+                <div class="users-form-row users-form-checkboxes">
+                    <label><input id="editIsActive" type="checkbox"> משתמש פעיל</label>
+                    <label><input id="editCanViewProduction" type="checkbox"> גישה לייצור</label>
+                    <label><input id="editCanViewStock" type="checkbox"> גישה למלאי</label>
+                    <label><input id="editCanManageUsers" type="checkbox"> ניהול משתמשים</label>
+                </div>
+
+                <div id="manageUserResult" class="users-create-result"></div>
+
+                <div class="users-manage-actions">
+                    <button id="resetPasswordBtn" type="button" class="btn-secondary">איפוס סיסמה</button>
+                    <button id="deleteUserBtn" type="button" class="btn-cancel users-delete-btn">מחיקת משתמש</button>
+                    <button type="submit" class="btn-save">שמירה</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>

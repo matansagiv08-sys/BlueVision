@@ -11,23 +11,41 @@
             <img src="../Images/BlueVisionLOGO.png" alt="BlueVision Logo">
         </div>
 
-        <form>
+        <form id="loginForm">
             <div class="form-group">
                 <label>שם משתמש</label>
-                <input type="text" placeholder="הזן שם משתמש">
+                <input id="username" type="text" placeholder="הזן שם משתמש" required>
             </div>
 
             <div class="form-group">
                 <label>סיסמה</label>
-                <input type="password" placeholder="הזן סיסמה">
+                <input id="password" type="password" placeholder="הזן סיסמה" required>
             </div>
 
             <button type="submit" class="login-submit">כניסה למערכת</button>
         </form>
 
+        <form id="changePasswordForm" class="hidden-block">
+            <div class="form-group">
+                <label>סיסמה חדשה</label>
+                <input id="newPassword" type="password" placeholder="הזן סיסמה חדשה" minlength="6" required>
+            </div>
+
+            <div class="form-group">
+                <label>אימות סיסמה חדשה</label>
+                <input id="confirmNewPassword" type="password" placeholder="הזן שוב את הסיסמה החדשה" minlength="6" required>
+            </div>
+
+            <button type="submit" class="login-submit">שמירת סיסמה חדשה</button>
+        </form>
+
+        <div id="authMessage" class="auth-message" aria-live="polite"></div>
+
         <div class="forgot-password">
-            <a href="#">שכחתי סיסמה</a>
+            <a href="#" id="forgotPasswordLink">שכחתי סיסמה</a>
         </div>
     </div>
+
+    <script src="js/Login.js"></script>
 </body>
 </html>
