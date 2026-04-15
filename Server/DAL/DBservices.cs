@@ -40,8 +40,6 @@ public class DBservices
 
         cmd.CommandText = spName;      // can be Select, Insert, Update, Delete 
 
-        cmd.CommandTimeout = 10;           // Time to wait for the execution' The default is 30 seconds
-
         cmd.CommandType = System.Data.CommandType.StoredProcedure; // the type of the command, can also be text
 
         if (paramDic != null)
@@ -70,75 +68,99 @@ public class DBservices
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 100;
 
-        using SqlConnection con = connect("myProjDB");
-        Dictionary<string, object> paramDic = new Dictionary<string, object>
+        SqlConnection con = null;
+        SqlCommand cmd;
+        SqlDataReader reader;
+        try
         {
-            { "@Page", page },
-            { "@PageSize", pageSize },
-            { "@Search", string.IsNullOrWhiteSpace(search) ? DBNull.Value : search.Trim() },
-            { "@StockStatus", string.IsNullOrWhiteSpace(stockStatus) ? "all" : stockStatus.Trim() },
-            { "@PlaneTypeID", planeTypeId.HasValue ? planeTypeId.Value : DBNull.Value },
-            { "@ItemGrpID", itemGrpID.HasValue ? itemGrpID.Value : DBNull.Value },
-            { "@BuyMethod", string.IsNullOrWhiteSpace(buyMethod) ? DBNull.Value : buyMethod.Trim() },
-            { "@SupplierID", supplierID.HasValue ? supplierID.Value : DBNull.Value },
-            { "@BodyPlane", string.IsNullOrWhiteSpace(bodyPlane) ? DBNull.Value : bodyPlane.Trim() },
-            { "@LastPODate", lastPODate.HasValue ? lastPODate.Value.Date : DBNull.Value }
-        };
-
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInventoryItems_GetPaged", con, paramDic);
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandTimeout = 120;
-
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read())
-        {
-            InventoryItem item = new InventoryItem
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
             {
-                InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
-                ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
-                ItemGrpID = reader["ItemGrpID"] == DBNull.Value ? null : Convert.ToInt32(reader["ItemGrpID"]),
-                ItemGrpName = reader["ItemGrpName"] == DBNull.Value ? null : reader["ItemGrpName"].ToString(),
-                BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
-                Price = reader["Price"] == DBNull.Value ? null : Convert.ToDouble(reader["Price"]),
-                SupplierID = reader["SupplierID"] == DBNull.Value ? null : Convert.ToInt32(reader["SupplierID"]),
-                SupplierName = reader["SupplierName"] == DBNull.Value ? string.Empty : reader["SupplierName"].ToString() ?? string.Empty,
-                Whse01_QTY = reader["Whse01_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse01_QTY"]),
-                Whse03_QTY = reader["Whse03_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse03_QTY"]),
-                Whse90_QTY = reader["Whse90_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse90_QTY"]),
-                OpenPurchaseRequestQty = reader["OpenPurchaseRequestQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseRequestQty"]),
-                OpenPurchaseOrderQty = reader["OpenPurchaseOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseOrderQty"]),
-                ApprovedOrderQty = reader["ApprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["ApprovedOrderQty"]),
-                UnapprovedOrderQty = reader["UnapprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["UnapprovedOrderQty"]),
-                BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString(),
-                LastPODate = reader["LastPODate"] == DBNull.Value ? null : Convert.ToDateTime(reader["LastPODate"])
+                { "@Page", page },
+                { "@PageSize", pageSize },
+                { "@Search", string.IsNullOrWhiteSpace(search) ? DBNull.Value : search.Trim() },
+                { "@StockStatus", string.IsNullOrWhiteSpace(stockStatus) ? "all" : stockStatus.Trim() },
+                { "@PlaneTypeID", planeTypeId.HasValue ? planeTypeId.Value : DBNull.Value },
+                { "@ItemGrpID", itemGrpID.HasValue ? itemGrpID.Value : DBNull.Value },
+                { "@BuyMethod", string.IsNullOrWhiteSpace(buyMethod) ? DBNull.Value : buyMethod.Trim() },
+                { "@SupplierID", supplierID.HasValue ? supplierID.Value : DBNull.Value },
+                { "@BodyPlane", string.IsNullOrWhiteSpace(bodyPlane) ? DBNull.Value : bodyPlane.Trim() },
+                { "@LastPODate", lastPODate.HasValue ? lastPODate.Value.Date : DBNull.Value }
             };
 
-            items.Add(item);
-        }
+            cmd = CreateCommandWithStoredProcedureGeneral("spInventoryItems_GetPaged", con, paramDic);
+            cmd.CommandType = CommandType.StoredProcedure;
+            reader = cmd.ExecuteReader();
 
-        return items;
+            while (reader.Read())
+            {
+                InventoryItem item = new InventoryItem
+                {
+                    InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
+                    ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
+                    ItemGrpID = reader["ItemGrpID"] == DBNull.Value ? null : Convert.ToInt32(reader["ItemGrpID"]),
+                    ItemGrpName = reader["ItemGrpName"] == DBNull.Value ? null : reader["ItemGrpName"].ToString(),
+                    BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
+                    Price = reader["Price"] == DBNull.Value ? null : Convert.ToDouble(reader["Price"]),
+                    SupplierID = reader["SupplierID"] == DBNull.Value ? null : Convert.ToInt32(reader["SupplierID"]),
+                    SupplierName = reader["SupplierName"] == DBNull.Value ? string.Empty : reader["SupplierName"].ToString() ?? string.Empty,
+                    Whse01_QTY = reader["Whse01_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse01_QTY"]),
+                    Whse03_QTY = reader["Whse03_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse03_QTY"]),
+                    Whse90_QTY = reader["Whse90_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse90_QTY"]),
+                    OpenPurchaseRequestQty = reader["OpenPurchaseRequestQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseRequestQty"]),
+                    OpenPurchaseOrderQty = reader["OpenPurchaseOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseOrderQty"]),
+                    ApprovedOrderQty = reader["ApprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["ApprovedOrderQty"]),
+                    UnapprovedOrderQty = reader["UnapprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["UnapprovedOrderQty"]),
+                    BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString(),
+                    LastPODate = reader["LastPODate"] == DBNull.Value ? null : Convert.ToDateTime(reader["LastPODate"])
+                };
+
+                items.Add(item);
+            }
+
+            return items;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public List<BomPlaneOption> GetBomPlaneOptions()
     {
         List<BomPlaneOption> options = new List<BomPlaneOption>();
 
-        using SqlConnection con = connect("myProjDB");
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spBom_GetPlaneOptions", con, null);
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandTimeout = 120;
-
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read())
+        SqlConnection con = null;
+        try
         {
-            options.Add(new BomPlaneOption
-            {
-                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
-                PlaneTypeName = reader["PlaneTypeName"]?.ToString() ?? string.Empty
-            });
-        }
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spBom_GetPlaneOptions", con, null);
+            cmd.CommandType = CommandType.StoredProcedure;
 
-        return options;
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                options.Add(new BomPlaneOption
+                {
+                    PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                    PlaneTypeName = reader["PlaneTypeName"]?.ToString() ?? string.Empty
+                });
+            }
+
+            return options;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public List<BomRow> GetBomRows(
@@ -158,92 +180,112 @@ public class DBservices
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 100;
 
-        using SqlConnection con = connect("myProjDB");
-        Dictionary<string, object> paramDic = new Dictionary<string, object>
+        SqlConnection con = null;
+        try
         {
-            { "@Page", page },
-            { "@PageSize", pageSize },
-            { "@PlaneTypeID", planeTypeId.HasValue ? planeTypeId.Value : DBNull.Value },
-            { "@Search", string.IsNullOrWhiteSpace(search) ? DBNull.Value : search.Trim() },
-            { "@MeasureUnit", string.IsNullOrWhiteSpace(measureUnit) ? DBNull.Value : measureUnit.Trim() },
-            { "@Warehouse", string.IsNullOrWhiteSpace(warehouse) ? DBNull.Value : warehouse.Trim() },
-            { "@BomLevel", bomLevel.HasValue ? bomLevel.Value : DBNull.Value },
-            { "@HasChild", hasChild.HasValue ? hasChild.Value : DBNull.Value },
-            { "@BuyMethod", string.IsNullOrWhiteSpace(buyMethod) ? DBNull.Value : buyMethod.Trim() },
-            { "@BodyPlane", string.IsNullOrWhiteSpace(bodyPlane) ? DBNull.Value : bodyPlane.Trim() }
-        };
-
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spBom_GetPagedRows", con, paramDic);
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandTimeout = 120;
-
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read())
-        {
-            rows.Add(new BomRow
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
             {
-                BomSerialID = Convert.ToInt32(reader["BomSerialID"]),
-                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
-                RowOrder = Convert.ToInt32(reader["RowOrder"]),
-                InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
-                ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
-                Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
-                MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
-                Warehouse = reader["Warehouse"] == DBNull.Value ? null : reader["Warehouse"].ToString(),
-                BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
-                HasChild = reader["HasChild"] == DBNull.Value ? false : Convert.ToBoolean(reader["HasChild"]),
-                BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
-                BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
-            });
-        }
+                { "@Page", page },
+                { "@PageSize", pageSize },
+                { "@PlaneTypeID", planeTypeId.HasValue ? planeTypeId.Value : DBNull.Value },
+                { "@Search", string.IsNullOrWhiteSpace(search) ? DBNull.Value : search.Trim() },
+                { "@MeasureUnit", string.IsNullOrWhiteSpace(measureUnit) ? DBNull.Value : measureUnit.Trim() },
+                { "@Warehouse", string.IsNullOrWhiteSpace(warehouse) ? DBNull.Value : warehouse.Trim() },
+                { "@BomLevel", bomLevel.HasValue ? bomLevel.Value : DBNull.Value },
+                { "@HasChild", hasChild.HasValue ? hasChild.Value : DBNull.Value },
+                { "@BuyMethod", string.IsNullOrWhiteSpace(buyMethod) ? DBNull.Value : buyMethod.Trim() },
+                { "@BodyPlane", string.IsNullOrWhiteSpace(bodyPlane) ? DBNull.Value : bodyPlane.Trim() }
+            };
 
-        return rows;
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spBom_GetPagedRows", con, paramDic);
+            cmd.CommandType = CommandType.StoredProcedure;
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add(new BomRow
+                {
+                    BomSerialID = Convert.ToInt32(reader["BomSerialID"]),
+                    PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                    RowOrder = Convert.ToInt32(reader["RowOrder"]),
+                    InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
+                    ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
+                    Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
+                    MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
+                    Warehouse = reader["Warehouse"] == DBNull.Value ? null : reader["Warehouse"].ToString(),
+                    BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
+                    HasChild = reader["HasChild"] == DBNull.Value ? false : Convert.ToBoolean(reader["HasChild"]),
+                    BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
+                    BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
+                });
+            }
+
+            return rows;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public BomFilterOptions GetBomFilterOptions(int? planeTypeId = null)
     {
         BomFilterOptions options = new BomFilterOptions();
 
-        using SqlConnection con = connect("myProjDB");
-        Dictionary<string, object> paramDic = new Dictionary<string, object>
+        SqlConnection con = null;
+        try
         {
-            { "@PlaneTypeID", planeTypeId.HasValue ? planeTypeId.Value : DBNull.Value }
-        };
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@PlaneTypeID", planeTypeId.HasValue ? planeTypeId.Value : DBNull.Value }
+            };
 
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spBom_GetFilterOptions", con, paramDic);
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandTimeout = 120;
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spBom_GetFilterOptions", con, paramDic);
+            cmd.CommandType = CommandType.StoredProcedure;
+            SqlDataReader reader = cmd.ExecuteReader();
 
-        using SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read()) options.MeasureUnits.Add(reader["Value"]?.ToString() ?? string.Empty);
 
-        while (reader.Read()) options.MeasureUnits.Add(reader["Value"]?.ToString() ?? string.Empty);
+            if (reader.NextResult())
+            {
+                while (reader.Read()) options.Warehouses.Add(reader["Value"]?.ToString() ?? string.Empty);
+            }
 
-        if (reader.NextResult())
-        {
-            while (reader.Read()) options.Warehouses.Add(reader["Value"]?.ToString() ?? string.Empty);
+            if (reader.NextResult())
+            {
+                while (reader.Read()) options.BomLevels.Add(Convert.ToInt32(reader["BomLevel"]));
+            }
+
+            if (reader.NextResult())
+            {
+                while (reader.Read()) options.HasChildOptions.Add(Convert.ToBoolean(reader["HasChild"]));
+            }
+
+            if (reader.NextResult())
+            {
+                while (reader.Read()) options.BuyMethods.Add(reader["Value"]?.ToString() ?? string.Empty);
+            }
+
+            if (reader.NextResult())
+            {
+                while (reader.Read()) options.BodyPlanes.Add(reader["Value"]?.ToString() ?? string.Empty);
+            }
+
+            return options;
         }
-
-        if (reader.NextResult())
+        catch (Exception)
         {
-            while (reader.Read()) options.BomLevels.Add(Convert.ToInt32(reader["BomLevel"]));
+            throw;
         }
-
-        if (reader.NextResult())
+        finally
         {
-            while (reader.Read()) options.HasChildOptions.Add(Convert.ToBoolean(reader["HasChild"]));
+            if (con != null) con.Close();
         }
-
-        if (reader.NextResult())
-        {
-            while (reader.Read()) options.BuyMethods.Add(reader["Value"]?.ToString() ?? string.Empty);
-        }
-
-        if (reader.NextResult())
-        {
-            while (reader.Read()) options.BodyPlanes.Add(reader["Value"]?.ToString() ?? string.Empty);
-        }
-
-        return options;
     }
 
     public Dictionary<int, string> GetPlaneTypeNames(List<int> planeTypeIds)
@@ -255,24 +297,35 @@ public class DBservices
             return planeTypeNames;
         }
 
-        using SqlConnection con = connect("myProjDB");
-
-        string idsCsv = string.Join(",", planeTypeIds);
-
-        using SqlCommand planeTypesCmd = new SqlCommand("SP_GetPlaneTypeNamesByIds", con);
-        planeTypesCmd.CommandType = CommandType.StoredProcedure;
-        planeTypesCmd.CommandTimeout = 120;
-        planeTypesCmd.Parameters.AddWithValue("@PlaneTypeIds", idsCsv);
-
-        using SqlDataReader reader = planeTypesCmd.ExecuteReader();
-        while (reader.Read())
+        SqlConnection con = null;
+        try
         {
-            int planeTypeId = Convert.ToInt32(reader["PlaneTypeID"]);
-            string planeTypeName = reader["PlaneTypeName"]?.ToString() ?? planeTypeId.ToString();
-            planeTypeNames[planeTypeId] = planeTypeName;
-        }
+            con = connect("myProjDB");
 
-        return planeTypeNames;
+            string idsCsv = string.Join(",", planeTypeIds);
+
+            SqlCommand planeTypesCmd = new SqlCommand("SP_GetPlaneTypeNamesByIds", con);
+            planeTypesCmd.CommandType = CommandType.StoredProcedure;
+            planeTypesCmd.Parameters.AddWithValue("@PlaneTypeIds", idsCsv);
+
+            SqlDataReader reader = planeTypesCmd.ExecuteReader();
+            while (reader.Read())
+            {
+                int planeTypeId = Convert.ToInt32(reader["PlaneTypeID"]);
+                string planeTypeName = reader["PlaneTypeName"]?.ToString() ?? planeTypeId.ToString();
+                planeTypeNames[planeTypeId] = planeTypeName;
+            }
+
+            return planeTypeNames;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public List<BomRow> GetBomRowsForPlanes(List<int> planeTypeIds, string bodyPlane)
@@ -284,41 +337,52 @@ public class DBservices
             return bomRows;
         }
 
-        using SqlConnection con = connect("myProjDB");
-
-        string idsCsv = string.Join(",", planeTypeIds);
-
-        using SqlCommand bomCmd = new SqlCommand("dbo.SP_GetBomRowsForPlanes", con);
-        bomCmd.CommandType = CommandType.StoredProcedure;
-        bomCmd.CommandTimeout = 120;
-        bomCmd.Parameters.AddWithValue("@PlaneTypeIds", idsCsv);
-
-        using SqlDataReader reader = bomCmd.ExecuteReader();
-        while (reader.Read())
+        SqlConnection con = null;
+        try
         {
-            string rowBodyPlane = reader["BodyPlane"] == DBNull.Value ? string.Empty : reader["BodyPlane"].ToString() ?? string.Empty;
-            if (!string.Equals(rowBodyPlane.Trim(), bodyPlane?.Trim(), StringComparison.OrdinalIgnoreCase))
+            con = connect("myProjDB");
+
+            string idsCsv = string.Join(",", planeTypeIds);
+
+            SqlCommand bomCmd = new SqlCommand("dbo.SP_GetBomRowsForPlanes", con);
+            bomCmd.CommandType = CommandType.StoredProcedure;
+            bomCmd.Parameters.AddWithValue("@PlaneTypeIds", idsCsv);
+
+            SqlDataReader reader = bomCmd.ExecuteReader();
+            while (reader.Read())
             {
-                continue;
+                string rowBodyPlane = reader["BodyPlane"] == DBNull.Value ? string.Empty : reader["BodyPlane"].ToString() ?? string.Empty;
+                if (!string.Equals(rowBodyPlane.Trim(), bodyPlane?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                bomRows.Add(new BomRow
+                {
+                    PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                    RowOrder = Convert.ToInt32(reader["RowOrder"]),
+                    InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
+                    ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
+                    Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
+                    MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
+                    Warehouse = reader["Warehouse"] == DBNull.Value ? null : reader["Warehouse"].ToString(),
+                    BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
+                    HasChild = reader["HasChild"] == DBNull.Value ? null : Convert.ToBoolean(reader["HasChild"]),
+                    BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
+                    BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
+                });
             }
 
-            bomRows.Add(new BomRow
-            {
-                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
-                RowOrder = Convert.ToInt32(reader["RowOrder"]),
-                InventoryItemID = reader["InventoryItemID"]?.ToString() ?? string.Empty,
-                ItemName = reader["ItemName"] == DBNull.Value ? null : reader["ItemName"].ToString(),
-                Quantity = reader["Quantity"] == DBNull.Value ? null : Convert.ToDecimal(reader["Quantity"]),
-                MeasureUnit = reader["MeasureUnit"] == DBNull.Value ? null : reader["MeasureUnit"].ToString(),
-                Warehouse = reader["Warehouse"] == DBNull.Value ? null : reader["Warehouse"].ToString(),
-                BomLevel = reader["BomLevel"] == DBNull.Value ? 0 : Convert.ToInt32(reader["BomLevel"]),
-                HasChild = reader["HasChild"] == DBNull.Value ? null : Convert.ToBoolean(reader["HasChild"]),
-                BuyMethod = reader["BuyMethod"] == DBNull.Value ? null : reader["BuyMethod"].ToString(),
-                BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString()
-            });
+            return bomRows;
         }
-
-        return bomRows;
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public Dictionary<string, InventoryCheck.InventorySnapshot> GetInventorySnapshotsForItems(List<string> itemIds)
@@ -330,99 +394,121 @@ public class DBservices
             return snapshots;
         }
 
-        using SqlConnection con = connect("myProjDB");
-
-        string idsCsv = string.Join(",", itemIds);
-
-        using SqlCommand cmd = new SqlCommand("dbo.SP_GetInventorySnapshotsForItems", con);
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandTimeout = 120;
-        cmd.Parameters.AddWithValue("@ItemIds", idsCsv);
-
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read())
+        SqlConnection con = null;
+        try
         {
-            string itemId = reader["InventoryItemID"]?.ToString() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(itemId))
+            con = connect("myProjDB");
+
+            string idsCsv = string.Join(",", itemIds);
+
+            SqlCommand cmd = new SqlCommand("dbo.SP_GetInventorySnapshotsForItems", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@ItemIds", idsCsv);
+
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                continue;
+                string itemId = reader["InventoryItemID"]?.ToString() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(itemId))
+                {
+                    continue;
+                }
+
+                snapshots[itemId] = new InventoryCheck.InventorySnapshot
+                {
+                    ItemName = string.Empty,
+                    TotalStock = (reader["Whse01_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse01_QTY"]))
+                               + (reader["Whse03_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse03_QTY"]))
+                               + (reader["Whse90_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse90_QTY"])),
+                    SupplierName = string.Empty,
+                    Price = null
+                };
             }
 
-            snapshots[itemId] = new InventoryCheck.InventorySnapshot
-            {
-                ItemName = string.Empty,
-                TotalStock = (reader["Whse01_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse01_QTY"]))
-                           + (reader["Whse03_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse03_QTY"]))
-                           + (reader["Whse90_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse90_QTY"])),
-                SupplierName = string.Empty,
-                Price = null
-            };
+            return snapshots;
         }
-
-        return snapshots;
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public InventoryFilterOptions GetInventoryFilterOptions()
     {
         InventoryFilterOptions options = new InventoryFilterOptions();
 
-        using SqlConnection con = connect("myProjDB");
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInventoryItems_GetFilterOptions", con, null);
-        cmd.CommandType = CommandType.StoredProcedure;
-        cmd.CommandTimeout = 120;
-
-        using SqlDataReader reader = cmd.ExecuteReader();
-
-        while (reader.Read())
+        SqlConnection con = null;
+        try
         {
-            options.Platforms.Add(new InventoryPlatformOption
-            {
-                PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
-                PlaneTypeName = reader["PlaneTypeName"]?.ToString() ?? string.Empty
-            });
-        }
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInventoryItems_GetFilterOptions", con, null);
+            cmd.CommandType = CommandType.StoredProcedure;
 
-        if (reader.NextResult())
-        {
+            SqlDataReader reader = cmd.ExecuteReader();
+
             while (reader.Read())
             {
-                options.Groups.Add(new InventoryGroupOption
+                options.Platforms.Add(new InventoryPlatformOption
                 {
-                    ItemGrpID = Convert.ToInt32(reader["ItemGrpID"]),
-                    ItemGrpName = reader["ItemGrpName"]?.ToString() ?? string.Empty
+                    PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                    PlaneTypeName = reader["PlaneTypeName"]?.ToString() ?? string.Empty
                 });
             }
-        }
 
-        if (reader.NextResult())
-        {
-            while (reader.Read())
+            if (reader.NextResult())
             {
-                options.BuyMethods.Add(reader["BuyMethod"]?.ToString() ?? string.Empty);
-            }
-        }
-
-        if (reader.NextResult())
-        {
-            while (reader.Read())
-            {
-                options.Suppliers.Add(new InventorySupplierOption
+                while (reader.Read())
                 {
-                    SupplierID = Convert.ToInt32(reader["SupplierID"]),
-                    SupplierName = reader["SupplierName"]?.ToString() ?? string.Empty
-                });
+                    options.Groups.Add(new InventoryGroupOption
+                    {
+                        ItemGrpID = Convert.ToInt32(reader["ItemGrpID"]),
+                        ItemGrpName = reader["ItemGrpName"]?.ToString() ?? string.Empty
+                    });
+                }
             }
-        }
 
-        if (reader.NextResult())
-        {
-            while (reader.Read())
+            if (reader.NextResult())
             {
-                options.BodyPlanes.Add(reader["BodyPlaneValue"]?.ToString() ?? string.Empty);
+                while (reader.Read())
+                {
+                    options.BuyMethods.Add(reader["BuyMethod"]?.ToString() ?? string.Empty);
+                }
             }
-        }
 
-        return options;
+            if (reader.NextResult())
+            {
+                while (reader.Read())
+                {
+                    options.Suppliers.Add(new InventorySupplierOption
+                    {
+                        SupplierID = Convert.ToInt32(reader["SupplierID"]),
+                        SupplierName = reader["SupplierName"]?.ToString() ?? string.Empty
+                    });
+                }
+            }
+
+            if (reader.NextResult())
+            {
+                while (reader.Read())
+                {
+                    options.BodyPlanes.Add(reader["BodyPlaneValue"]?.ToString() ?? string.Empty);
+                }
+            }
+
+            return options;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public InventoryImportResult ImportInventoryDataToDatabase(InventoryImportData importData)
@@ -439,13 +525,14 @@ public class DBservices
         int updatedProductionItems = 0;
         int finalProductionItemsCount = 0;
 
-        using (SqlConnection con = connect("myProjDB"))
+        SqlConnection con = null;
+        try
         {
+            con = connect("myProjDB");
             Dictionary<string, int> planeTypeNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             using (SqlCommand selectPlaneTypesCmd = new SqlCommand("dbo.SP_GetPlaneTypesForImport", con))
             {
                 selectPlaneTypesCmd.CommandType = CommandType.StoredProcedure;
-                selectPlaneTypesCmd.CommandTimeout = 120;
                 using SqlDataReader planeTypesReader = selectPlaneTypesCmd.ExecuteReader();
                 while (planeTypesReader.Read())
                 {
@@ -505,7 +592,6 @@ public class DBservices
             using (SqlCommand deleteBomCmd = new SqlCommand("dbo.SP_TruncateBom", con))
             {
                 deleteBomCmd.CommandType = CommandType.StoredProcedure;
-                deleteBomCmd.CommandTimeout = 120;
                 deleteBomCmd.ExecuteNonQuery();
             }
 
@@ -513,7 +599,6 @@ public class DBservices
             {
                 using SqlBulkCopy bomBulkCopy = new SqlBulkCopy(con);
                 bomBulkCopy.DestinationTableName = "BOM";
-                bomBulkCopy.BulkCopyTimeout = 120;
                 bomBulkCopy.BatchSize = 2000;
                 bomBulkCopy.ColumnMappings.Add("PlaneTypeID", "PlaneTypeID");
                 bomBulkCopy.ColumnMappings.Add("RowOrder", "RowOrder");
@@ -532,7 +617,6 @@ public class DBservices
             using (SqlCommand syncProductionItemsCmd = new SqlCommand("dbo.SP_SyncProductionItemsFromBom", con))
             {
                 syncProductionItemsCmd.CommandType = CommandType.StoredProcedure;
-                syncProductionItemsCmd.CommandTimeout = 120;
 
                 using SqlDataReader syncReader = syncProductionItemsCmd.ExecuteReader();
                 if (syncReader.Read())
@@ -548,7 +632,6 @@ public class DBservices
             {
                 supplierCmd.CommandType = CommandType.StoredProcedure;
                 supplierCmd.Parameters.Add("@SupplierName", SqlDbType.NVarChar, 100);
-                supplierCmd.CommandTimeout = 120;
 
                 foreach (string supplierName in importData.UniqueSuppliers)
                 {
@@ -564,7 +647,6 @@ public class DBservices
             using (SqlCommand selectSuppliersCmd = new SqlCommand("dbo.SP_GetSuppliersForImport", con))
             {
                 selectSuppliersCmd.CommandType = CommandType.StoredProcedure;
-                selectSuppliersCmd.CommandTimeout = 120;
                 using SqlDataReader supplierReader = selectSuppliersCmd.ExecuteReader();
                 while (supplierReader.Read())
                 {
@@ -602,14 +684,12 @@ public class DBservices
                 using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateSupplierUpdatesTempTable", con))
                 {
                     createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
                     bulkCopy.DestinationTableName = "#SupplierUpdates";
-                    bulkCopy.BulkCopyTimeout = 120;
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("SupplierID", "SupplierID");
@@ -618,7 +698,6 @@ public class DBservices
 
                 using SqlCommand updateSupplierCmd = new SqlCommand("dbo.SP_UpdateInventorySuppliersFromTemp", con);
                 updateSupplierCmd.CommandType = CommandType.StoredProcedure;
-                updateSupplierCmd.CommandTimeout = 120;
                 updatedSupplierRows = updateSupplierCmd.ExecuteNonQuery();
             }
 
@@ -636,14 +715,12 @@ public class DBservices
                 using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateLastPoDateUpdatesTempTable", con))
                 {
                     createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
                     bulkCopy.DestinationTableName = "#LastPODateUpdates";
-                    bulkCopy.BulkCopyTimeout = 120;
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("LastPODate", "LastPODate");
@@ -652,14 +729,12 @@ public class DBservices
 
                 using SqlCommand updateLastPoDateCmd = new SqlCommand("dbo.SP_UpdateInventoryLastPoDateFromTemp", con);
                 updateLastPoDateCmd.CommandType = CommandType.StoredProcedure;
-                updateLastPoDateCmd.CommandTimeout = 120;
                 updateLastPoDateCmd.ExecuteNonQuery();
             }
 
             using SqlCommand cmd = new SqlCommand("dbo.SP_InsertGroupIfMissing", con);
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.Add("@GroupName", SqlDbType.NVarChar, 255);
-            cmd.CommandTimeout = 120;
 
             foreach (string groupName in importData.UniqueGroupNames)
             {
@@ -674,7 +749,6 @@ public class DBservices
             using (SqlCommand selectGroupsCmd = new SqlCommand("dbo.SP_GetGroupsForImport", con))
             {
                 selectGroupsCmd.CommandType = CommandType.StoredProcedure;
-                selectGroupsCmd.CommandTimeout = 120;
                 using SqlDataReader reader = selectGroupsCmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -712,14 +786,12 @@ public class DBservices
                 using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateItemGroupUpdatesTempTable", con))
                 {
                     createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
                     bulkCopy.DestinationTableName = "#ItemGroupUpdates";
-                    bulkCopy.BulkCopyTimeout = 120;
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("ItemGrpID", "ItemGrpID");
@@ -728,7 +800,6 @@ public class DBservices
 
                 using SqlCommand updateCmd = new SqlCommand("dbo.SP_UpdateInventoryGroupsFromTemp", con);
                 updateCmd.CommandType = CommandType.StoredProcedure;
-                updateCmd.CommandTimeout = 120;
                 updatedRows = updateCmd.ExecuteNonQuery();
             }
 
@@ -746,14 +817,12 @@ public class DBservices
                 using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateBuyMethodUpdatesTempTable", con))
                 {
                     createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.CommandTimeout = 120;
                     createTempCmd.ExecuteNonQuery();
                 }
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
                     bulkCopy.DestinationTableName = "#BuyMethodUpdates";
-                    bulkCopy.BulkCopyTimeout = 120;
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("BuyMethod", "BuyMethod");
@@ -762,9 +831,16 @@ public class DBservices
 
                 using SqlCommand updateBuyMethodCmd = new SqlCommand("dbo.SP_UpdateInventoryBuyMethodFromTemp", con);
                 updateBuyMethodCmd.CommandType = CommandType.StoredProcedure;
-                updateBuyMethodCmd.CommandTimeout = 120;
                 updateBuyMethodCmd.ExecuteNonQuery();
             }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
         }
 
         return new InventoryImportResult
@@ -832,56 +908,109 @@ public class DBservices
             }
             return itemsMap.Values.ToList();
         }
-        catch (Exception ex) { throw ex; }
+        catch (Exception)
+        {
+            throw;
+        }
         finally { if (con != null) con.Close(); }
     }
 
     public List<Project> GetProjects()
     {
-        SqlConnection con = connect("myProjDB");
+        SqlConnection con = null;
         List<Project> list = new List<Project>();
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetAllProjects", con, null);
-        SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read())
+        try
         {
-            list.Add(new Project
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetAllProjects", con, null);
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                ProjectID = (int)reader["ProjectID"],
-                ProjectName = reader["ProjectName"].ToString(),
-                DueDate = (DateTime)reader["DueDate"],
-                PriorityLevel = (byte)reader["PriorityLevel"]
-            });
+                list.Add(new Project
+                {
+                    ProjectID = (int)reader["ProjectID"],
+                    ProjectName = reader["ProjectName"].ToString(),
+                    DueDate = (DateTime)reader["DueDate"],
+                    PriorityLevel = (byte)reader["PriorityLevel"]
+                });
+            }
+            return list;
         }
-        con.Close();
-        return list;
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public int InsertProject(Project p)
     {
+        SqlConnection con = null;
         Dictionary<string, object> d = new Dictionary<string, object> {
         {"@ProjectName", p.ProjectName},
         {"@DueDate", p.DueDate},
         {"@PriorityLevel", p.PriorityLevel}
     };
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertProject", connect("myProjDB"), d);
-        return cmd.ExecuteNonQuery();
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertProject", con, d);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public int UpdateProject(Project p)
     {
+        SqlConnection con = null;
         Dictionary<string, object> d = new Dictionary<string, object> {
         {"@ProjectID", p.ProjectID}, {"@ProjectName", p.ProjectName},
         {"@DueDate", p.DueDate}, {"@PriorityLevel", p.PriorityLevel}
     };
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUpdateProject", connect("myProjDB"), d);
-        return cmd.ExecuteNonQuery();
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUpdateProject", con, d);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
     public int DeleteProject(int id)
     {
+        SqlConnection con = null;
         Dictionary<string, object> d = new Dictionary<string, object> { { "@ProjectID", id } };
-        SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteProject", connect("myProjDB"), d);
-        return cmd.ExecuteNonQuery();
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeleteProject", con, d);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 
    
@@ -905,9 +1034,9 @@ public class DBservices
             }
             return list;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            throw ex;
+            throw;
         }
         finally
         {
@@ -928,9 +1057,9 @@ public class DBservices
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertPlaneType", con, paramDic);
             return cmd.ExecuteNonQuery();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            throw ex;
+            throw;
         }
         finally
         {
@@ -951,9 +1080,9 @@ public class DBservices
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeletePlaneType", con, paramDic);
             return cmd.ExecuteNonQuery();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            throw ex;
+            throw;
         }
         finally
         {
@@ -988,7 +1117,10 @@ public class DBservices
             }
             return stagesList;
         }
-        catch (Exception ex) { throw ex; }
+        catch (Exception)
+        {
+            throw;
+        }
         finally { if (con != null) con.Close(); }
     }
 
@@ -1092,7 +1224,7 @@ public class DBservices
         catch (Exception ex)
         {
             Debug.WriteLine("Error in GetFullProjectsStatus: " + ex.Message);
-            throw ex;
+            throw;
         }
         finally { if (con != null) con.Close(); }
     }
@@ -1117,7 +1249,10 @@ public class DBservices
             }
             return list;
         }
-        catch (Exception ex) { throw ex; }
+        catch (Exception)
+        {
+            throw;
+        }
         finally { if (con != null) con.Close(); }
     }
 
@@ -1137,7 +1272,10 @@ public class DBservices
             }
             return list;
         }
-        catch (Exception ex) { throw ex; }
+        catch (Exception)
+        {
+            throw;
+        }
         finally { if (con != null) con.Close(); }
     }
 
@@ -1161,7 +1299,10 @@ public class DBservices
             }
             return list;
         }
-        catch (Exception ex) { throw ex; }
+        catch (Exception)
+        {
+            throw;
+        }
         finally { if (con != null) con.Close(); }
     }
 
@@ -1186,7 +1327,10 @@ public class DBservices
             }
             return list;
         }
-        catch (Exception ex) { throw ex; }
+        catch (Exception)
+        {
+            throw;
+        }
         finally { if (con != null) con.Close(); }
     }
 
@@ -1214,7 +1358,6 @@ public class DBservices
             using (SqlCommand mainCmd = new SqlCommand("dbo.SP_InsertItemInProduction", con, trans))
             {
                 mainCmd.CommandType = CommandType.StoredProcedure;
-                mainCmd.CommandTimeout = 120;
                 mainCmd.Parameters.AddWithValue("@itemID", productionItemID);
                 mainCmd.Parameters.AddWithValue("@serial", serialNumber);
                 mainCmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
@@ -1230,10 +1373,10 @@ public class DBservices
             trans.Commit();
             return 1;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             if (trans != null) trans.Rollback();
-            throw ex;
+            throw;
         }
         finally { if (con != null) con.Close(); }
     }
@@ -1295,9 +1438,9 @@ public class DBservices
 
             return 1;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            throw ex;
+            throw;
         }
         finally { if (con != null) con.Close(); }
     }
