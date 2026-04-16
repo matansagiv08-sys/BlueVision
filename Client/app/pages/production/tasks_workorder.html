@@ -1,31 +1,20 @@
 ﻿<div class="tasks-workorder-page">
     <div class="workstation-slider-container">
-        <div class="custom-slider-toggle">
+        <div class="custom-slider-toggle" id="stationsSlider">
             <button class="slider-btn active pill-blue" onclick="window.filterByStation('all', this)">כל התחנות</button>
-            <button class="slider-btn" onclick="window.filterByStation('templates_paint', this)">הכנת תבניות וצבע</button>
-            <button class="slider-btn" onclick="window.filterByStation('layup_upper', this)">ליווח סקין עליון</button>
-            <button class="slider-btn" onclick="window.filterByStation('layup_lower', this)">ליווח סקין תחתון</button>
-            <button class="slider-btn" onclick="window.filterByStation('closure', this)">סגירה</button>
-            <button class="slider-btn" onclick="window.filterByStation('extraction', this)">חליצה</button>
-            <button class="slider-btn" onclick="window.filterByStation('finishes', this)">פינישים</button>
-            <button class="slider-btn" onclick="window.filterByStation('paint', this)">צבע</button>
-            <button class="slider-btn" onclick="window.filterByStation('qc', this)">QC</button>
         </div>
     </div>
 
-    <div class="global-toolbar" style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: 12px; margin-bottom: 20px;">
-
-        <div class="search-container" style="flex: 1; max-width: 400px;">
+    <div class="global-toolbar">
+        <div class="search-container">
             <input type="text" id="taskSearch" class="standard-input" placeholder="חפש פק״ע, מק״ט או סיריאלי..." oninput="window.filterWorkOrder()">
         </div>
 
-        <div class="toolbar-actions" style="display: flex; gap: 10px; align-items: center;">
+        <div class="toolbar-actions">
             <select id="urgencyFilter" class="standard-input urgency-select" onchange="window.filterWorkOrder()">
                 <option value="all">כל הדחיפויות</option>
                 <option value="critical">קריטי</option>
                 <option value="high">גבוה</option>
-                <option value="medium">בינוני</option>
-                <option value="low">נמוך</option>
             </select>
 
             <button id="resetAlgoBtn" class="btn-cancel" onclick="window.optimizeRoute()" disabled>איפוס לאלגוריתם</button>
@@ -42,12 +31,12 @@
                     <th>מק"ט פריט</th>
                     <th>תיאור פריט</th>
                     <th>מספר סיריאלי</th>
-                    <th>סטטוס</th>
-                    <th>דחיפות</th>
-                    <th>Deadline</th>
+                    <th>התקדמות</th>
+                    <th>ציון דחיפות</th>
+                    <th>תחנה נוכחית</th>
                 </tr>
             </thead>
-            <tbody id="tasks-table-body">
+            <tbody id="tasksTableBody">
             </tbody>
         </table>
     </div>

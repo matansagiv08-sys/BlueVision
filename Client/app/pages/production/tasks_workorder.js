@@ -1,237 +1,90 @@
 let allTasks = [];
 let currentStation = 'all';
-let originalOrderByStation = {};
-let currentOrderByStation = {};
 let originalGlobalOrder = [];
 let currentGlobalOrder = [];
-let dragSrcPo = null;
 
+// פונקציית ה-Init שנקראת מה-app.js
 window.initTasksWorkOrder = function () {
-    // MOCK DATA (easy to replace later with API)
-    // Later you can replace this with: allTasks = await fetch(...).then(r => r.json())
-    allTasks = [
-        // templates_paint
-        { po: "100245", sku: "WB-BODY-01", desc: "גוף WanderB G2", sn: "SN-9921", status: "active", urgency: "critical", deadline: "24/02", station: "templates_paint" },
-        { po: "100253", sku: "WB-TMP-02", desc: "תבנית עליונה", sn: "SN-9931", status: "waiting", urgency: "high", deadline: "25/02", station: "templates_paint" },
-        { po: "100254", sku: "WB-TMP-03", desc: "תבנית תחתונה", sn: "SN-9932", status: "waiting", urgency: "medium", deadline: "26/02", station: "templates_paint" },
+    console.log("Initializing Tasks WorkOrder...");
 
-        // layup_upper
-        { po: "100246", sku: "WB-WING-02", desc: "כנף ימין", sn: "SN-9922", status: "waiting", urgency: "high", deadline: "25/02", station: "layup_upper" },
-        { po: "100255", sku: "WB-SKIN-U1", desc: "סקין עליון 1", sn: "SN-9933", status: "active", urgency: "medium", deadline: "27/02", station: "layup_upper" },
-        { po: "100256", sku: "WB-SKIN-U2", desc: "סקין עליון 2", sn: "SN-9934", status: "waiting", urgency: "low", deadline: "28/02", station: "layup_upper" },
+    // שימוש ב-ajaxCall בדיוק כמו ב-tasks_board
+    ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
+        (data) => {
+            console.log("Data received:", data);
+            allTasks = data;
 
-        // layup_lower
-        { po: "100247", sku: "WB-WING-03", desc: "כנף שמאל", sn: "SN-9923", status: "active", urgency: "medium", deadline: "26/02", station: "layup_lower" },
-        { po: "100257", sku: "WB-SKIN-L1", desc: "סקין תחתון 1", sn: "SN-9935", status: "waiting", urgency: "high", deadline: "27/02", station: "layup_lower" },
-        { po: "100258", sku: "WB-SKIN-L2", desc: "סקין תחתון 2", sn: "SN-9936", status: "waiting", urgency: "low", deadline: "01/03", station: "layup_lower" },
+            // שמירת סדר ברירת המחדל לפי ה-Serial
+            originalGlobalOrder = allTasks.map(t => t.serialNumber || t.SerialNumber);
+            currentGlobalOrder = [...originalGlobalOrder];
 
-        // closure
-        { po: "100248", sku: "WB-CANOPY-1", desc: "חופת מצלמה", sn: "SN-9924", status: "waiting", urgency: "low", deadline: "27/02", station: "closure" },
-        { po: "100259", sku: "WB-CLS-01", desc: "סגירת גוף", sn: "SN-9937", status: "active", urgency: "high", deadline: "28/02", station: "closure" },
-        { po: "100260", sku: "WB-CLS-02", desc: "סגירת כנף", sn: "SN-9938", status: "waiting", urgency: "medium", deadline: "02/03", station: "closure" },
-
-        // extraction
-        { po: "100249", sku: "WB-TAIL-01", desc: "זנב", sn: "SN-9925", status: "waiting", urgency: "high", deadline: "28/02", station: "extraction" },
-        { po: "100261", sku: "WB-EXT-01", desc: "חליצת כנף", sn: "SN-9939", status: "active", urgency: "medium", deadline: "01/03", station: "extraction" },
-        { po: "100262", sku: "WB-EXT-02", desc: "חליצת גוף", sn: "SN-9940", status: "waiting", urgency: "low", deadline: "03/03", station: "extraction" },
-
-        // finishes
-        { po: "100250", sku: "WB-FINS-01", desc: "סט פינים", sn: "SN-9926", status: "active", urgency: "medium", deadline: "01/03", station: "finishes" },
-        { po: "100263", sku: "WB-FIN-02", desc: "שיוף ראשוני", sn: "SN-9941", status: "waiting", urgency: "low", deadline: "02/03", station: "finishes" },
-        { po: "100264", sku: "WB-FIN-03", desc: "פיניש סופי", sn: "SN-9942", status: "waiting", urgency: "high", deadline: "04/03", station: "finishes" },
-
-        // paint
-        { po: "100251", sku: "WB-PAINT-01", desc: "צביעה שכבה ראשונה", sn: "SN-9927", status: "waiting", urgency: "low", deadline: "02/03", station: "paint" },
-        { po: "100265", sku: "WB-PAINT-02", desc: "צביעה שכבה שנייה", sn: "SN-9943", status: "active", urgency: "medium", deadline: "03/03", station: "paint" },
-        { po: "100266", sku: "WB-PAINT-03", desc: "לכה/הגנה", sn: "SN-9944", status: "waiting", urgency: "high", deadline: "05/03", station: "paint" },
-
-        // qc
-        { po: "100252", sku: "WB-QC-01", desc: "בדיקת איכות סופית", sn: "SN-9928", status: "waiting", urgency: "critical", deadline: "03/03", station: "qc" },
-        { po: "100267", sku: "WB-QC-02", desc: "בדיקת מידות", sn: "SN-9945", status: "waiting", urgency: "high", deadline: "04/03", station: "qc" },
-        { po: "100268", sku: "WB-QC-03", desc: "בדיקת ויזואלית", sn: "SN-9946", status: "active", urgency: "medium", deadline: "06/03", station: "qc" }
-    ];
-
-    setTimeout(() => {
-        buildOrderMaps(allTasks);
-        window.filterWorkOrder(); // render with current filters
-        updateDirtyState();
-        console.log("Workorder table rendered with", allTasks.length, "items");
-    }, 10);
+            // בניית הסליידר והטבלה
+            renderStationSlider(allTasks);
+            window.filterWorkOrder();
+        },
+        (err) => {
+            console.error("Error fetching data:", err);
+        }
+    );
 };
 
-function buildOrderMaps(tasks) {
-    const stations = [...new Set(tasks.map(t => t.station))];
-    stations.forEach(st => {
-        const order = tasks.filter(t => t.station === st).map(t => t.po);
-        originalOrderByStation[st] = [...order];
-        currentOrderByStation[st] = [...order];
-    });
-
-    const globalOrder = tasks.map(t => t.po);
-    originalGlobalOrder = [...globalOrder];
-    currentGlobalOrder = [...globalOrder];
-}
-
-function isDirty() {
-    if (originalGlobalOrder.length !== currentGlobalOrder.length) return true;
-    for (let i = 0; i < originalGlobalOrder.length; i++) {
-        if (originalGlobalOrder[i] !== currentGlobalOrder[i]) return true;
-    }
-    return false;
-}
-
-function updateDirtyState() {
-    const saveBtn = document.getElementById("saveOrderBtn");
-    const resetBtn = document.getElementById("resetAlgoBtn");
-    const dirty = isDirty();
-
-    if (saveBtn) {
-        saveBtn.disabled = !dirty;
-        saveBtn.style.opacity = dirty ? "1" : "0.5";
-    }
-    if (resetBtn) {
-        resetBtn.disabled = !dirty;
-        resetBtn.style.opacity = dirty ? "1" : "0.5";
-    }
-}
-
-function renderTasks(data) {
-    const tbody = document.getElementById("tasks-table-body");
+function renderTasks(tasks) {
+    const tbody = document.getElementById('tasksTableBody');
     if (!tbody) return;
+    tbody.innerHTML = '';
 
-    if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px;">אין נתונים להתאמה</td></tr>`;
+    if (!tasks || tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">אין משימות להצגה בתחנה זו</td></tr>';
         return;
     }
 
-    tbody.innerHTML = data.map(task => {
-        const colorClass = task.status === 'active' ? 'pill-blue' : 'pill-yellow';
-        const statusText = task.status === 'active' ? 'בביצוע' : 'ממתין';
+    tasks.forEach(task => {
+        // התאמה למבנה הנתונים מה-API (תמיכה ב-PascalCase ו-camelCase)
+        const sn = task.serialNumber || task.SerialNumber;
+        const po = task.workOrderID || task.WorkOrderID || '-';
+        const itemId = task.productionItem?.productionItemID || task.ProductionItem?.ProductionItemID || '';
+        const itemName = task.productionItem?.productionItemName || task.ProductionItem?.ProductionItemName || 'פריט כללי';
+        const progress = task.progress || task.Progress || 0;
+        const score = task.calculatedScore || task.CalculatedScore || 0;
 
-        let urgencyClass = 'pill-yellow';
-        let urgencyText = 'גבוה';
+        // שליפת שם התחנה הנוכחית
+        const currentStageObj = task.currentStage?.stage || task.CurrentStage?.Stage;
+        const stageName = currentStageObj?.productionStageName || currentStageObj?.ProductionStageName || "לא הוגדר";
+        const stageId = currentStageObj?.productionStageID || currentStageObj?.ProductionStageID || 0;
 
-        if (task.urgency === 'critical') {
-            urgencyClass = 'pill-red';
-            urgencyText = 'קריטי';
-        }
-        else if (task.urgency === 'medium') {
-            urgencyClass = 'pill-blue';
-            urgencyText = 'בינוני';
-        }
-        else if (task.urgency === 'low') {
-            urgencyClass = 'pill-green';
-            urgencyText = 'נמוך';
-        }
+        const row = `
+            <tr data-sn="${sn}" data-itemid="${itemId}" data-stageid="${stageId}">
+                <td class="drag-col"><div class="drag-handle" draggable="true">⋮⋮</div></td>
+                <td>${po}</td>
+                <td>${itemId}</td>
+                <td>${itemName}</td>
+                <td>${sn}</td>
+                <td>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${progress}%"></div>
+                    </div>
+                </td>
+                <td>${score.toFixed(1)}</td>
+                <td>${stageName}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
 
-        return `
-        <tr data-po="${task.po}" data-station="${task.station}">
-            <td class="drag-col">
-                <span class="drag-handle" draggable="true" title="גרור לשינוי סדר">⋮⋮</span>
-            </td>
-            <td style="font-weight:700;">${task.po}</td>
-            <td>${task.sku}</td>
-            <td>${task.desc}</td>
-            <td>${task.sn}</td>
-            <td><span class="status-pill ${colorClass}">${statusText}</span></td>
-            <td><span class="status-pill ${urgencyClass}">${urgencyText}</span></td>
-            <td>${task.deadline}</td>
-        </tr>
-    `;
-    }).join('');
-
-    wireRowDnD();
+    if (typeof wireRowDnD === 'function') wireRowDnD();
 }
 
-//function wireRowDnD() {
-//    const tbody = document.getElementById("tasks-table-body");
-//    if (!tbody) return;
-
-//    const rows = Array.from(tbody.querySelectorAll("tr"));
-//    const handles = Array.from(tbody.querySelectorAll(".drag-handle"));
-
-//    // Keep row click for details, but ignore clicks on the handle
-//    rows.forEach(r => {
-//        r.addEventListener('click', (e) => {
-//            if (e.target.classList.contains('drag-handle')) return;
-//            const po = r.getAttribute('data-po');
-//            window.openItemDetailsModal?.(po);
-//        });
-//    });
-
-
-//    const rows = Array.from(tbody.querySelectorAll("tr"));
-//    const handles = Array.from(tbody.querySelectorAll(".drag-handle"));
-//    handles.forEach(h => {
-//        h.addEventListener('dragstart', (e) => {
-//            const row = h.closest('tr');
-//            dragSrcPo = row?.getAttribute('data-po') || null;
-//            row?.classList.add('dragging');
-//            e.dataTransfer.effectAllowed = 'move';
-//        });
-
-//        h.addEventListener('dragend', () => {
-//            const row = h.closest('tr');
-//            row?.classList.remove('dragging');
-//            rows.forEach(r => r.classList.remove('drag-over'));
-//        });
-//    });
-
-//    rows.forEach(r => {
-//        r.addEventListener('dragover', (e) => {
-//            e.preventDefault();
-//            r.classList.add('drag-over');
-//        });
-
-//        r.addEventListener('dragleave', () => {
-//            r.classList.remove('drag-over');
-//        });
-
-//        r.addEventListener('drop', (e) => {
-//            e.preventDefault();
-//            r.classList.remove('drag-over');
-
-//            const targetPo = r.getAttribute('data-po');
-//            if (!dragSrcPo || !targetPo || dragSrcPo === targetPo) return;
-
-//            const srcTask = allTasks.find(t => t.po === dragSrcPo);
-//            const tgtTask = allTasks.find(t => t.po === targetPo);
-//            if (!srcTask || !tgtTask) return;
-
-//            // Do not allow moving between stations
-//            if (srcTask.station !== tgtTask.station) return;
-
-//            reorderWithinStation(srcTask.station, dragSrcPo, targetPo);
-//            window.filterWorkOrder();   // re-render using current order
-//            updateDirtyState();
-//        });
-//    });
-//}
-
+// שומרים על פונקציית ה-Drag & Drop המקורית שלך עם התאמות קלות ל-Serial Number
 function wireRowDnD() {
-    const tbody = document.getElementById("tasks-table-body");
+    const tbody = document.getElementById("tasksTableBody");
     if (!tbody) return;
 
     const rows = Array.from(tbody.querySelectorAll("tr"));
     const handles = Array.from(tbody.querySelectorAll(".drag-handle"));
 
-    // prevent opening modal when clicking/dragging the handle
-    handles.forEach(h => h.addEventListener('click', (e) => e.stopPropagation()));
-
-    // Row click (only if not clicking the handle)
-    rows.forEach(r => {
-        r.addEventListener('click', (e) => {
-            if (e.target.classList.contains('drag-handle')) return;
-            const po = r.getAttribute('data-po');
-            window.openItemDetailsModal?.(po);
-        });
-    });
-
-    // Drag start/end
     handles.forEach(h => {
         h.addEventListener('dragstart', (e) => {
             const row = h.closest('tr');
-            dragSrcPo = row?.getAttribute('data-po') || null;
+            dragSrcPo = row?.getAttribute('data-sn'); // משתמשים בסיריאלי
             row?.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
         });
@@ -243,119 +96,124 @@ function wireRowDnD() {
         });
     });
 
-    // Drag over / drop
     rows.forEach(r => {
-        r.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            r.classList.add('drag-over');
-        });
-
-        r.addEventListener('dragleave', () => {
-            r.classList.remove('drag-over');
-        });
-
+        r.addEventListener('dragover', (e) => { e.preventDefault(); r.classList.add('drag-over'); });
+        r.addEventListener('dragleave', () => { r.classList.remove('drag-over'); });
         r.addEventListener('drop', (e) => {
             e.preventDefault();
-            r.classList.remove('drag-over');
-
-            const targetPo = r.getAttribute('data-po');
-            if (!dragSrcPo || !targetPo || dragSrcPo === targetPo) return;
-
-            reorderGlobally(dragSrcPo, targetPo);
-            window.filterWorkOrder();
-            updateDirtyState();
+            const targetSn = r.getAttribute('data-sn');
+            if (dragSrcPo && targetSn && dragSrcPo !== targetSn) {
+                reorderGlobally(dragSrcPo, targetSn);
+                window.filterWorkOrder();
+                updateDirtyState();
+            }
         });
     });
 }
 
-function reorderGlobally(draggedPo, targetPo) {
-    const from = currentGlobalOrder.indexOf(draggedPo);
-    const to = currentGlobalOrder.indexOf(targetPo);
+function reorderGlobally(draggedSn, targetSn) {
+    const from = currentGlobalOrder.indexOf(draggedSn);
+    const to = currentGlobalOrder.indexOf(targetSn);
     if (from === -1 || to === -1) return;
-
     currentGlobalOrder.splice(from, 1);
-    currentGlobalOrder.splice(to, 0, draggedPo);
+    currentGlobalOrder.splice(to, 0, draggedSn);
+}
+
+// שומרים על פונקציות הסינון והכפתורים
+window.filterWorkOrder = function () {
+    const q = (document.getElementById("taskSearch")?.value || "").trim().toLowerCase();
+
+    let tasks = allTasks;
+
+    // סינון לפי תחנה
+    if (currentStation !== 'all') {
+        tasks = tasks.filter(t => t.currentStage?.stage?.productionStageName === currentStation);
+    }
+
+    // סינון לפי חיפוש
+    if (q) {
+        tasks = tasks.filter(t =>
+            t.serialNumber.toLowerCase().includes(q) ||
+            (t.workOrderID && t.workOrderID.toString().includes(q))
+        );
+    }
+
+    // מיון לפי הסדר הנוכחי (ידני או אלגוריתם)
+    tasks = sortByCurrentOrder(tasks);
+    renderTasks(tasks);
+};
+
+function sortByCurrentOrder(tasks) {
+    const rank = new Map(currentGlobalOrder.map((sn, index) => [sn, index]));
+    return [...tasks].sort((a, b) => {
+        const aRank = rank.has(a.serialNumber) ? rank.get(a.serialNumber) : 999;
+        const bRank = rank.has(b.serialNumber) ? rank.get(b.serialNumber) : 999;
+        return aRank - bRank;
+    });
+}
+
+function updateDirtyState() {
+    const isDirty = JSON.stringify(originalGlobalOrder) !== JSON.stringify(currentGlobalOrder);
+    const saveBtn = document.getElementById("saveOrderBtn");
+    const resetBtn = document.getElementById("resetAlgoBtn");
+    if (saveBtn) saveBtn.disabled = !isDirty;
+    if (resetBtn) resetBtn.disabled = !isDirty;
+}
+
+// פונקציה לייצור כפתורי התחנות בסליידר
+function renderStationSlider(tasks) {
+    const slider = document.getElementById('stationsSlider');
+    if (!slider) return;
+
+    // חילוץ תחנות ייחודיות מתוך הנתונים
+    const stations = new Set();
+    tasks.forEach(t => {
+        const stage = t.currentStage?.stage || t.CurrentStage?.Stage;
+        if (stage?.productionStageName) stations.add(stage.productionStageName);
+        if (stage?.ProductionStageName) stations.add(stage.ProductionStageName);
+    });
+
+    // ניקוי הסליידר חוץ מכפתור "הכל"
+    slider.innerHTML = '<button class="slider-btn active pill-blue" onclick="window.filterByStation(\'all\', this)">כל התחנות</button>';
+
+    stations.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'slider-btn';
+        btn.innerText = name;
+        btn.onclick = (e) => window.filterByStation(name, e.target);
+        slider.appendChild(btn);
+    });
 }
 
 window.filterByStation = function (station, btn) {
     const buttons = btn.parentElement.querySelectorAll('.slider-btn');
     buttons.forEach(b => b.classList.remove('active', 'pill-blue'));
     btn.classList.add('active', 'pill-blue');
-
     currentStation = station;
     window.filterWorkOrder();
 };
 
-// פונקציה להפעלת כפתור השמירה
-//window.markAsDirty = function () {
-//    const saveBtn = document.getElementById("saveOrderBtn");
-//    if (saveBtn) {
-//        saveBtn.disabled = false;
-//        saveBtn.style.opacity = "1";
-//    }
-//};
-
-// בתוך פונקציית השמירה, נחזיר אותו למצב כבוי אחרי ההצלחה
-
-window.saveWorkOrder = function () {
-    console.log("Saving changes...");
-
-    // Later: send currentGlobalOrder to backend
-
-    // Treat current as new baseline after successful save
-    originalGlobalOrder = [...currentGlobalOrder];
-
-    updateDirtyState();
-    alert("השינויים נשמרו בהצלחה!");
-};
-
-window.filterWorkOrder = function () {
-    const q = (document.getElementById("taskSearch")?.value || "").trim().toLowerCase();
-    const urgency = document.getElementById("urgencyFilter")?.value || "all";
-
-    let tasks = allTasks;
-
-    if (currentStation !== 'all') {
-        tasks = tasks.filter(t => t.station === currentStation);
-    }
-
-    if (urgency !== 'all') {
-        tasks = tasks.filter(t => t.urgency === urgency);
-    }
-
-    if (q) {
-        tasks = tasks.filter(t =>
-            (t.po || "").toLowerCase().includes(q) ||
-            (t.sku || "").toLowerCase().includes(q) ||
-            (t.sn || "").toLowerCase().includes(q)
-        );
-    }
-
-    tasks = sortByCurrentOrder(tasks);
-    renderTasks(tasks);
-};
-
 window.optimizeRoute = function () {
     currentGlobalOrder = [...originalGlobalOrder];
-
     window.filterWorkOrder();
     updateDirtyState();
 };
 
-function sortByCurrentOrder(tasks) {
-    const rank = new Map(currentGlobalOrder.map((po, index) => [po, index]));
+window.saveWorkOrder = function () {
+    const rows = Array.from(document.querySelectorAll("#tasksTableBody tr"));
+    const updates = rows.map((row, index) => ({
+        serial: parseInt(row.getAttribute('data-sn')),
+        itemId: row.getAttribute('data-itemid'),
+        stageId: parseInt(row.getAttribute('data-stageid')),
+        newPriority: index + 1
+    }));
 
-    return [...tasks].sort((a, b) => {
-        const aRank = rank.has(a.po) ? rank.get(a.po) : Number.MAX_SAFE_INTEGER;
-        const bRank = rank.has(b.po) ? rank.get(b.po) : Number.MAX_SAFE_INTEGER;
-        return aRank - bRank;
-    });
-}
-
-
-
-
-
-
-
-
+    ajaxCall("POST", server + "api/ProductionItemStage/UpdateManualOrder", JSON.stringify(updates),
+        (res) => {
+            alert("הסדר נשמר בהצלחה!");
+            originalGlobalOrder = [...currentGlobalOrder];
+            updateDirtyState();
+        },
+        (err) => alert("שגיאה בשמירה")
+    );
+};

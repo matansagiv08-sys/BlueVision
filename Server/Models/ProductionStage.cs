@@ -6,13 +6,16 @@ namespace Server.Models
     {
         public int ProductionStageID { get; set; }
         public string ProductionStageName { get; set; }
-        public TimeSpan TargetDuration { get; set; }
         public int StageOrder { get; set; }
+        public TimeSpan TargetDuration { get; set; }
 
-        public ProductionStage() { }
+        // בנאי המגדיר ערכי ברירת מחדל בעת יצירת אובייקט חדש
+        public ProductionStage()
+        {
+            //  ברירת מחדל של שעה אחת לכל תחנה
+            TargetDuration = TimeSpan.FromHours(1);
+        }
 
-
-        // Calls DBservices to fetch and return all production stages from the database
         public List<ProductionStage> GetProductionStages()
         {
             DBservices dbs = new DBservices();

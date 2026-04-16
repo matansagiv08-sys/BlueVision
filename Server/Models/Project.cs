@@ -6,7 +6,7 @@ namespace Server.Models
     {
         public int ProjectID { get; set; }
         public string ProjectName { get; set; }
-        public DateTime DueDate { get; set; }
+        public DateTime? DueDate { get; set; }
         public int PriorityLevel { get; set; }
 
         public List<Plane> Planes { get; set; } = new List<Plane>();
@@ -20,7 +20,9 @@ namespace Server.Models
             }
         }
 
-        public Project() { }
+        public Project() {
+            PriorityLevel = 2;
+        }
 
 
         // Calls DBservices to retrieve the list of projects from the database and returns it

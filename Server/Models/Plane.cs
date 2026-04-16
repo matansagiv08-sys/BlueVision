@@ -6,7 +6,7 @@ namespace Server.Models
     {
         public int PlaneID { get; set; }
         public PlaneType Type { get; set; }
-        public int ProjectID { get; set; }
+        public Project Project { get; set; }
         public int PriorityLevel { get; set; }
         public List<ItemInProduction> Items { get; set; } = new List<ItemInProduction>();
 

@@ -857,7 +857,6 @@ public class DBservices
     public List<ItemInProduction> GetTasksBoard()
     {
         SqlConnection con = null;
-        // מילון לאיחוד השורות לפי המספר הסידורי של הפריט
         Dictionary<int, ItemInProduction> itemsMap = new Dictionary<int, ItemInProduction>();
 
         try
@@ -869,6 +868,8 @@ public class DBservices
             while (reader.Read())
             {
                 int sn = Convert.ToInt32(reader["SerialNumber"]);
+
+                // 1. יצירת הפריט אם הוא לא קיים במילון (נתונים כלליים לפריט)
                 if (!itemsMap.ContainsKey(sn))
                 {
                     itemsMap[sn] = new ItemInProduction
@@ -886,24 +887,48 @@ public class DBservices
                             Type = new PlaneType
                             {
                                 PlaneTypeName = reader["PlaneTypeName"].ToString()
+                            },
+                            Project = new Project
+                            {
+                                ProjectName = reader["ProjectName"].ToString(),
+                                DueDate = reader["DueDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["DueDate"])
                             }
                         },
                         Stages = new List<ProductionItemStage>()
                     };
                 }
+
+                // 2. חישוב זמן מטרה (TargetDuration) - הגנה ברמת הקוד
+                TimeSpan duration;
+                if (reader["TargetDuration"] == DBNull.Value)
+                {
+                    // הגנה: אם אין נתון, נשים שעה אחת כברירת מחדל
+                    duration = TimeSpan.FromHours(1);
+                }
+                else
+                {
+                    // הדרך הנכונה לשלוף TimeSpan ישירות מה-reader בלי להשתמש ב-Convert
+                    duration = (TimeSpan)reader["TargetDuration"];
+                }
+
+                // 3. הוספת השלב הספציפי לפריט (כולל התעדוף הידני שעבר לפה)
                 itemsMap[sn].Stages.Add(new ProductionItemStage
                 {
                     Stage = new ProductionStage
                     {
                         ProductionStageID = Convert.ToInt32(reader["ProductionStageID"]),
-                        ProductionStageName = reader["ProductionStageName"].ToString()
+                        ProductionStageName = reader["ProductionStageName"].ToString(),
+                        TargetDuration = duration 
                     },
                     Status = new ProductionStatus
                     {
                         ProductionStatusID = Convert.ToInt32(reader["ProductionStatusID"]),
                         ProductionStatusName = reader["StatusName"].ToString()
                     },
-                    Comment = reader["Comment"].ToString()
+                    Comment = reader["Comment"].ToString(),
+
+                    // --- השינוי המרכזי: שליפת התעדוף הידני עבור השלב הספציפי הזה ---
+                    ManualPriority = reader["ManualPriority"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["ManualPriority"])
                 });
             }
             return itemsMap.Values.ToList();
@@ -1162,7 +1187,7 @@ public class DBservices
                         planesMap[plID] = new Plane
                         {
                             PlaneID = plID,
-                            ProjectID = pID,
+                            Project = projectsMap[pID],
                             PriorityLevel = reader["PlanePriority"] != DBNull.Value ? Convert.ToInt32(reader["PlanePriority"]) : 0,
                             Items = new List<ItemInProduction>(),
                             Type = new PlaneType
@@ -1689,5 +1714,34 @@ public class DBservices
             throw;
         }
         finally { if (con != null) con.Close(); }
+    }
+
+    public int UpdateManualPriority(int serial, string itemID, int stageID, int priority)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@Serial", serial },
+            { "@ItemID", itemID },
+            { "@StageID", stageID },
+            { "@Priority", priority }
+        };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spProductionItemStage_UpdateManualPriority", con, paramDic);
+
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error in DAL UpdateManualPriority: " + ex.Message);
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
     }
 }

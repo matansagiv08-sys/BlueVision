@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Server.Models;
+using static Server.Models.ProductionItemStage;
 
 namespace Server.Controllers
 {
@@ -14,8 +15,13 @@ namespace Server.Controllers
             try
             {
                 ItemInProduction model = new ItemInProduction();
+                // 1. שליפת הנתונים הגולמיים מה-DB
                 List<ItemInProduction> board = model.GetBoardData();
-                return Ok(board);
+
+                // 2. הפעלת המיון החכם
+                List<ItemInProduction> sortedBoard = model.SortItemsByUrgency(board);
+
+                return Ok(sortedBoard);
             }
             catch (Exception ex)
             {
