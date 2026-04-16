@@ -54,12 +54,13 @@ function renderTasksBoard(boardData, allStages) {
                     <table class="generic-data-table tb-table">
                         <thead>
                             <tr>
-                                <th>פק"ע</th>
-                                <th>מק"ט</th>
-                                <th>שם פריט</th>
-                                <th>מספר סידורי</th>
-                                <th>כמות</th>
-                                ${allStages.map(s => `<th>${s.productionStageName}</th>`).join("")}
+                                <th class="tb-col-wo">פק"ע</th>
+                                <th style="width: 120px;">מק"ט</th>
+                                <th class="tb-col-item-name">שם פריט</th>
+                                <th class="tb-col-sn">סיריאלי</th>
+                                <th class="tb-col-qty">כמות</th>
+                                ${allStages.map(s => `<th class="tb-col-stage">${s.productionStageName}</th>`).join('')}
+                                <th class="tb-col-progress">התקדמות</th> </tr>
                             </tr>
                         </thead>
                         <tbody>
@@ -73,33 +74,31 @@ function renderTasksBoard(boardData, allStages) {
 }
 
 function renderRow(row, allStages) {
+    // 1. חילוץ נתוני פריט (לפי המבנה ב-Swagger: productionItem.itemName)
     const item = row.productionItem || row.ProductionItem || {};
     const itemID = item.productionItemID || item.ProductionItemID || '---';
-    const itemName = (item.productionItemDescription || item.ItemName || item.itemName || "---").replace(/['"]/g, "");
-    const workOrder = row.workOrderID || row.WorkOrderID || '---';
+    const itemName = (item.itemName || item.productionItemDescription || "---").replace(/['"]/g, "");
 
-    return `
-        <tr>
-            <td>${workOrder}</td>
-            <td>${itemID}</td>
-            <td class="tb-col-item-name">${itemName}</td>
-            <td>${row.serialNumber || row.SerialNumber}</td>
-            <td class="tb-col-qty">${row.plannedQty || row.PlannedQty}</td>
-            ${allStages.map(stage => {
+    const workOrder = row.workOrderID || row.WorkOrderID || '---';
+    const serial = row.serialNumber || row.SerialNumber || '---';
+    const qty = row.plannedQty || row.PlannedQty || 0;
+    const progressValue = Math.round(row.progress || row.Progress || 0);
+
+    // 2. רינדור התחנות (Pills)
+    const stagesHtml = allStages.map(stage => {
         const stagesList = row.stages || row.Stages || [];
         const itemStage = stagesList.find(s =>
             (s.stage?.productionStageID || s.Stage?.ProductionStageID) === stage.productionStageID
         );
 
-
+        // לוגיקת חסימה (Blocked)
         let isBlocked = false;
         if (stage.productionStageID > 1) {
             const prevStage = stagesList.find(s =>
                 (s.stage?.productionStageID || s.Stage?.ProductionStageID) === stage.productionStageID - 1
             );
             const prevStatusID = prevStage?.status?.productionStatusID || prevStage?.Status?.ProductionStatusID || 1;
-
-            if (prevStatusID !== 4) { 
+            if (prevStatusID !== 4) {
                 isBlocked = true;
             }
         }
@@ -107,21 +106,39 @@ function renderRow(row, allStages) {
         const status = itemStage?.status || itemStage?.Status || {};
         const sID = status.productionStatusID || status.ProductionStatusID || 1;
         const sName = status.productionStatusName || status.ProductionStatusName || "טרם בוצע";
-        const comment = itemStage?.comment || itemStage?.Comment || "";
+        const comment = (itemStage?.comment || itemStage?.Comment || "").replace(/'/g, "\\'");
 
-
-        const clickAttr = isBlocked ? "" : `onclick="window.openStatusModal('${row.serialNumber || row.SerialNumber}', '${itemID}', '${itemName}', '${workOrder}', ${stage.productionStageID}, '${stage.productionStageName}', ${sID}, this, '${comment.replace(/'/g, "\\'")}')"`;
+        const clickAttr = isBlocked ? "" : `onclick="window.openStatusModal('${serial}', '${itemID}', '${itemName}', '${workOrder}', ${stage.productionStageID}, '${stage.productionStageName}', ${sID}, this, '${comment}')"`;
         const blockedClass = isBlocked ? "blocked" : "";
-        const titleText = isBlocked ? "חסום: בצע תחנה קודמת תחילה" : comment;
+        const titleText = isBlocked ? "חסום: בצע תחנה קודמת תחילה" : (itemStage?.comment || "");
 
-        return `<td>
-                    <div class="status-pill status-${sID} ${blockedClass}" 
-                         title="${titleText}" 
-                         ${clickAttr}>
-                         ${sName}
+        return `
+            <td>
+                <div class="status-pill status-${sID} ${blockedClass}" 
+                     title="${titleText}" 
+                     ${clickAttr}>
+                     ${sName}
+                </div>
+            </td>`;
+    }).join("");
+
+    // 3. החזרת השורה המלאה כולל בר ההתקדמות בסוף
+    return `
+        <tr>
+            <td>${workOrder}</td>
+            <td>${itemID}</td>
+            <td class="tb-col-item-name" title="${itemName}">${itemName}</td>
+            <td>${serial}</td>
+            <td class="tb-col-qty">${qty}</td>
+            ${stagesHtml}
+            <td>
+                <div class="pb-progress-wrapper">
+                    <div class="pb-progress-bar">
+                        <div class="pb-progress-fill" style="width: ${progressValue}%"></div>
                     </div>
-                </td>`;
-    }).join("")}
+                    <span class="pb-progress-text">${progressValue}%</span>
+                </div>
+            </td>
         </tr>`;
 }
 window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, stageID, stageName, currentStatusID, pillEl, currentComment) {

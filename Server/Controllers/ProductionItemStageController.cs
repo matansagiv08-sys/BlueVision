@@ -12,19 +12,13 @@ namespace Server.Controllers
         [HttpPost("UpdateManualOrder")]
         public IActionResult UpdateManualOrder([FromBody] List<dynamic> updates)
         {
+            if (updates == null) return BadRequest("Updates list is null");
+
             try
             {
-                // יצירת מופע של המודל שבו הגדרת את הפונקציה
                 ProductionItemStage model = new ProductionItemStage();
-
-                // הפעלת הלוגיקה העסקית שנמצאת במודל
                 int result = model.UpdateAllManualPriorities(updates);
-
-                if (result > 0)
-                {
-                    return Ok(new { message = $"Successfully updated {result} items" });
-                }
-                return BadRequest("No records were updated.");
+                return Ok(new { message = $"Updated {result} items" });
             }
             catch (Exception ex)
             {

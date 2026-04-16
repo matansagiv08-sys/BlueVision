@@ -4,27 +4,36 @@ let originalGlobalOrder = [];
 let currentGlobalOrder = [];
 
 // פונקציית ה-Init שנקראת מה-app.js
-window.initTasksWorkOrder = function () {
-    console.log("Initializing Tasks WorkOrder...");
+window.initTasksWorkOrder = async function () {
+    try {
+        // 1. משיכת כל התחנות הקיימות במערכת (ה-API שמשתמש ב-GetProductionStages)
+        ajaxCall("GET", server + "api/ProductionStages", "",
+            (allStages) => {
+                // בניית הסליידר לפי כל התחנות מה-DB
+                renderStationSlider(allStages);
 
-    // שימוש ב-ajaxCall בדיוק כמו ב-tasks_board
-    ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
-        (data) => {
-            console.log("Data received:", data);
-            allTasks = data;
+                // 2. משיכת הנתונים של המשימות (boardData)
+                ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
+                    (data) => {
+                        console.log("Data received:", data);
+                        allTasks = data;
 
-            // שמירת סדר ברירת המחדל לפי ה-Serial
-            originalGlobalOrder = allTasks.map(t => t.serialNumber || t.SerialNumber);
-            currentGlobalOrder = [...originalGlobalOrder];
+                        // שמירת סדר האלגוריתם המקורי
+                        originalGlobalOrder = allTasks.map(t => t.serialNumber);
+                        currentGlobalOrder = [...originalGlobalOrder];
 
-            // בניית הסליידר והטבלה
-            renderStationSlider(allTasks);
-            window.filterWorkOrder();
-        },
-        (err) => {
-            console.error("Error fetching data:", err);
-        }
-    );
+                        // הצגת הטבלה (בברירת מחדל על "כל התחנות")
+                        window.filterWorkOrder();
+                    },
+                    (err) => console.error("Error fetching board data:", err)
+                );
+            },
+            (err) => console.error("Error fetching stages:", err)
+        );
+
+    } catch (error) {
+        console.error("שגיאה בטעינת הדף:", error);
+    }
 };
 
 function renderTasks(tasks) {
@@ -32,85 +41,124 @@ function renderTasks(tasks) {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    if (!tasks || tasks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">אין משימות להצגה בתחנה זו</td></tr>';
+    // סעיף 2: סינון פריטים שהסתיימו (100% התקדמות)
+    const activeTasks = tasks.filter(t => (t.progress || 0) < 100);
+
+    if (activeTasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">אין משימות פעילות להצגה</td></tr>';
         return;
     }
 
-    tasks.forEach(task => {
-        // התאמה למבנה הנתונים מה-API (תמיכה ב-PascalCase ו-camelCase)
+    const isSpecificStation = typeof currentStation !== 'undefined' && currentStation !== 'all';
+
+    activeTasks.forEach(task => {
         const sn = task.serialNumber || task.SerialNumber;
         const po = task.workOrderID || task.WorkOrderID || '-';
         const itemId = task.productionItem?.productionItemID || task.ProductionItem?.ProductionItemID || '';
-        const itemName = task.productionItem?.productionItemName || task.ProductionItem?.ProductionItemName || 'פריט כללי';
-        const progress = task.progress || task.Progress || 0;
+        const itemName = task.productionItem?.itemName || task.itemDescription || "---";
+
+        // סעיף 1: הצגת ציון אמיתי (אם הוא 0 בשרת, הוא יופיע כאן כ-0 עד שנתקן את C#)
         const score = task.calculatedScore || task.CalculatedScore || 0;
 
-        // שליפת שם התחנה הנוכחית
-        const currentStageObj = task.currentStage?.stage || task.CurrentStage?.Stage;
-        const stageName = currentStageObj?.productionStageName || currentStageObj?.ProductionStageName || "לא הוגדר";
-        const stageId = currentStageObj?.productionStageID || currentStageObj?.ProductionStageID || 0;
+        // סעיף 3: בדיקה אם הפריט נערך ידנית (manualPriority > 0)
+        // הערה: ודאי שהשדה הזה חוזר מה-API בתוך currentStage
+        const hasManualPriority = task.currentStage?.manualPriority > 0 || task.CurrentStage?.ManualPriority > 0;
+        const magicIconColor = hasManualPriority ? "orange" : "#94a3b8";
 
-        const row = `
-            <tr data-sn="${sn}" data-itemid="${itemId}" data-stageid="${stageId}">
-                <td class="drag-col"><div class="drag-handle" draggable="true">⋮⋮</div></td>
+        const rowHtml = `
+            <tr data-sn="${sn}" data-itemid="${itemId}" data-stageid="${task.currentStage?.stage?.productionStageID || 0}">
+                <td class="drag-col">
+                    <div class="drag-handle">⋮⋮</div>
+                    <button class="btn-tiny-algo" 
+                            style="color: ${magicIconColor}; border:none; background:none; cursor:pointer;" 
+                            onclick="window.resetToAlgo(${sn}, '${itemId}', ${task.currentStage?.stage?.productionStageID || 0})" 
+                            title="החזר לאלגוריתם">🪄</button>
+                </td>
                 <td>${po}</td>
                 <td>${itemId}</td>
-                <td>${itemName}</td>
+                <td title="${itemName}">${itemName}</td>
                 <td>${sn}</td>
-                <td>
-                    <div class="progress-container">
-                        <div class="progress-bar" style="width: ${progress}%"></div>
-                    </div>
-                </td>
                 <td>${score.toFixed(1)}</td>
-                <td>${stageName}</td>
+                ${isSpecificStation ? '' : `<td><span class="status-pill">${task.currentStage?.stage?.productionStageName || "לא הוגדר"}</span></td>`}
+                <td><span class="urgency-label">${task.priorityLevel || 0}</span></td>
             </tr>
         `;
-        tbody.innerHTML += row;
+        tbody.insertAdjacentHTML('beforeend', rowHtml);
     });
 
+    updateTableHeaders(isSpecificStation);
     if (typeof wireRowDnD === 'function') wireRowDnD();
 }
 
-// שומרים על פונקציית ה-Drag & Drop המקורית שלך עם התאמות קלות ל-Serial Number
+function updateTableHeaders(isSpecificStation) {
+    const stationHeader = document.querySelector(".station-header");
+    if (stationHeader) {
+        stationHeader.style.display = isSpecificStation ? "none" : "";
+    }
+}
+
 function wireRowDnD() {
     const tbody = document.getElementById("tasksTableBody");
     if (!tbody) return;
 
-    const rows = Array.from(tbody.querySelectorAll("tr"));
-    const handles = Array.from(tbody.querySelectorAll(".drag-handle"));
+    const rows = tbody.querySelectorAll("tr");
 
-    handles.forEach(h => {
-        h.addEventListener('dragstart', (e) => {
-            const row = h.closest('tr');
-            dragSrcPo = row?.getAttribute('data-sn'); // משתמשים בסיריאלי
-            row?.classList.add('dragging');
+    rows.forEach(row => {
+        const handle = row.querySelector(".drag-handle");
+        if (!handle) return;
+
+        // הפיכת הידית בלבד לניתנת לגרירה
+        handle.setAttribute('draggable', 'true');
+
+        handle.addEventListener('dragstart', (e) => {
+            row.classList.add('dragging'); // משתמש ב-CSS הקיים שלך
             e.dataTransfer.effectAllowed = 'move';
+            // שמירת ה-SN של השורה שנגררת
+            e.dataTransfer.setData('text/plain', row.getAttribute('data-sn'));
         });
 
-        h.addEventListener('dragend', () => {
-            const row = h.closest('tr');
-            row?.classList.remove('dragging');
+        handle.addEventListener('dragend', () => {
+            row.classList.remove('dragging');
             rows.forEach(r => r.classList.remove('drag-over'));
         });
     });
 
-    rows.forEach(r => {
-        r.addEventListener('dragover', (e) => { e.preventDefault(); r.classList.add('drag-over'); });
-        r.addEventListener('dragleave', () => { r.classList.remove('drag-over'); });
-        r.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const targetSn = r.getAttribute('data-sn');
-            if (dragSrcPo && targetSn && dragSrcPo !== targetSn) {
-                reorderGlobally(dragSrcPo, targetSn);
-                window.filterWorkOrder();
-                updateDirtyState();
-            }
-        });
+    tbody.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const draggingRow = tbody.querySelector('.dragging');
+        const afterElement = getDragAfterElement(tbody, e.clientY);
+
+        if (afterElement == null) {
+            tbody.appendChild(draggingRow);
+        } else {
+            tbody.insertBefore(draggingRow, afterElement);
+        }
+    });
+
+    tbody.addEventListener('drop', (e) => {
+        e.preventDefault();
+        // עדכון המערך הגלובלי לפי הסדר הוויזואלי החדש בטבלה
+        const newOrder = Array.from(tbody.querySelectorAll('tr')).map(r => r.getAttribute('data-sn'));
+        currentGlobalOrder = newOrder;
+
+        updateDirtyState(); // מדליק את כפתור השמירה
     });
 }
 
+// פונקציית עזר לחישוב המיקום המדויק בזמן הגרירה
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
 function reorderGlobally(draggedSn, targetSn) {
     const from = currentGlobalOrder.indexOf(draggedSn);
     const to = currentGlobalOrder.indexOf(targetSn);
@@ -161,26 +209,23 @@ function updateDirtyState() {
 }
 
 // פונקציה לייצור כפתורי התחנות בסליידר
-function renderStationSlider(tasks) {
+function renderStationSlider(stages) {
     const slider = document.getElementById('stationsSlider');
     if (!slider) return;
 
-    // חילוץ תחנות ייחודיות מתוך הנתונים
-    const stations = new Set();
-    tasks.forEach(t => {
-        const stage = t.currentStage?.stage || t.CurrentStage?.Stage;
-        if (stage?.productionStageName) stations.add(stage.productionStageName);
-        if (stage?.ProductionStageName) stations.add(stage.ProductionStageName);
-    });
-
-    // ניקוי הסליידר חוץ מכפתור "הכל"
+    // ניקוי הסליידר (מלבד כפתור "כל התחנות" אם הוא קיים ב-HTML, או פשוט לבנות מחדש)
     slider.innerHTML = '<button class="slider-btn active pill-blue" onclick="window.filterByStation(\'all\', this)">כל התחנות</button>';
 
-    stations.forEach(name => {
+    // מיון התחנות לפי ה-StageOrder שלהן
+    stages.sort((a, b) => a.stageOrder - b.stageOrder);
+
+    stages.forEach(stage => {
         const btn = document.createElement('button');
         btn.className = 'slider-btn';
-        btn.innerText = name;
-        btn.onclick = (e) => window.filterByStation(name, e.target);
+        // משתמשים בשם התחנה לתצוגה
+        btn.innerText = stage.productionStageName;
+        // לחיצה תסנן לפי שם התחנה
+        btn.onclick = (e) => window.filterByStation(stage.productionStageName, e.target);
         slider.appendChild(btn);
     });
 }
@@ -200,20 +245,146 @@ window.optimizeRoute = function () {
 };
 
 window.saveWorkOrder = function () {
-    const rows = Array.from(document.querySelectorAll("#tasksTableBody tr"));
+    const rows = Array.from(document.querySelectorAll('#tasksTableBody tr'));
+
     const updates = rows.map((row, index) => ({
+        // השמות כאן חייבים להיות זהים למה שאת שולפת ב-C# מה-dynamic
         serial: parseInt(row.getAttribute('data-sn')),
         itemId: row.getAttribute('data-itemid'),
         stageId: parseInt(row.getAttribute('data-stageid')),
         newPriority: index + 1
     }));
 
+    console.log("Sending to server:", updates);
+
+    ajaxCall("POST",
+        server + "api/ProductionItemStage/UpdateManualOrder",
+        JSON.stringify(updates), // <--- זה הקריטי!
+        (res) => {
+            alert("הסדר נשמר בהצלחה!"); // החלפנו זמנית את showNotification
+            updateInterfaceState(false);
+            window.initTasksWorkOrder();
+        },
+        (err) => {
+            console.error("פרטי השגיאה מהשרת:", err.responseText);
+            alert("שגיאה בשמירה, פרטים בקונסול");
+        }
+    );
+};
+// מניעת עזיבה אם יש שינויים לא שמורים
+window.addEventListener('beforeunload', function (e) {
+    const saveBtn = document.getElementById('saveOrderBtn');
+    if (saveBtn && !saveBtn.disabled) {
+        e.preventDefault();
+        e.returnValue = ''; // מציג את הודעת הדפדפן הסטנדרטית
+    }
+});
+
+// פונקציה לבדיקת מעבר עמוד בתוך האפליקציה (SPA)
+// אם יש לך פונקציית ניווט מרכזית ב-app.js, כדאי לקרוא לזה משם
+window.checkUnsavedChanges = function (nextPageCallback) {
+    const saveBtn = document.getElementById('saveOrderBtn');
+    if (saveBtn && !saveBtn.disabled) {
+        // כאן אנחנו משתמשים במודל האישור שכבר קיים אצלך ב-HTML (confirmModal)
+        const confirmModal = document.getElementById('confirmModal');
+        if (confirmModal) {
+            document.getElementById('confirmTitle').innerText = "שינויים לא שמורים";
+            document.getElementById('confirmMessage').innerText = "ביצעת שינויים בסדר העבודה הידני. האם ברצונך לשמור אותם לפני המעבר?";
+
+            // הגדרת כפתורי המודל
+            const footer = confirmModal.querySelector('.confirm-modal-footer');
+            footer.innerHTML = `
+                <button class="btn-save" onclick="handleGuardSave('${nextPageCallback}')">שמור ועבור</button>
+                <button class="btn-cancel" onclick="window.closeConfirmModal(); ${nextPageCallback}()">עבור בלי לשמור</button>
+                <button class="btn-secondary" onclick="window.closeConfirmModal()">ביטול</button>
+            `;
+            confirmModal.style.display = 'flex';
+        }
+    } else {
+        nextPageCallback();
+    }
+};
+
+window.handleGuardSave = async function (nextPage) {
+    await window.saveWorkOrder(); // מחכה לשמירה
+    window.closeConfirmModal();
+    window[nextPage](); // מבצע את הניווט
+};
+
+window.resetSingleRow = function (serial, itemId, stageId) {
+    const updates = [{
+        serial: serial,
+        itemId: itemId,
+        stageId: stageId,
+        newPriority: null // שליחת null מחזירה אותו לאלגוריתם ב-DB
+    }];
+
     ajaxCall("POST", server + "api/ProductionItemStage/UpdateManualOrder", JSON.stringify(updates),
         (res) => {
-            alert("הסדר נשמר בהצלחה!");
-            originalGlobalOrder = [...currentGlobalOrder];
-            updateDirtyState();
+            showNotification("השורה חזרה לניהול אלגוריתם", "success");
+            window.initTasksWorkOrder(); // טעינה מחדש של הנתונים מהשרת
         },
-        (err) => alert("שגיאה בשמירה")
+        (err) => console.error(err)
     );
+};
+
+window.resetToAlgo = function (serial, itemId, stageId) {
+    const updates = [{
+        serial: serial,
+        itemId: itemId,
+        stageId: stageId,
+        newPriority: 0 // 0 אומר לשרת: "תחזיר את זה לאלגוריתם"
+    }];
+
+    ajaxCall("POST", server + "api/ProductionItemStage/UpdateManualOrder", JSON.stringify(updates),
+        (res) => {
+            showNotification("הפריט הוחזר לניהול אלגוריתם", "success");
+            window.initTasksWorkOrder(); // טעינה מחדש של הנתונים המעודכנים
+        },
+        (err) => console.error("Error resetting priority:", err)
+    );
+};
+
+// משתנה שיעזור לנו לדעת אם הניווט אושר
+let isNavigationConfirmed = false;
+
+// פונקציה שנקראת מה-UI (למשל כשלוחצים על כפתור "חזור" או עוברים דף ב-SPA)
+window.safeNavigate = function (targetPage) {
+    const saveBtn = document.getElementById('saveOrderBtn');
+
+    // אם כפתור השמירה פעיל - סימן שיש שינויים!
+    if (saveBtn && !saveBtn.disabled && !isNavigationConfirmed) {
+        window.showConfirmModal(
+            "שינויים לא שמורים",
+            "שמת לב? שינית את סדר העבודה הידני ולא שמרת. האם לשמור לפני היציאה?",
+            () => { // אם המשתמש לוחץ "אישור" (שמור)
+                window.saveWorkOrder();
+                // כאן תלוי איך ה-SPA שלך עובר דפים, למשל:
+                // window.location.href = targetPage;
+            },
+            () => { // אם המשתמש לוחץ "ביטול" (צא בלי לשמור)
+                isNavigationConfirmed = true;
+                // ניווט ללא שמירה
+            }
+        );
+    } else {
+        // אין שינויים - נווט חופשי
+    }
+};
+
+// כפתור "בטל שינויים לא שמורים" - פשוט טוען מחדש מהמערך המקורי
+window.discardChanges = function () {
+    allTasks = JSON.parse(JSON.stringify(originalTasksFromServer)); // שחזור מהגיבוי
+    window.renderTasks(allTasks);
+    updateInterfaceState(false);
+};
+
+// כפתור "החזר לסדר אלגוריתמי" - מוחק את ה-ManualPriority ב-DB
+window.resetToAlgorithm = function () {
+    if (confirm("האם להסיר את כל העדיפויות הידניות בתחנה זו ולהחזיר לניהול אוטומטי?")) {
+        ajaxCall("POST", server + "api/ProductionItemStage/ResetStationOrder", { stationId: currentStation },
+            (res) => {
+                window.initTasksWorkOrder(); // טעינה מחדש של הנתונים מהשרת
+            });
+    }
 };

@@ -31,47 +31,44 @@ namespace Server.Models
         // מחשב את ציון הדחיפות של הפריט
         public double GetUrgencyScore()
         {
-            if (Progress >= 100) return double.MaxValue;
+            // הגנה: אם הפריט הסתיים, הוא עובר לסוף
+            if (Stages == null || !Stages.Any(s => s.Status == null || s.Status.ProductionStatusID != 4))
+                return double.MaxValue;
 
+            // 1. חישוב שעות עבודה שנותרו (סיכום TargetDuration של תחנות עתידיות)
             double remainingWorkHours = GetRemainingWorkHours();
+            if (remainingWorkHours == 0) remainingWorkHours = 1; // מניעת חילוק ב-0
 
-            if (PlaneID?.Project?.DueDate == null)
+            // 2. חישוב זמן קלנדרי נותר בימי עבודה (9 שעות ביום)
+            // שים לב לנתיב: PlaneID -> Project -> DueDate
+            DateTime? dueDate = PlaneID?.Project?.DueDate;
+
+            if (dueDate == null) return 0; // אם אין תאריך יעד, אין ציון (זו כנראה הסיבה ל-0)
+
+            double hoursUntilDue = (dueDate.Value - DateTime.Now).TotalHours;
+            // המרה לימי עבודה זמינים (לפי 9 שעות עבודה ביום)
+            double availableWorkHours = (hoursUntilDue / 24) * 9;
+
+            // 3. חישוב מדד ה-Critical Ratio
+            double criticalRatio = remainingWorkHours / Math.Max(availableWorkHours, 0.5);
+
+            // 4. שקלול שלוש רמות העדיפות (Hierarchy Weights)
+            // אנחנו הופכים את ה-PriorityLevel (שבו 1 הוא הכי גבוה) למשקולת חיובית
+            double projectWeight = (6 - (PlaneID?.Project?.PriorityLevel ?? 3)) * 50; // משקל גבוה לפרויקט
+            double planeWeight = (6 - (PlaneID?.PriorityLevel ?? 3)) * 20;            // משקל בינוני למטוס
+            double itemWeight = (6 - PriorityLevel) * 10;                            // משקל לחלק עצמו
+
+            // 5. לוגיקת "איחור וודאי" (Hard Constraint)
+            if (DateTime.Now > dueDate.Value)
             {
-                return 9999 + remainingWorkHours;
+                // ציון ענק ששומר על היחס בין המאחרים
+                return 200000 + (remainingWorkHours * 10) + projectWeight + planeWeight;
             }
 
-            // חישוב שעות עבודה נטו (במקום שעות קלנדריות)
-            double netWorkHoursUntilDeadline = CalculateNetWorkHours(DateTime.Now, PlaneID.Project.DueDate.Value);
-
-            // Slack Time ריאליסטי: שעות עבודה שנותרו בלו"ז פחות שעות עבודה שנדרשות לייצור
-            double slackTime = netWorkHoursUntilDeadline - remainingWorkHours;
-
-            int priorityWeight = (PlaneID.Project.PriorityLevel == 1) ? -18 : 0; // עדיפות פרויקט שווה ערך ליומיים עבודה
-
-            return slackTime + priorityWeight;
+            // הציון הסופי המשלב דחיפות זמן ועדיפות ניהולית
+            return (criticalRatio * 100) + projectWeight + planeWeight + itemWeight;
         }
 
-        // פונקציית עזר לחישוב שעות עבודה נטו (9 שעות ביום, ללא סופי שבוע)
-        private double CalculateNetWorkHours(DateTime start, DateTime end)
-        {
-            if (end < start) return 0;
-
-            int workDays = 0;
-            for (var date = start.Date; date <= end.Date; date = date.AddDays(1))
-            {
-                // אם זה לא שישי או שבת (בהנחה שעובדים א-ה)
-                if (date.DayOfWeek != DayOfWeek.Friday && date.DayOfWeek != DayOfWeek.Saturday)
-                {
-                    workDays++;
-                }
-            }
-
-            // חישוב גס: ימי עבודה כפול 9 שעות
-            // הערה: לדיוק מירבי אפשר להפחית את השעות שכבר עברו היום
-            double totalWorkHours = workDays * 9.0;
-
-            return totalWorkHours;
-        }
 
         public double Progress
         {
@@ -95,6 +92,14 @@ namespace Server.Models
                                         .FirstOrDefault(s => s.Status != null && s.Status.ProductionStatusID != 4);
 
                 return activeStage ?? Stages.OrderByDescending(s => s.Stage.ProductionStageID).FirstOrDefault();
+            }
+        }
+
+        public double CalculatedScore
+        {
+            get
+            {
+                return GetUrgencyScore();
             }
         }
 
@@ -143,16 +148,21 @@ namespace Server.Models
             return items.OrderBy(item =>
             {
                 var currentStage = item.Stages.FirstOrDefault(s => s.Status != null && s.Status.ProductionStatusID != 4);
-                if (currentStage?.ManualPriority != null)
-                {
-                    return (double)currentStage.ManualPriority.Value - 10000;
-                }
+
+                // 1. עוגן ידני (המשתמש קבע מיקום 5 - הוא נשאר ב-5)
+                if (currentStage?.ManualPriority != null && currentStage.ManualPriority > 0)
+                    return (double)currentStage.ManualPriority.Value - 1000000;
+
+                // 2. אם אין ידני - האלגוריתם מחשב לפי הסדר:
+                // א. עדיפות פרויקט
+                // ב. עדיפות מטוס
+                // ג. ציון דחיפות (זמן/עבודה)
                 return item.GetUrgencyScore();
             }).ToList();
         }
-    } // סיום מחלקת ItemInProduction
+    }
 
-    public class InsertItemInProductionRequest
+        public class InsertItemInProductionRequest
     {
         public string? ProjectName { get; set; }
         public string? PlaneID { get; set; }

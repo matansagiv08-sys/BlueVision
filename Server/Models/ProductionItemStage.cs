@@ -27,13 +27,22 @@ namespace Server.Models
 
             foreach (var update in updates)
             {
-                // אנחנו שולפים את הערכים מתוך האובייקט הדינמי שהגיע מה-JSON
-                count += dbs.UpdateManualPriority(
-                    Convert.ToInt32(update.serial),
-                    update.itemId.ToString(),
-                    Convert.ToInt32(update.stageId),
-                    Convert.ToInt32(update.newPriority)
-                );
+                try
+                {
+                    // שימוש ב-GetProperty במידה והאובייקט מגיע כ-JsonElement
+                    // או המרה ישירה אם זה dynamic רגיל:
+                    int serial = Convert.ToInt32(update.serial);
+                    string itemId = update.itemId.ToString();
+                    int stageId = Convert.ToInt32(update.stageId);
+                    int newPriority = Convert.ToInt32(update.newPriority);
+
+                    count += dbs.UpdateManualPriority(serial, itemId, stageId, newPriority);
+                }
+                catch (Exception ex)
+                {
+                    // הדפסה לדיבאג כדי לראות איזה שדה נכשל
+                    System.Diagnostics.Debug.WriteLine("Error parsing update: " + ex.Message);
+                }
             }
             return count;
         }
