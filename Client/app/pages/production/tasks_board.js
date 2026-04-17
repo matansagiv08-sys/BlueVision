@@ -1,8 +1,15 @@
-﻿window.initTasksBoard = function () {
+window.initTasksBoard = function () {
     if (typeof ajaxCall === 'undefined') {
         $.getScript("../../../JS/ajaxCalls.js").done(() => initBoard());
     } else {
         initBoard();
+    }
+};
+
+window.closeTaskStatusModal = function () {
+    const modal = document.getElementById("tbStatusModal");
+    if (modal) {
+        modal.style.display = "none";
     }
 };
 
@@ -142,8 +149,8 @@ function renderRow(row, allStages) {
         </tr>`;
 }
 window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, stageID, stageName, currentStatusID, pillEl, currentComment) {
-    const modal = document.getElementById("genericModal");
-    const submitBtn = document.getElementById("modalSubmitBtn");
+    const modal = document.getElementById("tbStatusModal");
+    const submitBtn = document.getElementById("tbModalSubmitBtn");
     const timeContainer = document.getElementById("timeInputContainer");
     const timeLabel = document.getElementById("timeLabel");
     const timeInput = document.getElementById("userTimeInput");
@@ -214,16 +221,24 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
         const statusId = parseInt(activeBtn.data("id"));
         const comment = document.getElementById("statusCommentInput").value;
         const userTimeVal = timeInput.value;
+        const serialNumberValue = parseInt(serialNumber);
+        const stageIdValue = parseInt(stageID);
+        const itemIdValue = (itemID || "").toString().trim();
+
+        if (!statusId || !serialNumberValue || !stageIdValue || !itemIdValue || itemIdValue === "---") {
+            alert("נתוני שורה לא תקינים לעדכון סטטוס");
+            return;
+        }
 
         // 1. קודם כל מגדירים את הדגל: האם צריך לאפס תחנות עתידיות?
         // התנאי: הסטטוס המקורי היה "בוצע" (4) והסטטוס החדש הוא לא "בוצע"
-        const shouldResetFuture = (currentStatusID === 4 && statusId !== 4);
+        const shouldResetFuture = (parseInt(currentStatusID) === 4 && statusId !== 4);
 
         const executeUpdate = () => {
             const updateData = {
-                SerialNumber: parseInt(serialNumber),
-                ProductionItemID: itemID.toString(),
-                ProductionStageID: parseInt(stageID),
+                SerialNumber: serialNumberValue,
+                ProductionItemID: itemIdValue,
+                ProductionStageID: stageIdValue,
                 ProductionStatusID: statusId,
                 Comment: comment,
                 // 2. עכשיו המשתנה מוכר לקוד ולא יזרוק שגיאת Identifier
@@ -236,8 +251,8 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
 
             ajaxCall("PUT", server + "api/ItemsInProduction/updateStatus", JSON.stringify(updateData),
                 function (res) {
-                    initBoard();
-                    window.closeGenericModal();
+                    window.closeTaskStatusModal();
+                    refreshBoardAfterStatusUpdate();
                 },
                 function (err) {
                     alert("שגיאה בעדכון: " + err.responseText);
@@ -255,6 +270,19 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
 
     modal.style.display = "flex";
 };
+
+function refreshBoardAfterStatusUpdate() {
+    ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
+        function (boardData) {
+            allBoardData = boardData;
+            applyFilters();
+        },
+        function (err) {
+            console.error("Error refreshing board data:", err);
+            initBoard();
+        }
+    );
+}
 
 function showConfirm(title, message, onConfirm) {
     const modal = document.getElementById('confirmModal');

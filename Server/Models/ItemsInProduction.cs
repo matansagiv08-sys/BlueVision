@@ -139,6 +139,11 @@ namespace Server.Models
             DateTime? userTime = data?.UserTime;
             bool resetFuture = data?.ResetFuture ?? false;
 
+            if (serial <= 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || statusID <= 0)
+            {
+                return 0;
+            }
+
             DBservices dbs = new DBservices();
             return dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime, resetFuture);
         }

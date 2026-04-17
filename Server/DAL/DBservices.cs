@@ -1690,6 +1690,11 @@ public class DBservices
         SqlConnection con = null;
         try
         {
+            if (serial <= 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || newStatusID <= 0)
+            {
+                return 0;
+            }
+
             con = connect("myProjDB");
 
             Dictionary<string, object> paramDic = new Dictionary<string, object>

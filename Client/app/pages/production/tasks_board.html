@@ -28,11 +28,11 @@
     <div id="tasks-board-container"></div>
 </div>
 
-<div id="genericModal" class="modal-overlay" onclick="window.closeGenericModal()">
+<div id="tbStatusModal" class="modal-overlay" onclick="window.closeTaskStatusModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
         <div class="modal-header-blue" style="background: #0c2340; padding: 15px 20px;">
-            <h2 id="modalTitle" style="margin:0; font-size:1.2rem;">עדכון סטטוס תחנה</h2>
-            <button class="close-btn" onclick="window.closeGenericModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            <h2 id="tbModalTitle" style="margin:0; font-size:1.2rem;">עדכון סטטוס תחנה</h2>
+            <button class="close-btn" onclick="window.closeTaskStatusModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
         </div>
 
         <div id="modalBody" class="modal-body" style="padding: 20px;">
@@ -58,8 +58,8 @@
         </div>
 
         <div class="modal-footer" style="padding: 15px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
-            <button class="btn-modal btn-save" id="modalSubmitBtn" disabled style="background:#0c2340; color:white; padding:10px 20px; border-radius:8px; border:none; font-weight:600; cursor:pointer;">שמור</button>
-            <button class="btn-modal btn-cancel" onclick="window.closeGenericModal()" style="background:white; color:#64748b; padding:10px 20px; border-radius:8px; border:1px solid #e2e8f0; font-weight:600; cursor:pointer;">ביטול</button>
+            <button type="button" class="btn-modal btn-save" id="tbModalSubmitBtn" disabled style="background:#0c2340; color:white; padding:10px 20px; border-radius:8px; border:none; font-weight:600; cursor:pointer;">שמור</button>
+            <button type="button" class="btn-modal btn-cancel" onclick="window.closeTaskStatusModal()" style="background:white; color:#64748b; padding:10px 20px; border-radius:8px; border:1px solid #e2e8f0; font-weight:600; cursor:pointer;">ביטול</button>
         </div>
     </div>
 </div>
