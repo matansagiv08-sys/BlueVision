@@ -22,11 +22,17 @@ window.initAddItemToProduction = function () {
         renderFilteredPlanes();
     });
 
+    $('#project-select').off('change.projectDueDate').on('change.projectDueDate', function () {
+        syncProjectDueDateVisibility();
+    });
+
     $('#production-form').off('submit').on('submit', function (e) {
         e.preventDefault();
 
         const projectValue = $('#project-select').is(':visible') ? $('#project-select').val() : $('#project-new').val();
         const planeValue = $('#plane-select').is(':visible') ? $('#plane-select').val() : $('#plane-new').val();
+        const isNewProject = $('#project-new').is(':visible');
+        const projectPriorityLevel = parseNullableInt($('#project-priority-select').val());
 
 
         const newItem = {
@@ -39,6 +45,8 @@ window.initAddItemToProduction = function () {
             ProjectName: projectValue,
             PlaneID: planeValue,
             DueDate: $('#due-date-input').val() || null,
+            ProjectDueDate: isNewProject ? ($('#project-due-date-input').val() || null) : null,
+            ProjectPriorityLevel: isNewProject ? projectPriorityLevel : null,
             Comments: $('#comments-input').val()
         };
 
@@ -57,6 +65,9 @@ window.initAddItemToProduction = function () {
                     $select.show().val('');
                     $btn.text('+').removeClass('active');
                 });
+                $('#project-due-date-input').val('');
+                $('#due-date-input').val('');
+                syncProjectDueDateVisibility();
                 $('#item-name-input').val('');
                 $('#priority-select').val(2);
                 $('#item-code-input').focus();
@@ -80,6 +91,7 @@ function loadInitialData() {
         renderDatalist('#work-orders-list', data.existingWorkOrders);
         renderSelect('#plane-type-select', data.planeTypes, 'planeTypeID', 'planeTypeName');
         renderSelect('#priority-select', data.priorities, 'id', 'name');
+        renderSelect('#project-priority-select', data.priorities, 'id', 'name');
 
         const $projSelect = $('#project-select');
         $projSelect.empty().append('<option value="">בחר פרויקט...</option>');
@@ -90,7 +102,37 @@ function loadInitialData() {
         }
 
         $('#priority-select').val(2);
+        $('#project-priority-select').val(2);
+        syncProjectDueDateVisibility();
     }, err => console.error(err));
+}
+
+function syncProjectDueDateVisibility() {
+    const isNewProject = $('#project-new').is(':visible');
+    const $group = $('#project-due-date-group');
+    const $input = $('#project-due-date-input');
+    const $priorityGroup = $('#project-priority-group');
+    const $prioritySelect = $('#project-priority-select');
+
+    if (isNewProject) {
+        $group.show();
+        $input.prop('disabled', false).prop('required', true);
+        $priorityGroup.show();
+        $prioritySelect.prop('disabled', false).prop('required', true);
+        if (!$prioritySelect.val()) {
+            $prioritySelect.val(2);
+        }
+    } else {
+        $group.hide();
+        $input.prop('disabled', true).prop('required', false).val('');
+        $priorityGroup.hide();
+        $prioritySelect.prop('disabled', true).prop('required', false).val('');
+    }
+}
+
+function parseNullableInt(value) {
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? null : parsed;
 }
 
 // פונקציה לסינון מטוסים לפי סוג ופרויקט
@@ -149,6 +191,10 @@ function toggleInput(field) {
         input.hide().val('').prop('required', false);
         select.show();
         btn.text('+').removeClass('active');
+    }
+
+    if (field === 'project') {
+        syncProjectDueDateVisibility();
     }
 }
 

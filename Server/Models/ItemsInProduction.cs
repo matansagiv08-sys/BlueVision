@@ -7,6 +7,14 @@ namespace Server.Models
 {
     public class ItemInProduction
     {
+        private const double ProjectDueDateWeight = 0.35;
+        private const double ItemDueDateWeight = 0.25;
+        private const double ItemPriorityWeight = 0.25;
+        private const double ProjectPriorityWeight = 0.15;
+        private const int DefaultPriorityLevel = 3;
+        private const int MinPriorityLevel = 1;
+        private const int MaxPriorityLevel = 5;
+
         public int SerialNumber { get; set; }
         public ProductionItem ProductionItem { get; set; }
         public Plane PlaneID { get; set; }
@@ -14,6 +22,7 @@ namespace Server.Models
         public int WorkOrderID { get; set; }
         public string? ProjectName { get; set; }
         public string TailNumber { get; set; } = string.Empty;
+        public DateTime? ItemDueDate { get; set; }
         public int PlannedQty { get; set; }
         public string Comments { get; set; }
         public List<ProductionItemStage> Stages { get; set; } = new List<ProductionItemStage>();
@@ -33,42 +42,38 @@ namespace Server.Models
         // מחשב את ציון הדחיפות של הפריט
         public double GetUrgencyScore()
         {
-            // הגנה: אם הפריט הסתיים, הוא עובר לסוף
-            if (Stages == null || !Stages.Any(s => s.Status == null || s.Status.ProductionStatusID != 4))
-                return double.MaxValue;
-
-            // 1. חישוב שעות עבודה שנותרו (סיכום TargetDuration של תחנות עתידיות)
-            double remainingWorkHours = GetRemainingWorkHours();
-            if (remainingWorkHours == 0) remainingWorkHours = 1; // מניעת חילוק ב-0
-
-            // 2. חישוב זמן קלנדרי נותר בימי עבודה (9 שעות ביום)
-            // שים לב לנתיב: PlaneID -> Project -> DueDate
-            DateTime? dueDate = PlaneID?.Project?.DueDate;
-
-            if (dueDate == null) return 0; // אם אין תאריך יעד, אין ציון (זו כנראה הסיבה ל-0)
-
-            double hoursUntilDue = (dueDate.Value - DateTime.Now).TotalHours;
-            // המרה לימי עבודה זמינים (לפי 9 שעות עבודה ביום)
-            double availableWorkHours = (hoursUntilDue / 24) * 9;
-
-            // 3. חישוב מדד ה-Critical Ratio
-            double criticalRatio = remainingWorkHours / Math.Max(availableWorkHours, 0.5);
-
-            // 4. שקלול שלוש רמות העדיפות (Hierarchy Weights)
-            // אנחנו הופכים את ה-PriorityLevel (שבו 1 הוא הכי גבוה) למשקולת חיובית
-            double projectWeight = (6 - (PlaneID?.Project?.PriorityLevel ?? 3)) * 50; // משקל גבוה לפרויקט
-            double planeWeight = (6 - (PlaneID?.PriorityLevel ?? 3)) * 20;            // משקל בינוני למטוס
-            double itemWeight = (6 - PriorityLevel) * 10;                            // משקל לחלק עצמו
-
-            // 5. לוגיקת "איחור וודאי" (Hard Constraint)
-            if (DateTime.Now > dueDate.Value)
+            if (IsFullyDone)
             {
-                // ציון ענק ששומר על היחס בין המאחרים
-                return 200000 + (remainingWorkHours * 10) + projectWeight + planeWeight;
+                return 0;
             }
 
-            // הציון הסופי המשלב דחיפות זמן ועדיפות ניהולית
-            return (criticalRatio * 100) + projectWeight + planeWeight + itemWeight;
+            double projectDueDateScore = CalculateDateUrgencyScore(PlaneID?.Project?.DueDate);
+            double itemDueDateScore = CalculateDateUrgencyScore(ItemDueDate);
+            double itemPriorityScore = NormalizePriorityScore(PriorityLevel);
+            double projectPriorityScore = NormalizePriorityScore(PlaneID?.Project?.PriorityLevel ?? DefaultPriorityLevel);
+
+            return (projectDueDateScore * ProjectDueDateWeight)
+                 + (itemDueDateScore * ItemDueDateWeight)
+                 + (itemPriorityScore * ItemPriorityWeight)
+                 + (projectPriorityScore * ProjectPriorityWeight);
+        }
+
+        private static double CalculateDateUrgencyScore(DateTime? dueDate)
+        {
+            if (!dueDate.HasValue)
+            {
+                return 0;
+            }
+
+            double daysUntilDue = (dueDate.Value.Date - DateTime.Today).TotalDays;
+            double clampedDays = Math.Max(daysUntilDue, 0);
+            return 1.0 / (1.0 + clampedDays);
+        }
+
+        private static double NormalizePriorityScore(int priorityLevel)
+        {
+            int safePriority = Math.Max(MinPriorityLevel, Math.Min(MaxPriorityLevel, priorityLevel));
+            return 1.0 / safePriority;
         }
 
 
@@ -152,20 +157,21 @@ namespace Server.Models
 
         public List<ItemInProduction> SortItemsByUrgency(List<ItemInProduction> items)
         {
-            return items.OrderBy(item =>
-            {
-                var currentStage = item.Stages.FirstOrDefault(s => s.Status != null && s.Status.ProductionStatusID != 4);
-
-                // 1. עוגן ידני (המשתמש קבע מיקום 5 - הוא נשאר ב-5)
-                if (currentStage?.ManualPriority != null && currentStage.ManualPriority > 0)
-                    return (double)currentStage.ManualPriority.Value - 1000000;
-
-                // 2. אם אין ידני - האלגוריתם מחשב לפי הסדר:
-                // א. עדיפות פרויקט
-                // ב. עדיפות מטוס
-                // ג. ציון דחיפות (זמן/עבודה)
-                return item.GetUrgencyScore();
-            }).ToList();
+            return items
+                .Select(item => new
+                {
+                    Item = item,
+                    Score = item.GetUrgencyScore(),
+                    ItemDueDate = item.ItemDueDate ?? DateTime.MaxValue,
+                    WorkOrderID = item.WorkOrderID <= 0 ? int.MaxValue : item.WorkOrderID,
+                    item.SerialNumber
+                })
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.ItemDueDate)
+                .ThenBy(x => x.WorkOrderID)
+                .ThenBy(x => x.SerialNumber)
+                .Select(x => x.Item)
+                .ToList();
         }
     }
 
@@ -174,11 +180,13 @@ namespace Server.Models
         public string? ProjectName { get; set; }
         public string? PlaneID { get; set; }
         public DateTime? DueDate { get; set; }
+        public DateTime? ProjectDueDate { get; set; }
         public string? ProductionItemID { get; set; }
         public string? WorkOrderID { get; set; }
         public int? SerialNumber { get; set; }
         public int? PlaneTypeID { get; set; }
         public int? PriorityID { get; set; }
+        public int? ProjectPriorityLevel { get; set; }
         public int? Quantity { get; set; }
         public string? Comments { get; set; }
     }

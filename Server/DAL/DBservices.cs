@@ -872,9 +872,36 @@ public class DBservices
                 // 1. יצירת הפריט אם הוא לא קיים במילון (נתונים כלליים לפריט)
                 if (!itemsMap.ContainsKey(sn))
                 {
+                    int itemPriorityLevel = ReadNullableInt(reader,
+                        "ItemPriorityLevel",
+                        "IIPPriorityLevel",
+                        "ItemsInProductionPriorityLevel",
+                        "ProductionItemPriorityLevel",
+                        "ItemPriority") ?? 3;
+
+                    int projectPriorityLevel = ReadNullableInt(reader,
+                        "ProjectPriorityLevel",
+                        "ProjectsPriorityLevel",
+                        "ProjectPriority",
+                        "ProjectPriorityID") ?? 3;
+
+                    DateTime? itemDueDate = ReadNullableDate(reader,
+                        "ItemDueDate",
+                        "ItemsInProductionDueDate",
+                        "IIPDueDate",
+                        "ItemProductionDueDate");
+
+                    DateTime? projectDueDate = ReadNullableDate(reader,
+                        "ProjectDueDate",
+                        "ProjectsDueDate",
+                        "ProjectDue")
+                        ?? ReadNullableDate(reader, "DueDate");
+
                     itemsMap[sn] = new ItemInProduction
                     {
                         SerialNumber = sn,
+                        PriorityLevel = itemPriorityLevel,
+                        ItemDueDate = itemDueDate,
                         WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
                         ProjectName = reader["ProjectName"]?.ToString() ?? string.Empty,
                         TailNumber = reader["TailNumber"]?.ToString() ?? string.Empty,
@@ -893,7 +920,8 @@ public class DBservices
                             Project = new Project
                             {
                                 ProjectName = reader["ProjectName"].ToString(),
-                                DueDate = reader["DueDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["DueDate"])
+                                DueDate = projectDueDate,
+                                PriorityLevel = projectPriorityLevel
                             }
                         },
                         Stages = new List<ProductionItemStage>()
@@ -1628,10 +1656,11 @@ public class DBservices
             string workOrderID = item.WorkOrderID;
             int serialNumber = item.SerialNumber ?? 0;
             int planeTypeID = item.PlaneTypeID ?? 0;
-            DateTime dueDate = (item.DueDate ?? DateTime.Today).Date;
-            int projectPriorityLevel = defaultProjectPriority;
+            DateTime projectDueDate = (item.ProjectDueDate ?? DateTime.Today).Date;
+            DateTime itemDueDate = (item.DueDate ?? DateTime.Today).Date;
+            int projectPriorityLevel = item.ProjectPriorityLevel ?? defaultProjectPriority;
 
-            HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID, dueDate, projectPriorityLevel);
+            HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID, projectDueDate, projectPriorityLevel);
             HandleWorkOrder(con, trans, workOrderID); 
 
             using (SqlCommand mainCmd = new SqlCommand("dbo.SP_InsertItemInProduction", con, trans))
@@ -1643,6 +1672,7 @@ public class DBservices
                 mainCmd.Parameters.AddWithValue("@priority", item.PriorityID ?? 1);
                 mainCmd.Parameters.AddWithValue("@workOrder", (object)workOrderID ?? DBNull.Value);
                 mainCmd.Parameters.AddWithValue("@qty", item.Quantity ?? 1);
+                mainCmd.Parameters.AddWithValue("@dueDate", itemDueDate);
                 mainCmd.Parameters.AddWithValue("@comments", (object)item.Comments ?? DBNull.Value);
                 mainCmd.ExecuteNonQuery();
             }
@@ -1757,6 +1787,60 @@ public class DBservices
         finally
         {
             if (con != null) con.Close();
+        }
+    }
+
+    private static int? ReadNullableInt(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (string columnName in columnNames)
+        {
+            if (!TryGetColumnOrdinal(reader, columnName, out int ordinal))
+            {
+                continue;
+            }
+
+            if (reader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return Convert.ToInt32(reader.GetValue(ordinal));
+        }
+
+        return null;
+    }
+
+    private static DateTime? ReadNullableDate(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (string columnName in columnNames)
+        {
+            if (!TryGetColumnOrdinal(reader, columnName, out int ordinal))
+            {
+                continue;
+            }
+
+            if (reader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return Convert.ToDateTime(reader.GetValue(ordinal));
+        }
+
+        return null;
+    }
+
+    private static bool TryGetColumnOrdinal(SqlDataReader reader, string columnName, out int ordinal)
+    {
+        try
+        {
+            ordinal = reader.GetOrdinal(columnName);
+            return true;
+        }
+        catch (IndexOutOfRangeException)
+        {
+            ordinal = -1;
+            return false;
         }
     }
 }

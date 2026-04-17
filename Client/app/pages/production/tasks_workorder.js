@@ -78,7 +78,7 @@ function renderTasks(tasks) {
                 <td>${itemId}</td>
                 <td title="${itemName}">${itemName}</td>
                 <td>${sn}</td>
-                <td>${score.toFixed(1)}</td>
+                <td>${score.toFixed(4)}</td>
                 ${isSpecificStation ? '' : `<td><span class="status-pill">${task.currentStage?.stage?.productionStageName || "לא הוגדר"}</span></td>`}
                 <td><span class="urgency-label">${task.priorityLevel || 0}</span></td>
             </tr>
