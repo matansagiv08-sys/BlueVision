@@ -38,7 +38,7 @@ window.initAddItemToProduction = function () {
             WorkOrderID: $('#work-order-input').val(),
             ProjectName: projectValue,
             PlaneID: planeValue,
-            DueDate: $('#due-date-input').val(),
+            DueDate: $('#due-date-input').val() || null,
             Comments: $('#comments-input').val()
         };
 

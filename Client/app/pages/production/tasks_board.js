@@ -15,6 +15,18 @@ window.closeTaskStatusModal = function () {
 
 let allBoardData = []; 
 let allStagesData = []; 
+const sectionOrder = ["WB", "TBV"];
+
+function getStageIdValue(stage) {
+    return parseInt(stage?.productionStageID || stage?.ProductionStageID || 0);
+}
+
+function getStageStatusById(stagesList, stageId) {
+    const currentStageObj = (stagesList || []).find(s =>
+        parseInt(s.stage?.productionStageID || s.Stage?.ProductionStageID || 0) === parseInt(stageId)
+    );
+    return currentStageObj?.status?.productionStatusID || currentStageObj?.Status?.ProductionStatusID || 1;
+}
 
 function initBoard() {
     const container = document.getElementById("tasks-board-container");
@@ -24,8 +36,12 @@ function initBoard() {
 
     ajaxCall("GET", server + "api/ProductionStages", "",
         (allStages) => {
-            allStagesData = allStages; // שומרים את התחנות
-            populateStageFilter(allStages); 
+            allStagesData = [...allStages].sort((a, b) => {
+                const orderA = parseInt(a.stageOrder || a.StageOrder || 0);
+                const orderB = parseInt(b.stageOrder || b.StageOrder || 0);
+                return orderA - orderB;
+            });
+            populateStageFilter(allStagesData); 
 
             ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
                 (boardData) => {
@@ -52,8 +68,13 @@ function renderTasksBoard(boardData, allStages) {
         return acc;
     }, {});
 
+    const orderedTypeNames = [
+        ...sectionOrder.filter(typeName => grouped[typeName]?.length > 0),
+        ...Object.keys(grouped).filter(typeName => !sectionOrder.includes(typeName))
+    ];
+
     let html = "";
-    for (const typeName in grouped) {
+    for (const typeName of orderedTypeNames) {
         html += `
             <section class="aircraft-section">
                 <h2 class="tb-aircraft-title">${typeName}</h2>
@@ -62,13 +83,14 @@ function renderTasksBoard(boardData, allStages) {
                         <thead>
                             <tr>
                                 <th class="tb-col-wo">פק"ע</th>
+                                <th class="tb-col-project">שם פרויקט</th>
+                                <th class="tb-col-tail">מספר זנב</th>
                                 <th style="width: 120px;">מק"ט</th>
                                 <th class="tb-col-item-name">שם פריט</th>
                                 <th class="tb-col-sn">סיריאלי</th>
                                 <th class="tb-col-qty">כמות</th>
                                 ${allStages.map(s => `<th class="tb-col-stage">${s.productionStageName}</th>`).join('')}
                                 <th class="tb-col-progress">התקדמות</th> </tr>
-                            </tr>
                         </thead>
                         <tbody>
                             ${grouped[typeName].map(row => renderRow(row, allStages)).join("")}
@@ -87,12 +109,14 @@ function renderRow(row, allStages) {
     const itemName = (item.itemName || item.productionItemDescription || "---").replace(/['"]/g, "");
 
     const workOrder = row.workOrderID || row.WorkOrderID || '---';
+    const projectName = row.projectName || row.ProjectName || row.planeID?.project?.projectName || row.PlaneID?.Project?.ProjectName || '---';
+    const tailNumber = row.tailNumber || row.TailNumber || '---';
     const serial = row.serialNumber || row.SerialNumber || '---';
     const qty = row.plannedQty || row.PlannedQty || 0;
     const progressValue = Math.round(row.progress || row.Progress || 0);
 
     // 2. רינדור התחנות (Pills)
-    const stagesHtml = allStages.map(stage => {
+    const stagesHtml = allStages.map((stage, stageIndex) => {
         const stagesList = row.stages || row.Stages || [];
         const itemStage = stagesList.find(s =>
             (s.stage?.productionStageID || s.Stage?.ProductionStageID) === stage.productionStageID
@@ -100,14 +124,10 @@ function renderRow(row, allStages) {
 
         // לוגיקת חסימה (Blocked)
         let isBlocked = false;
-        if (stage.productionStageID > 1) {
-            const prevStage = stagesList.find(s =>
-                (s.stage?.productionStageID || s.Stage?.ProductionStageID) === stage.productionStageID - 1
-            );
-            const prevStatusID = prevStage?.status?.productionStatusID || prevStage?.Status?.ProductionStatusID || 1;
-            if (prevStatusID !== 4) {
-                isBlocked = true;
-            }
+        if (stageIndex > 0) {
+            const prevStageId = getStageIdValue(allStages[stageIndex - 1]);
+            const prevStatusID = getStageStatusById(stagesList, prevStageId);
+            isBlocked = prevStatusID !== 4;
         }
 
         const status = itemStage?.status || itemStage?.Status || {};
@@ -120,11 +140,13 @@ function renderRow(row, allStages) {
         const titleText = isBlocked ? "חסום: בצע תחנה קודמת תחילה" : (itemStage?.comment || "");
 
         return `
-            <td>
-                <div class="status-pill status-${sID} ${blockedClass}" 
-                     title="${titleText}" 
-                     ${clickAttr}>
-                     ${sName}
+            <td class="status-cell">
+                <div class="status-wrapper">
+                    <div class="status-pill status-${sID} ${blockedClass}" 
+                         title="${titleText}" 
+                         ${clickAttr}>
+                         ${sName}
+                    </div>
                 </div>
             </td>`;
     }).join("");
@@ -133,17 +155,21 @@ function renderRow(row, allStages) {
     return `
         <tr>
             <td>${workOrder}</td>
+            <td>${projectName}</td>
+            <td>${tailNumber}</td>
             <td>${itemID}</td>
             <td class="tb-col-item-name" title="${itemName}">${itemName}</td>
             <td>${serial}</td>
             <td class="tb-col-qty">${qty}</td>
             ${stagesHtml}
-            <td>
-                <div class="pb-progress-wrapper">
-                    <div class="pb-progress-bar">
-                        <div class="pb-progress-fill" style="width: ${progressValue}%"></div>
+            <td class="progress-cell">
+                <div class="progress-wrapper">
+                    <div class="pb-progress-wrapper">
+                        <div class="pb-progress-bar">
+                            <div class="pb-progress-fill" style="width: ${progressValue}%"></div>
+                        </div>
+                        <span class="pb-progress-text">${progressValue}%</span>
                     </div>
-                    <span class="pb-progress-text">${progressValue}%</span>
                 </div>
             </td>
         </tr>`;
@@ -339,64 +365,6 @@ function populateStageFilter(stages) {
     });
 }
 
-window.applyFilters = function () {
-    try {
-        const searchEl = document.getElementById("filter-search");
-        const projectEl = document.getElementById("filter-project");
-        const stageEl = document.getElementById("filter-stage");
-        const notDoneEl = document.getElementById("filter-not-done");
-
-        if (!searchEl || !projectEl || !stageEl || !notDoneEl) return;
-
-        const searchTerm = searchEl.value.toLowerCase();
-        const selectedProject = projectEl.value;
-        const selectedStageId = stageEl.value;
-        const onlyNotDone = notDoneEl.checked;
-
-        const filteredData = allBoardData.filter(row => {
-            const item = row.productionItem || row.ProductionItem || {};
-            const itemName = (item.ItemName || item.productionItemDescription || "").toLowerCase();
-            const itemID = (item.productionItemID || "").toString().toLowerCase();
-            const workOrder = (row.workOrderID || row.WorkOrderID || "").toString().toLowerCase();
-
-            // שימוש בשם הפרויקט לסינון
-            const projectValue = row.ProjectName || row.projectName || "ללא פרויקט";
-
-            const matchesSearch = itemName.includes(searchTerm) ||
-                itemID.includes(searchTerm) ||
-                workOrder.includes(searchTerm);
-
-            const matchesProject = !selectedProject || projectValue === selectedProject;
-
-            const isDone = (row.progress || row.Progress) >= 100;
-            const matchesNotDone = !onlyNotDone || !isDone;
-
-            let matchesStage = true;
-            if (selectedStageId) {
-                const stages = row.stages || row.Stages || [];
-                const targetStageId = parseInt(selectedStageId);
-                const currentStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId);
-                const currentStatus = currentStageObj?.status?.productionStatusID || currentStageObj?.Status?.ProductionStatusID || 1;
-
-                if (targetStageId === 1) {
-                    matchesStage = (currentStatus !== 4);
-                } else {
-                    const prevStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId - 1);
-                    const prevStatus = prevStageObj?.status?.productionStatusID || prevStageObj?.Status?.ProductionStatusID || 1;
-                    matchesStage = (prevStatus === 4 && currentStatus !== 4);
-                }
-            }
-
-            return matchesSearch && matchesProject && matchesNotDone && matchesStage;
-        });
-
-        renderTasksBoard(filteredData, allStagesData);
-
-    } catch (error) {
-        console.error("שגיאה בסינון:", error);
-    }
-};
-
 window.clearAllFilters = function () {
     try {
         const searchEl = document.getElementById("filter-search");
@@ -430,15 +398,11 @@ window.applyFilters = function () {
         const onlyNotDone = notDoneEl.checked;
 
         const filteredData = allBoardData.filter(row => {
-            // הגדרת משתני השורה
             const item = row.productionItem || row.ProductionItem || {};
-            const itemName = (item.productionItemDescription || item.ItemName || "").toLowerCase();
+            const itemName = (item.itemName || item.ItemName || item.productionItemDescription || "").toLowerCase();
             const itemID = (item.productionItemID || "").toString().toLowerCase();
             const workOrder = (row.workOrderID || row.WorkOrderID || "").toString().toLowerCase();
-
-            // זיהוי פרויקט (כאן כדאי לוודא שה-API שולח projectName)
-            const project = row.projectName || row.ProjectName ||
-                row.planeID?.type?.planeTypeName || row.PlaneID?.Type?.PlaneTypeName || "כללי";
+            const project = row.projectName || row.ProjectName || "ללא פרויקט";
 
             const matchesSearch = itemName.includes(searchTerm) ||
                 itemID.includes(searchTerm) ||
@@ -453,14 +417,14 @@ window.applyFilters = function () {
             if (selectedStageId) {
                 const stages = row.stages || row.Stages || [];
                 const targetStageId = parseInt(selectedStageId);
-                const currentStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId);
-                const currentStatus = currentStageObj?.status?.productionStatusID || currentStageObj?.Status?.ProductionStatusID || 1;
+                const currentStatus = getStageStatusById(stages, targetStageId);
+                const targetStageIndex = allStagesData.findIndex(s => getStageIdValue(s) === targetStageId);
 
-                if (targetStageId === 1) {
+                if (targetStageIndex <= 0) {
                     matchesStage = (currentStatus !== 4);
                 } else {
-                    const prevStageObj = stages.find(s => (s.stage?.productionStageID || s.Stage?.ProductionStageID) === targetStageId - 1);
-                    const prevStatus = prevStageObj?.status?.productionStatusID || prevStageObj?.Status?.ProductionStatusID || 1;
+                    const prevStageId = getStageIdValue(allStagesData[targetStageIndex - 1]);
+                    const prevStatus = getStageStatusById(stages, prevStageId);
                     matchesStage = (prevStatus === 4 && currentStatus !== 4);
                 }
             }

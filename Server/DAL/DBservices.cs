@@ -876,6 +876,8 @@ public class DBservices
                     {
                         SerialNumber = sn,
                         WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
+                        ProjectName = reader["ProjectName"]?.ToString() ?? string.Empty,
+                        TailNumber = reader["TailNumber"]?.ToString() ?? string.Empty,
                         ProductionItem = new ProductionItem
                         {
                             ProductionItemID = reader["ProductionItemID"].ToString(),
@@ -942,6 +944,8 @@ public class DBservices
 
     public List<Project> GetProjects()
     {
+        const int defaultProjectPriority = 2;
+
         SqlConnection con = null;
         List<Project> list = new List<Project>();
         try
@@ -955,8 +959,8 @@ public class DBservices
                 {
                     ProjectID = (int)reader["ProjectID"],
                     ProjectName = reader["ProjectName"].ToString(),
-                    DueDate = (DateTime)reader["DueDate"],
-                    PriorityLevel = (byte)reader["PriorityLevel"]
+                    DueDate = reader["DueDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["DueDate"]),
+                    PriorityLevel = reader["PriorityLevel"] == DBNull.Value ? defaultProjectPriority : Convert.ToInt32(reader["PriorityLevel"])
                 });
             }
             return list;
@@ -1607,6 +1611,8 @@ public class DBservices
 
     public int InsertItemInProduction(InsertItemInProductionRequest item)
     {
+        const int defaultProjectPriority = 2;
+
         SqlConnection con = null;
         SqlTransaction trans = null;
 
@@ -1622,8 +1628,10 @@ public class DBservices
             string workOrderID = item.WorkOrderID;
             int serialNumber = item.SerialNumber ?? 0;
             int planeTypeID = item.PlaneTypeID ?? 0;
+            DateTime dueDate = (item.DueDate ?? DateTime.Today).Date;
+            int projectPriorityLevel = defaultProjectPriority;
 
-            HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID);
+            HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID, dueDate, projectPriorityLevel);
             HandleWorkOrder(con, trans, workOrderID); 
 
             using (SqlCommand mainCmd = new SqlCommand("dbo.SP_InsertItemInProduction", con, trans))
@@ -1664,7 +1672,7 @@ public class DBservices
         }
     }
 
-    private void HandleProjectAndPlane(SqlConnection con, SqlTransaction trans, string projectName, string planeID, int planeTypeID)
+    private void HandleProjectAndPlane(SqlConnection con, SqlTransaction trans, string projectName, string planeID, int planeTypeID, DateTime dueDate, int projectPriorityLevel)
     {
         using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleProjectAndPlane", con, trans))
         {
@@ -1672,6 +1680,8 @@ public class DBservices
             cmd.Parameters.AddWithValue("@pName", (object)projectName ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@typeID", planeTypeID);
+            cmd.Parameters.AddWithValue("@dueDate", dueDate);
+            cmd.Parameters.AddWithValue("@priorityLevel", projectPriorityLevel);
             cmd.ExecuteNonQuery();
         }
     }

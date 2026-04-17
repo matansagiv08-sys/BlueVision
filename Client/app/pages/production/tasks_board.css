@@ -28,6 +28,15 @@
     width: 100%;
 }
 
+.tasks-board-page .tb-table th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.tasks-board-page .tb-table td {
+    vertical-align: middle;
+}
+
 /* רוחב עמודות */
 .tasks-board-page .tb-col-qty {
     width: 80px;
@@ -42,10 +51,24 @@
     text-overflow: ellipsis;
 }
 
+.tasks-board-page .status-cell,
+.tasks-board-page .progress-cell {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.status-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 /* --- ה-Pills בתוך הטבלה --- */
 .status-pill {
     cursor: pointer;
     transition: all 0.2s;
+    padding: 5px 10px;
+    font-size: 12px;
 }
 
     .status-pill:hover {
@@ -152,19 +175,30 @@
         border-color: #0c2340;
     }
 
+.progress-wrapper {
+    width: 70%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+}
+
 .pb-progress-wrapper {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: #f1f5f9;
     padding: 4px 10px;
     border-radius: 20px;
     border: 1px solid #e2e8f0;
-    width: fit-content;
+    width: 100%;
+    min-width: 90px;
+    max-width: 130px;
+    margin: 0 auto;
 }
 
 .pb-progress-bar {
-    width: 60px;
+    flex: 1;
     height: 6px;
     background: #cbd5e1;
     border-radius: 10px;

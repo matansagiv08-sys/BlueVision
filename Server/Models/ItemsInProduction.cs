@@ -12,6 +12,8 @@ namespace Server.Models
         public Plane PlaneID { get; set; }
         public int PriorityLevel { get; set; }
         public int WorkOrderID { get; set; }
+        public string? ProjectName { get; set; }
+        public string TailNumber { get; set; } = string.Empty;
         public int PlannedQty { get; set; }
         public string Comments { get; set; }
         public List<ProductionItemStage> Stages { get; set; } = new List<ProductionItemStage>();
@@ -167,10 +169,11 @@ namespace Server.Models
         }
     }
 
-        public class InsertItemInProductionRequest
+    public class InsertItemInProductionRequest
     {
         public string? ProjectName { get; set; }
         public string? PlaneID { get; set; }
+        public DateTime? DueDate { get; set; }
         public string? ProductionItemID { get; set; }
         public string? WorkOrderID { get; set; }
         public int? SerialNumber { get; set; }
