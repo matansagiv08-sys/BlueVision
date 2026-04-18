@@ -7,6 +7,7 @@ namespace Server.Models
 {
     public class ItemInProduction
     {
+        //משקלים עבור לוגיקת סדר העבודה 
         private const double ProjectDueDateWeight = 0.35;
         private const double ItemDueDateWeight = 0.25;
         private const double ItemPriorityWeight = 0.25;
@@ -22,6 +23,7 @@ namespace Server.Models
         public int WorkOrderID { get; set; }
         public string? ProjectName { get; set; }
         public string TailNumber { get; set; } = string.Empty;
+        //סימן השאלה קיים כדי שהמערכת תוכל לקחת ערך ריק ולא תכניס תאריך שיהרוס את האלגוריתם
         public DateTime? ItemDueDate { get; set; }
         public int PlannedQty { get; set; }
         public string Comments { get; set; }
@@ -89,16 +91,19 @@ namespace Server.Models
 
         public bool IsFullyDone => Progress >= 100;
 
+        //ערך מחושב שנותן את התחנה הנוכחית שפריט נמצא בה כרגע
         public ProductionItemStage CurrentStage
         {
             get
             {
+                //בדיקה האם באמת קיימים שלבים לפריט
                 if (Stages == null || Stages.Count == 0) return null;
-
-                var activeStage = Stages.OrderBy(s => s.Stage.ProductionStageID)
+                //סידור התחנות לפי סדר העבודה, ולוקחת את התחנה הראשונה שעונה על התנאי
+                //התנאי: עצירה בתחנה הראשונה שהיא לא בסטטוס "בוצע" - 4
+                var activeStage = Stages.OrderBy(s => s.Stage.StageOrder)
                                         .FirstOrDefault(s => s.Status != null && s.Status.ProductionStatusID != 4);
-
-                return activeStage ?? Stages.OrderByDescending(s => s.Stage.ProductionStageID).FirstOrDefault();
+                //אם קיים ערך במשתנה שאינו ריק - תחזיר אותו, אם לא אז הפריט מוכן לכן נחזיר את התחנה האחרונה
+                return activeStage ?? Stages.OrderByDescending(s => s.Stage.StageOrder).FirstOrDefault();
             }
         }
 
@@ -110,12 +115,14 @@ namespace Server.Models
             }
         }
 
+        //שליפת נתוני לוח ניהול סדר עבודה
         public List<ItemInProduction> GetBoardData()
         {
             DBservices dbs = new DBservices();
             return dbs.GetTasksBoard();
         }
 
+        //שליפת נתוני לוח משימות
         public object GetInitialFormData()
         {
             DBservices dbs = new DBservices();

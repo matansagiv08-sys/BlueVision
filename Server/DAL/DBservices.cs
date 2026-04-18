@@ -974,9 +974,10 @@ public class DBservices
         }
         finally { if (con != null) con.Close(); }
     }
-
+    // שליפת כל הפרוייקטים והנתונים שלהם  
     public List<Project> GetProjects()
     {
+        //הכנסת ערך דיפולטי לפרוייט אם לא הוכנס ערך, ניתן גם להעביר לדאטא בייס
         const int defaultProjectPriority = 2;
 
         SqlConnection con = null;
@@ -1186,6 +1187,33 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+    public List<ProductionStatus> GetProductionStatuses()
+    {
+        SqlConnection con = null;
+        List<ProductionStatus> statusesList = new List<ProductionStatus>();
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetProductionStatuses", con, null);
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                ProductionStatus status = new ProductionStatus();
+
+                status.ProductionStatusID = Convert.ToInt32(reader["ProductionStatusID"]);
+                status.ProductionStatusName = reader["ProductionStatusName"].ToString();
+                statusesList.Add(status);
+            }
+            return statusesList;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    // שליפת הנתונים עבור טופס סטטוס פרוייקטים
     public List<Project> GetFullProjectsStatus()
     {
         SqlConnection con = null;
@@ -1290,7 +1318,7 @@ public class DBservices
         }
         finally { if (con != null) con.Close(); }
     }
-
+    //שליפת כל הפריטים מעץ המוצר שמיוצרים בחברה
     public List<ProductionItem> GetProductionItems()
     {
         SqlConnection con = null;

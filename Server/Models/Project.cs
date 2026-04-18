@@ -25,9 +25,10 @@ namespace Server.Models
         }
 
 
-        // Calls DBservices to retrieve the list of projects from the database and returns it
+        //קריאת כל הפרוייקטים מהDB
         public List<Project> GetProjects() { DBservices dbs = new DBservices(); return dbs.GetProjects(); }
 
+        //קריאת כל נתוני הפרוייקטים, המטוסים שלהם והפריטים בכל מטוס עבור טופס סטטוס פרוייקטים
         public List<Project> GetFullProjectsStatus()
         {
             DBservices dbs = new DBservices();

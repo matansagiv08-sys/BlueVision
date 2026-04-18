@@ -10,5 +10,12 @@ namespace Server.Models
         public string ProductionStatusName { get; set; }
 
         public ProductionStatus() { }
+
+        // שליפת רשימת כל הסטטוסים 
+        public List<ProductionStatus> GetProductionStatuses()
+        {
+            DBservices dbs = new DBservices();
+            return dbs.GetProductionStatuses();
+        }
     }
 }

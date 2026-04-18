@@ -15,7 +15,6 @@ namespace Server.Controllers
             try
             {
                 ItemInProduction model = new ItemInProduction();
-                // 1. שליפת הנתונים הגולמיים מה-DB
                 List<ItemInProduction> board = model.GetBoardData();
 
                 // 2. הפעלת המיון החכם

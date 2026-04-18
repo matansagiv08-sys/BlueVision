@@ -261,7 +261,7 @@ window.saveWorkOrder = function () {
         server + "api/ProductionItemStage/UpdateManualOrder",
         JSON.stringify(updates), // <--- זה הקריטי!
         (res) => {
-            alert("הסדר נשמר בהצלחה!"); // החלפנו זמנית את showNotification
+            alert("הסדר נשמר בהצלחה!"); 
             updateInterfaceState(false);
             window.initTasksWorkOrder();
         },

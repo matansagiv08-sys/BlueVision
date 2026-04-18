@@ -15,7 +15,7 @@ window.closeTaskStatusModal = function () {
 
 let allBoardData = []; 
 let allStagesData = []; 
-const sectionOrder = ["WB", "TBV"];
+let allStatusesData = [];
 
 function getStageIdValue(stage) {
     return parseInt(stage?.productionStageID || stage?.ProductionStageID || 0);
@@ -34,26 +34,29 @@ function initBoard() {
         container.innerHTML = "";
     }
 
-    ajaxCall("GET", server + "api/ProductionStages", "",
-        (allStages) => {
+    //  שליפת הסטטוסים
+    ajaxCall("GET", server + "api/ProductionStatuses", "", (statuses) => {
+        allStatusesData = statuses;
+
+        //  שליפת התחנות 
+        ajaxCall("GET", server + "api/ProductionStages", "", (allStages) => {
             allStagesData = [...allStages].sort((a, b) => {
                 const orderA = parseInt(a.stageOrder || a.StageOrder || 0);
                 const orderB = parseInt(b.stageOrder || b.StageOrder || 0);
                 return orderA - orderB;
             });
-            populateStageFilter(allStagesData); 
+            populateStageFilter(allStagesData);
 
-            ajaxCall("GET", server + "api/ItemsInProduction/boardData", "",
-                (boardData) => {
-                    allBoardData = boardData; // שומרים את כל הנתונים
-                    populateProjectFilter(boardData); 
-                    applyFilters(); 
-                },
-                (err) => console.error("Error board data:", err)
-            );
-        },
-        (err) => console.error("Error stages:", err)
-    );
+            // שליפת נתוני הלוח
+            ajaxCall("GET", server + "api/ItemsInProduction/boardData", "", (boardData) => {
+                allBoardData = boardData;
+                populateProjectFilter(boardData);
+                applyFilters(); 
+            }, (err) => console.error("Error board data:", err));
+
+        }, (err) => console.error("Error stages:", err));
+
+    }, (err) => console.error("Error fetching statuses:", err));
 }
 
 function renderTasksBoard(boardData, allStages) {
@@ -68,10 +71,7 @@ function renderTasksBoard(boardData, allStages) {
         return acc;
     }, {});
 
-    const orderedTypeNames = [
-        ...sectionOrder.filter(typeName => grouped[typeName]?.length > 0),
-        ...Object.keys(grouped).filter(typeName => !sectionOrder.includes(typeName))
-    ];
+    const orderedTypeNames = Object.keys(grouped).sort();
 
     let html = "";
     for (const typeName of orderedTypeNames) {
@@ -103,7 +103,6 @@ function renderTasksBoard(boardData, allStages) {
 }
 
 function renderRow(row, allStages) {
-    // 1. חילוץ נתוני פריט (לפי המבנה ב-Swagger: productionItem.itemName)
     const item = row.productionItem || row.ProductionItem || {};
     const itemID = item.productionItemID || item.ProductionItemID || '---';
     const itemName = (item.itemName || item.productionItemDescription || "---").replace(/['"]/g, "");
@@ -115,21 +114,20 @@ function renderRow(row, allStages) {
     const qty = row.plannedQty || row.PlannedQty || 0;
     const progressValue = Math.round(row.progress || row.Progress || 0);
 
-    // 2. רינדור התחנות (Pills)
     const stagesHtml = allStages.map((stage, stageIndex) => {
         const stagesList = row.stages || row.Stages || [];
         const itemStage = stagesList.find(s =>
             (s.stage?.productionStageID || s.Stage?.ProductionStageID) === stage.productionStageID
         );
 
-        // לוגיקת חסימה (Blocked)
+        //חסימת התחנות הבאות אם התחנה הנוכחית לא בוצעה במלואה
         let isBlocked = false;
         if (stageIndex > 0) {
             const prevStageId = getStageIdValue(allStages[stageIndex - 1]);
             const prevStatusID = getStageStatusById(stagesList, prevStageId);
             isBlocked = prevStatusID !== 4;
         }
-
+        
         const status = itemStage?.status || itemStage?.Status || {};
         const sID = status.productionStatusID || status.ProductionStatusID || 1;
         const sName = status.productionStatusName || status.ProductionStatusName || "טרם בוצע";
@@ -151,7 +149,7 @@ function renderRow(row, allStages) {
             </td>`;
     }).join("");
 
-    // 3. החזרת השורה המלאה כולל בר ההתקדמות בסוף
+    // הצגת השורה בטבלה
     return `
         <tr>
             <td>${workOrder}</td>
@@ -181,7 +179,6 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
     const timeLabel = document.getElementById("timeLabel");
     const timeInput = document.getElementById("userTimeInput");
 
-
     timeContainer.style.display = "none";
     timeInput.value = "";
     document.getElementById("statusCommentInput").value = currentComment || "";
@@ -206,13 +203,12 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
 
  
     const statusContainer = document.getElementById("statusButtonsContainer");
-    statusContainer.innerHTML = `
-        <button type="button" class="btn-choice" data-id="4">בוצע</button>
-        <button type="button" class="btn-choice" data-id="2">בתהליך</button>
-        <button type="button" class="btn-choice" data-id="3">תקוע</button>
-        <button type="button" class="btn-choice" data-id="5">אחר</button>
-        <button type="button" class="btn-choice full-width" data-id="1">טרם בוצע / איפוס</button>
-    `;
+    statusContainer.innerHTML = allStatusesData.map(status => {
+        const sID = status.productionStatusID;
+        const sName = status.productionStatusName;
+        const fullWidthClass = sID === 1 ? "full-width" : "";
+        return `<button type="button" class="btn-choice ${fullWidthClass}" data-id="${sID}">${sName}</button>`;
+    }).join('');
 
 
     const currentBtn = $(`.btn-choice[data-id="${currentStatusID}"]`);

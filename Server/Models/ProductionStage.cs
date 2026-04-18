@@ -9,13 +9,13 @@ namespace Server.Models
         public int StageOrder { get; set; }
         public TimeSpan TargetDuration { get; set; }
 
-        // בנאי המגדיר ערכי ברירת מחדל בעת יצירת אובייקט חדש
         public ProductionStage()
         {
             //  ברירת מחדל של שעה אחת לכל תחנה
             TargetDuration = TimeSpan.FromHours(1);
         }
 
+        // שליפת רשימת כל התחנות 
         public List<ProductionStage> GetProductionStages()
         {
             DBservices dbs = new DBservices();
