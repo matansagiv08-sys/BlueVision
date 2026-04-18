@@ -17,7 +17,6 @@ namespace Server.Controllers
                 ItemInProduction model = new ItemInProduction();
                 List<ItemInProduction> board = model.GetBoardData();
 
-                // 2. הפעלת המיון החכם
                 List<ItemInProduction> sortedBoard = model.SortItemsByUrgency(board);
 
                 return Ok(sortedBoard);

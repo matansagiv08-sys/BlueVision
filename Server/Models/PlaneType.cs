@@ -15,12 +15,5 @@ namespace Server.Models
             DBservices dbs = new DBservices();
             return dbs.GetPlaneTypes();
         }
-
-        // Inserts a new plane type into the database
-        public int Insert()
-        {
-            DBservices dbs = new DBservices();
-            return dbs.InsertPlaneType(this);
-        }
     }
 }

@@ -1104,29 +1104,6 @@ public class DBservices
         }
     }
 
-    public int InsertPlaneType(PlaneType pt)
-    {
-        SqlConnection con = null;
-        try
-        {
-            con = connect("myProjDB");
-            Dictionary<string, object> paramDic = new Dictionary<string, object>
-        {
-            { "@PlaneTypeName", pt.PlaneTypeName }
-        };
-            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spInsertPlaneType", con, paramDic);
-            return cmd.ExecuteNonQuery();
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-        finally
-        {
-            if (con != null) con.Close();
-        }
-    }
-
     //שליפת כל תחנות העבודה
     public List<ProductionStage> GetProductionStages()
     {
@@ -1297,6 +1274,8 @@ public class DBservices
         }
         finally { if (con != null) con.Close(); }
     }
+
+
     //שליפת כל הפריטים מעץ המוצר שמיוצרים בחברה
     public List<ProductionItem> GetProductionItems()
     {
@@ -1325,6 +1304,7 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+    //שליפת פק"ע לצורך הוספת פריט - בחירה בין קיימים
     public List<int> GetUniqueWorkOrders()
     {
         SqlConnection con = null;
@@ -1348,6 +1328,7 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+    //שליפת כל הסוגים לצורך שליפה למשתמש בהוספת פריט, פרוייקט או מטוס
     public List<object> GetPriorityLevels()
     {
         SqlConnection con = null;
@@ -1375,6 +1356,8 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+
+    //שליפת המטוסים הקיימים בDB
     public List<object> GetPlanes()
     {
         SqlConnection con = null;
@@ -1402,6 +1385,231 @@ public class DBservices
         }
         finally { if (con != null) con.Close(); }
     }
+
+
+    //הוספת פריט חדש לייצור
+    public int InsertItemInProduction(InsertItemInProductionRequest item)
+    {
+        const int defaultProjectPriority = 2;
+
+        SqlConnection con = null;
+        //שימוש בטרנזקציה כדי שלא ישמרו חלק מהנתונים במידה ולא כל הנתונים תקינים או הוכנסו כראוי
+        SqlTransaction trans = null;
+
+        try
+        {
+            con = connect("myProjDB");
+            if (con.State != System.Data.ConnectionState.Open) con.Open();
+            trans = con.BeginTransaction();
+
+            string projectName = item.ProjectName;
+            string planeID = item.PlaneID;
+            string productionItemID = item.ProductionItemID;
+            string workOrderID = item.WorkOrderID;
+            int serialNumber = item.SerialNumber ?? 0;
+            int planeTypeID = item.PlaneTypeID ?? 0;
+            DateTime projectDueDate = (item.ProjectDueDate ?? DateTime.Today).Date;
+            DateTime itemDueDate = (item.DueDate ?? DateTime.Today).Date;
+            int projectPriorityLevel = item.ProjectPriorityLevel ?? defaultProjectPriority;
+
+            //קריאה לפונקציה שמוסיפה מטוס ופרוייקט אם המשתמש מזין ערך חדש
+            HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID, projectDueDate, projectPriorityLevel);
+            //קריאה לפונקציה שמוסיפה פק"ע חדש במידה והמשתמש הזין ערך חדש
+            HandleWorkOrder(con, trans, workOrderID);
+            //יצירת פריט לייצור חדש בטבלה
+            using (SqlCommand mainCmd = new SqlCommand("dbo.SP_InsertItemInProduction", con, trans))
+            {
+                mainCmd.CommandType = CommandType.StoredProcedure;
+                mainCmd.Parameters.AddWithValue("@itemID", productionItemID);
+                mainCmd.Parameters.AddWithValue("@serial", serialNumber);
+                mainCmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
+                mainCmd.Parameters.AddWithValue("@priority", item.PriorityID ?? 1);
+                mainCmd.Parameters.AddWithValue("@workOrder", (object)workOrderID ?? DBNull.Value);
+                mainCmd.Parameters.AddWithValue("@qty", item.Quantity ?? 1);
+                mainCmd.Parameters.AddWithValue("@dueDate", itemDueDate);
+                mainCmd.Parameters.AddWithValue("@comments", (object)item.Comments ?? DBNull.Value);
+                mainCmd.ExecuteNonQuery();
+            }
+            //קריאה לפונקציה שמוסיפה תחנות עבודה לפריט החדש שהוכנס
+            InsertStagesForProduct(con, trans, serialNumber, productionItemID);
+
+            trans.Commit();
+            return 1;
+        }
+        catch (Exception)
+        {
+            if (trans != null) trans.Rollback();
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+
+    //הוספת פקודת עבודה חדשה במידה והמשתמש הוסיף בתהליך הוספת פריט
+    private void HandleWorkOrder(SqlConnection con, SqlTransaction trans, string workOrderID)
+    {
+        if (string.IsNullOrEmpty(workOrderID)) return;
+
+        using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleWorkOrder", con, trans))
+        {
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@woID", workOrderID);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+
+    //הוספת פרוייקט ומטוס חדשים במידה והמשתמש הוסיף בתהליך של הוספת פריט
+    private void HandleProjectAndPlane(SqlConnection con, SqlTransaction trans, string projectName, string planeID, int planeTypeID, DateTime dueDate, int projectPriorityLevel)
+    {
+        using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleProjectAndPlane", con, trans))
+        {
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@pName", (object)projectName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@typeID", planeTypeID);
+            cmd.Parameters.AddWithValue("@dueDate", dueDate);
+            cmd.Parameters.AddWithValue("@priorityLevel", projectPriorityLevel);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    //יצירת תחנות עבור פריט ייצור חדש שנוצר במערכת
+    private void InsertStagesForProduct(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID)
+    {
+        using (SqlCommand cmd = new SqlCommand("dbo.SP_InsertStagesForProduct", con, trans))
+        {
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@serial", serialNumber);
+            cmd.Parameters.AddWithValue("@itemID", productionItemID);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    //עדכון סטטוס לתחנה ספציפית
+    //הפונקציה מקבלת את הפריט והתחנה שהוא נמצא, את הסטטוס החדש והנתונים הנוספים במידה והוסיף
+    public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime, bool resetFuture)
+    {
+        SqlConnection con = null;
+        try
+        {
+            if (serial <= 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || newStatusID <= 0)
+            {
+                return 0;
+            }
+
+            con = connect("myProjDB");
+
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@Serial", serial },
+            { "@ItemID", itemID },
+            { "@StageID", stageID },
+            { "@NewStatusID", newStatusID },
+            { "@Comment", (object)comment ?? DBNull.Value },
+            { "@UserTime", (object)userTime ?? DBNull.Value },
+            { "@ResetFuture", resetFuture } 
+        };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spItemsInProduction_UpdateStageStatus", con, paramDic);
+            cmd.ExecuteNonQuery();
+
+            return 1;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+
+    //עדכון סידור ידני של המשתמש בDB
+    public int UpdateManualPriority(int serial, string itemID, int stageID, int priority)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@Serial", serial },
+            { "@ItemID", itemID },
+            { "@StageID", stageID },
+            { "@Priority", priority }
+        };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spProductionItemStage_UpdateManualPriority", con, paramDic);
+
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error in DAL UpdateManualPriority: " + ex.Message);
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
+    }
+
+    private static int? ReadNullableInt(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (string columnName in columnNames)
+        {
+            if (!TryGetColumnOrdinal(reader, columnName, out int ordinal))
+            {
+                continue;
+            }
+
+            if (reader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return Convert.ToInt32(reader.GetValue(ordinal));
+        }
+
+        return null;
+    }
+
+    private static DateTime? ReadNullableDate(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (string columnName in columnNames)
+        {
+            if (!TryGetColumnOrdinal(reader, columnName, out int ordinal))
+            {
+                continue;
+            }
+
+            if (reader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return Convert.ToDateTime(reader.GetValue(ordinal));
+        }
+
+        return null;
+    }
+
+
+    private static bool TryGetColumnOrdinal(SqlDataReader reader, string columnName, out int ordinal)
+    {
+        try
+        {
+            ordinal = reader.GetOrdinal(columnName);
+            return true;
+        }
+        catch (IndexOutOfRangeException)
+        {
+            ordinal = -1;
+            return false;
+        }
+    }
+
+    //משתמשים
 
     public AppUser? GetUserByUsername(string username)
     {
@@ -1627,6 +1835,7 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+
     public int DeleteUser(int userID)
     {
         SqlConnection con = null;
@@ -1647,225 +1856,5 @@ public class DBservices
             throw;
         }
         finally { if (con != null) con.Close(); }
-    }
-
-
-    //הוספת פריט חדש לייצור
-    public int InsertItemInProduction(InsertItemInProductionRequest item)
-    {
-        const int defaultProjectPriority = 2;
-
-        SqlConnection con = null;
-        //שימוש בטרנזקציה כדי שלא ישמרו חלק מהנתונים במידה ולא כל הנתונים תקינים או הוכנסו כראוי
-        SqlTransaction trans = null;
-
-        try
-        {
-            con = connect("myProjDB");
-            if (con.State != System.Data.ConnectionState.Open) con.Open();
-            trans = con.BeginTransaction();
-
-            string projectName = item.ProjectName;
-            string planeID = item.PlaneID;
-            string productionItemID = item.ProductionItemID;
-            string workOrderID = item.WorkOrderID;
-            int serialNumber = item.SerialNumber ?? 0;
-            int planeTypeID = item.PlaneTypeID ?? 0;
-            DateTime projectDueDate = (item.ProjectDueDate ?? DateTime.Today).Date;
-            DateTime itemDueDate = (item.DueDate ?? DateTime.Today).Date;
-            int projectPriorityLevel = item.ProjectPriorityLevel ?? defaultProjectPriority;
-
-            //קריאה לפונקציה שמוסיפה מטוס ופרוייקט אם המשתמש מזין ערך חדש
-            HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID, projectDueDate, projectPriorityLevel);
-            //קריאה לפונקציה שמוסיפה פק"ע חדש במידה והמשתמש הזין ערך חדש
-            HandleWorkOrder(con, trans, workOrderID);
-            //יצירת פריט לייצור חדש בטבלה
-            using (SqlCommand mainCmd = new SqlCommand("dbo.SP_InsertItemInProduction", con, trans))
-            {
-                mainCmd.CommandType = CommandType.StoredProcedure;
-                mainCmd.Parameters.AddWithValue("@itemID", productionItemID);
-                mainCmd.Parameters.AddWithValue("@serial", serialNumber);
-                mainCmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
-                mainCmd.Parameters.AddWithValue("@priority", item.PriorityID ?? 1);
-                mainCmd.Parameters.AddWithValue("@workOrder", (object)workOrderID ?? DBNull.Value);
-                mainCmd.Parameters.AddWithValue("@qty", item.Quantity ?? 1);
-                mainCmd.Parameters.AddWithValue("@dueDate", itemDueDate);
-                mainCmd.Parameters.AddWithValue("@comments", (object)item.Comments ?? DBNull.Value);
-                mainCmd.ExecuteNonQuery();
-            }
-            //קריאה לפונקציה שמוסיפה תחנות עבודה לפריט החדש שהוכנס
-            InsertStagesForProduct(con, trans, serialNumber, productionItemID);
-
-            trans.Commit();
-            return 1;
-        }
-        catch (Exception)
-        {
-            if (trans != null) trans.Rollback();
-            throw;
-        }
-        finally { if (con != null) con.Close(); }
-    }
-
-
-    //הוספת פקודת עבודה חדשה במידה והמשתמש הוסיף בתהליך הוספת פריט
-    private void HandleWorkOrder(SqlConnection con, SqlTransaction trans, string workOrderID)
-    {
-        if (string.IsNullOrEmpty(workOrderID)) return;
-
-        using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleWorkOrder", con, trans))
-        {
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@woID", workOrderID);
-            cmd.ExecuteNonQuery();
-        }
-    }
-
-
-    //הוספת פרוייקט ומטוס חדשים במידה והמשתמש הוסיף בתהליך של הוספת פריט
-    private void HandleProjectAndPlane(SqlConnection con, SqlTransaction trans, string projectName, string planeID, int planeTypeID, DateTime dueDate, int projectPriorityLevel)
-    {
-        using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleProjectAndPlane", con, trans))
-        {
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@pName", (object)projectName ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@planeID", (object)planeID ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@typeID", planeTypeID);
-            cmd.Parameters.AddWithValue("@dueDate", dueDate);
-            cmd.Parameters.AddWithValue("@priorityLevel", projectPriorityLevel);
-            cmd.ExecuteNonQuery();
-        }
-    }
-
-    //יצירת תחנות עבור פריט ייצור חדש שנוצר במערכת
-    private void InsertStagesForProduct(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID)
-    {
-        using (SqlCommand cmd = new SqlCommand("dbo.SP_InsertStagesForProduct", con, trans))
-        {
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.AddWithValue("@serial", serialNumber);
-            cmd.Parameters.AddWithValue("@itemID", productionItemID);
-            cmd.ExecuteNonQuery();
-        }
-    }
-
-    //עדכון סטטוס לתחנה ספציפית
-    //הפונקציה מקבלת את הפריט והתחנה שהוא נמצא, את הסטטוס החדש והנתונים הנוספים במידה והוסיף
-    public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime, bool resetFuture)
-    {
-        SqlConnection con = null;
-        try
-        {
-            if (serial <= 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || newStatusID <= 0)
-            {
-                return 0;
-            }
-
-            con = connect("myProjDB");
-
-            Dictionary<string, object> paramDic = new Dictionary<string, object>
-        {
-            { "@Serial", serial },
-            { "@ItemID", itemID },
-            { "@StageID", stageID },
-            { "@NewStatusID", newStatusID },
-            { "@Comment", (object)comment ?? DBNull.Value },
-            { "@UserTime", (object)userTime ?? DBNull.Value },
-            { "@ResetFuture", resetFuture } 
-        };
-
-            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spItemsInProduction_UpdateStageStatus", con, paramDic);
-            cmd.ExecuteNonQuery();
-
-            return 1;
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-        finally { if (con != null) con.Close(); }
-    }
-
-    public int UpdateManualPriority(int serial, string itemID, int stageID, int priority)
-    {
-        SqlConnection con = null;
-        try
-        {
-            con = connect("myProjDB");
-
-            Dictionary<string, object> paramDic = new Dictionary<string, object>
-        {
-            { "@Serial", serial },
-            { "@ItemID", itemID },
-            { "@StageID", stageID },
-            { "@Priority", priority }
-        };
-
-            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spProductionItemStage_UpdateManualPriority", con, paramDic);
-
-            return cmd.ExecuteNonQuery();
-        }
-        catch (Exception ex)
-        {
-            throw new Exception("Error in DAL UpdateManualPriority: " + ex.Message);
-        }
-        finally
-        {
-            if (con != null) con.Close();
-        }
-    }
-
-    private static int? ReadNullableInt(SqlDataReader reader, params string[] columnNames)
-    {
-        foreach (string columnName in columnNames)
-        {
-            if (!TryGetColumnOrdinal(reader, columnName, out int ordinal))
-            {
-                continue;
-            }
-
-            if (reader.IsDBNull(ordinal))
-            {
-                return null;
-            }
-
-            return Convert.ToInt32(reader.GetValue(ordinal));
-        }
-
-        return null;
-    }
-
-    private static DateTime? ReadNullableDate(SqlDataReader reader, params string[] columnNames)
-    {
-        foreach (string columnName in columnNames)
-        {
-            if (!TryGetColumnOrdinal(reader, columnName, out int ordinal))
-            {
-                continue;
-            }
-
-            if (reader.IsDBNull(ordinal))
-            {
-                return null;
-            }
-
-            return Convert.ToDateTime(reader.GetValue(ordinal));
-        }
-
-        return null;
-    }
-
-    private static bool TryGetColumnOrdinal(SqlDataReader reader, string columnName, out int ordinal)
-    {
-        try
-        {
-            ordinal = reader.GetOrdinal(columnName);
-            return true;
-        }
-        catch (IndexOutOfRangeException)
-        {
-            ordinal = -1;
-            return false;
-        }
     }
 }

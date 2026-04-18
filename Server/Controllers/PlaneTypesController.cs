@@ -15,9 +15,5 @@ namespace Server.Controllers
             PlaneType pt = new PlaneType();
             return pt.GetPlaneTypes();
         }
-
-        // POST: api/PlaneTypes
-        [HttpPost]
-        public int Post([FromBody] PlaneType pt) => pt.Insert();
     }
 }
