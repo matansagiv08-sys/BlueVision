@@ -873,8 +873,6 @@ public class DBservices
             while (reader.Read())
             {
                 int sn = Convert.ToInt32(reader["SerialNumber"]);
-
-                // 1. יצירת הפריט אם הוא לא קיים במילון (נתונים כלליים לפריט)
                 if (!itemsMap.ContainsKey(sn))
                 {
                     int itemPriorityLevel = ReadNullableInt(reader,
@@ -961,8 +959,7 @@ public class DBservices
                         ProductionStatusName = reader["StatusName"].ToString()
                     },
                     Comment = reader["Comment"].ToString(),
-
-                    // --- השינוי המרכזי: שליפת התעדוף הידני עבור השלב הספציפי הזה ---
+                   
                     ManualPriority = reader["ManualPriority"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["ManualPriority"])
                 });
             }

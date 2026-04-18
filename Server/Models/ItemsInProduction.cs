@@ -115,14 +115,14 @@ namespace Server.Models
             }
         }
 
-        //שליפת נתוני לוח ניהול סדר עבודה
+        //שליפת נתוני לוח משימות וניהול סדר עבודה
         public List<ItemInProduction> GetBoardData()
         {
             DBservices dbs = new DBservices();
             return dbs.GetTasksBoard();
         }
 
-        //שליפת נתוני לוח משימות
+        //שליפת נתונים קיימים עבור טופס הוספת פריט חדש
         public object GetInitialFormData()
         {
             DBservices dbs = new DBservices();
@@ -137,12 +137,14 @@ namespace Server.Models
             };
         }
 
+        //הוספת פריט לייצור
         public int InsertItem(InsertItemInProductionRequest? itemData)
         {
             DBservices dbs = new DBservices();
             return dbs.InsertItemInProduction(itemData ?? new InsertItemInProductionRequest());
         }
 
+        //עדכון סטטוס לפריט בתחנה
         public int UpdateStatus(UpdateProductionStatusRequest? data)
         {
             int serial = data?.SerialNumber ?? 0;
