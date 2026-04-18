@@ -859,6 +859,8 @@ public class DBservices
     }
 
     //ייצור
+
+    //שליפת כל הנתונים של פרטי הייצור עבור עמודי לוח משימות וניהול לוז
     public List<ItemInProduction> GetTasksBoard()
     {
         SqlConnection con = null;
@@ -1006,6 +1008,7 @@ public class DBservices
         }
     }
 
+    //הכנסת פרוייקט חדש - לא בשימוש כרגע תשתית להמשך
     public int InsertProject(Project p)
     {
         SqlConnection con = null;
@@ -1030,6 +1033,7 @@ public class DBservices
         }
     }
 
+    //עריכת פרוייקט - לא בשימוש כרגע - תשתית להמשך
     public int UpdateProject(Project p)
     {
         SqlConnection con = null;
@@ -1053,6 +1057,7 @@ public class DBservices
         }
     }
 
+    //מחיקת פרוייקט - לא בשימוש כרגע, תשתית להמשך
     public int DeleteProject(int id)
     {
         SqlConnection con = null;
@@ -1141,7 +1146,7 @@ public class DBservices
     }
 
 
-    //שליפת רשימת כל הסטטוסים שניתן לשים לכל פריט
+    //שליפת רשימת כל הסטטוסים שניתן לשים לכל פריט בתחנת ייצור
     public List<ProductionStatus> GetProductionStatuses()
     {
         SqlConnection con = null;
