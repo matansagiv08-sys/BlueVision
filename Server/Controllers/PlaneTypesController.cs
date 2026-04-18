@@ -19,9 +19,5 @@ namespace Server.Controllers
         // POST: api/PlaneTypes
         [HttpPost]
         public int Post([FromBody] PlaneType pt) => pt.Insert();
-
-        // DELETE: api/PlaneTypes/5
-        [HttpDelete("{id}")]
-        public int Delete(int id) => new PlaneType().Delete(id);
     }
 }

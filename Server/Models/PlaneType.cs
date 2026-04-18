@@ -9,7 +9,7 @@ namespace Server.Models
 
         public PlaneType() { }
 
-        // Retrieves all plane types from the database
+        // שליפת כל סוגי המטוסים
         public List<PlaneType> GetPlaneTypes()
         {
             DBservices dbs = new DBservices();
@@ -21,13 +21,6 @@ namespace Server.Models
         {
             DBservices dbs = new DBservices();
             return dbs.InsertPlaneType(this);
-        }
-
-        // Deletes a plane type from the database by ID
-        public int Delete(int id)
-        {
-            DBservices dbs = new DBservices();
-            return dbs.DeletePlaneType(id);
         }
     }
 }

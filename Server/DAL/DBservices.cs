@@ -1130,28 +1130,8 @@ public class DBservices
         }
     }
 
-    public int DeletePlaneType(int id)
-    {
-        SqlConnection con = null;
-        try
-        {
-            con = connect("myProjDB");
-            Dictionary<string, object> paramDic = new Dictionary<string, object>
-        {
-            { "@PlaneTypeID", id }
-        };
-            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spDeletePlaneType", con, paramDic);
-            return cmd.ExecuteNonQuery();
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-        finally
-        {
-            if (con != null) con.Close();
-        }
-    }
+
+    //שליפת כל תחנות העבודה
     public List<ProductionStage> GetProductionStages()
     {
         SqlConnection con = null;
@@ -1187,6 +1167,8 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+
+    //שליפת רשימת כל הסטטוסים שניתן לשים לכל פריט
     public List<ProductionStatus> GetProductionStatuses()
     {
         SqlConnection con = null;
@@ -1212,6 +1194,7 @@ public class DBservices
         }
         finally { if (con != null) con.Close(); }
     }
+
 
     // שליפת הנתונים עבור טופס סטטוס פרוייקטים
     public List<Project> GetFullProjectsStatus()
