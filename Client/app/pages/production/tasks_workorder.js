@@ -248,7 +248,6 @@ window.saveWorkOrder = function () {
     const rows = Array.from(document.querySelectorAll('#tasksTableBody tr'));
 
     const updates = rows.map((row, index) => ({
-        // השמות כאן חייבים להיות זהים למה שאת שולפת ב-C# מה-dynamic
         serial: parseInt(row.getAttribute('data-sn')),
         itemId: row.getAttribute('data-itemid'),
         stageId: parseInt(row.getAttribute('data-stageid')),

@@ -166,21 +166,51 @@ namespace Server.Models
 
         public List<ItemInProduction> SortItemsByUrgency(List<ItemInProduction> items)
         {
-            return items
-                .Select(item => new
-                {
-                    Item = item,
-                    Score = item.GetUrgencyScore(),
-                    ItemDueDate = item.ItemDueDate ?? DateTime.MaxValue,
-                    WorkOrderID = item.WorkOrderID <= 0 ? int.MaxValue : item.WorkOrderID,
-                    item.SerialNumber
-                })
-                .OrderByDescending(x => x.Score)
-                .ThenBy(x => x.ItemDueDate)
-                .ThenBy(x => x.WorkOrderID)
-                .ThenBy(x => x.SerialNumber)
-                .Select(x => x.Item)
+            var initialSort = items
+            .Select(item => new
+            {
+                Item = item,
+                Score = item.GetUrgencyScore(),
+                ItemDueDate = item.ItemDueDate ?? DateTime.MaxValue
+            })
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.ItemDueDate)
+            .ThenBy(x => x.Item.WorkOrderID)
+            .ThenBy(x => x.Item.SerialNumber)
+            .Select(x => x.Item)
+            .ToList();
+
+            // 2. זיהוי פריטים שיש להם מיקום ידני (ManualPriority)
+            // אנחנו מניחים שבשלב זה לכל פריט יש Stage נוכחי ב-CurrentStage
+            var manualItems = initialSort
+                .Where(i => i.CurrentStage != null && i.CurrentStage.ManualPriority.HasValue && i.CurrentStage.ManualPriority > 0)
+                .OrderBy(i => i.CurrentStage.ManualPriority)
                 .ToList();
+
+            // 3. הסרת הפריטים הידניים מהרשימה הכללית כדי שנוכל לשבץ אותם מחדש
+            foreach (var item in manualItems)
+            {
+                initialSort.Remove(item);
+            }
+
+            // 4. שיבוץ מחדש במיקום המדויק
+            foreach (var item in manualItems)
+            {
+                // המשתמש קבע מקום 1, 2, 3... ב-List זה אינדקס 0, 1, 2...
+                int targetIndex = item.CurrentStage.ManualPriority.Value - 1;
+
+                // הגנה: אם המיקום גבוה ממספר הפריטים, שים בסוף
+                if (targetIndex >= initialSort.Count)
+                {
+                    initialSort.Add(item);
+                }
+                else
+                {
+                    initialSort.Insert(Math.Max(0, targetIndex), item);
+                }
+            }
+
+            return initialSort;
         }
     }
 
