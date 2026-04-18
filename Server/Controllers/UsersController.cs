@@ -43,18 +43,26 @@ namespace Server.Controllers
         }
 
         [HttpPost]
-        public IActionResult CreateUser([FromBody] CreateUserRequest? request)
+        public IActionResult CreateUser([FromBody] AppUser? user)
         {
             try
             {
                 UserAccount model = new UserAccount();
-                CreateUserResult result = model.CreateUser(request);
-                if (result.Success)
+                bool success = model.CreateUser(user, out string message, out int userID, out string temporaryPassword);
+                object response = new
                 {
-                    return Ok(result);
+                    success,
+                    message,
+                    userID,
+                    temporaryPassword
+                };
+
+                if (success)
+                {
+                    return Ok(response);
                 }
 
-                return BadRequest(result);
+                return BadRequest(response);
             }
             catch (Exception ex)
             {
@@ -63,12 +71,12 @@ namespace Server.Controllers
         }
 
         [HttpPut("access")]
-        public IActionResult UpdateUserAccess([FromBody] UpdateUserAccessRequest? request)
+        public IActionResult UpdateUserAccess([FromBody] AppUser? user)
         {
             try
             {
                 UserAccount model = new UserAccount();
-                bool updated = model.UpdateUserAccess(request);
+                bool updated = model.UpdateUserAccess(user);
                 if (updated)
                 {
                     return Ok(new { message = "User access updated successfully" });
@@ -83,18 +91,18 @@ namespace Server.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateUser(int id, [FromBody] UpdateUserRequest? request)
+        public IActionResult UpdateUser(int id, [FromBody] AppUser? user)
         {
             try
             {
-                if (request == null)
+                if (user == null)
                 {
                     return BadRequest(new { message = "Invalid request" });
                 }
 
-                request.UserID = id;
+                user.UserID = id;
                 UserAccount model = new UserAccount();
-                bool updated = model.UpdateUser(request);
+                bool updated = model.UpdateUser(user);
                 if (updated)
                 {
                     return Ok(new { message = "User updated successfully" });
@@ -109,18 +117,26 @@ namespace Server.Controllers
         }
 
         [HttpPost("reset-password")]
-        public IActionResult ResetPassword([FromBody] ResetPasswordRequest? request)
+        public IActionResult ResetPassword([FromBody] AppUser? user)
         {
             try
             {
                 UserAccount model = new UserAccount();
-                ResetPasswordResult result = model.ResetPassword(request);
-                if (result.Success)
+                int userID = user?.UserID ?? 0;
+                bool success = model.ResetPassword(userID, out string message, out string temporaryPassword);
+                object response = new
                 {
-                    return Ok(result);
+                    success,
+                    message,
+                    temporaryPassword
+                };
+
+                if (success)
+                {
+                    return Ok(response);
                 }
 
-                return BadRequest(result);
+                return BadRequest(response);
             }
             catch (Exception ex)
             {
@@ -134,18 +150,19 @@ namespace Server.Controllers
             try
             {
                 UserAccount model = new UserAccount();
-                ActionResultData result = model.DeleteUser(new DeleteUserRequest
+                bool success = model.DeleteUser(id, currentUserID, out string message);
+                object response = new
                 {
-                    UserID = id,
-                    CurrentUserID = currentUserID
-                });
+                    success,
+                    message
+                };
 
-                if (result.Success)
+                if (success)
                 {
-                    return Ok(result);
+                    return Ok(response);
                 }
 
-                return BadRequest(result);
+                return BadRequest(response);
             }
             catch (Exception ex)
             {

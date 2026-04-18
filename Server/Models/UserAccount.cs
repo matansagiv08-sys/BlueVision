@@ -63,53 +63,48 @@ namespace Server.Models
             };
         }
 
-        public CreateUserResult CreateUser(CreateUserRequest? request)
+        public bool CreateUser(AppUser? user, out string message, out int userID, out string temporaryPassword)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.FullName))
+            message = string.Empty;
+            userID = 0;
+            temporaryPassword = string.Empty;
+
+            if (user == null || string.IsNullOrWhiteSpace(user.Username) || string.IsNullOrWhiteSpace(user.FullName))
             {
-                return new CreateUserResult
-                {
-                    Success = false,
-                    Message = "Username and full name are required"
-                };
+                message = "Username and full name are required";
+                return false;
             }
 
             DBservices dbs = new DBservices();
-            AppUser? existing = dbs.GetUserByUsername(request.Username.Trim());
+            string username = user.Username.Trim();
+            AppUser? existing = dbs.GetUserByUsername(username);
             if (existing != null)
             {
-                return new CreateUserResult
-                {
-                    Success = false,
-                    Message = "Username already exists"
-                };
+                message = "Username already exists";
+                return false;
             }
 
-            string temporaryPassword = GenerateTemporaryPassword();
+            temporaryPassword = GenerateTemporaryPassword();
             string passwordHash = HashPassword(temporaryPassword);
 
-            AppUser user = new AppUser
+            AppUser userToInsert = new AppUser
             {
-                Username = request.Username.Trim(),
+                Username = username,
                 PasswordHash = passwordHash,
-                FullName = request.FullName.Trim(),
-                IsActive = request.IsActive,
+                FullName = user.FullName.Trim(),
+                IsActive = user.IsActive,
                 MustChangePassword = true,
-                CanViewProduction = request.CanViewProduction,
-                CanViewStock = request.CanViewStock,
-                CanManageUsers = request.CanManageUsers,
-                CreatedByUserID = request.CreatedByUserID
+                CanViewProduction = user.CanViewProduction,
+                CanViewStock = user.CanViewStock,
+                CanManageUsers = user.CanManageUsers,
+                CreatedByUserID = user.CreatedByUserID
             };
 
-            int newUserID = dbs.InsertUser(user);
+            userID = dbs.InsertUser(userToInsert);
+            bool success = userID > 0;
+            message = success ? "User created successfully" : "User creation failed";
 
-            return new CreateUserResult
-            {
-                Success = newUserID > 0,
-                Message = newUserID > 0 ? "User created successfully" : "User creation failed",
-                UserID = newUserID,
-                TemporaryPassword = temporaryPassword
-            };
+            return success;
         }
 
         public List<AppUser> GetAllUsers()
@@ -124,79 +119,73 @@ namespace Server.Models
             return dbs.GetUserByID(userID);
         }
 
-        public bool UpdateUser(UpdateUserRequest? request)
+        public bool UpdateUser(AppUser? user)
         {
-            if (request == null || request.UserID <= 0 || string.IsNullOrWhiteSpace(request.FullName))
+            if (user == null || user.UserID <= 0 || string.IsNullOrWhiteSpace(user.FullName))
             {
                 return false;
             }
 
-            AppUser user = new AppUser
+            AppUser userToUpdate = new AppUser
             {
-                UserID = request.UserID,
-                FullName = request.FullName.Trim(),
-                IsActive = request.IsActive,
-                CanViewProduction = request.CanViewProduction,
-                CanViewStock = request.CanViewStock,
-                CanManageUsers = request.CanManageUsers
+                UserID = user.UserID,
+                FullName = user.FullName.Trim(),
+                IsActive = user.IsActive,
+                CanViewProduction = user.CanViewProduction,
+                CanViewStock = user.CanViewStock,
+                CanManageUsers = user.CanManageUsers
             };
 
             DBservices dbs = new DBservices();
-            return dbs.UpdateUserDetails(user) > 0;
+            return dbs.UpdateUserDetails(userToUpdate) > 0;
         }
 
-        public bool UpdateUserAccess(UpdateUserAccessRequest? request)
+        public bool UpdateUserAccess(AppUser? user)
         {
-            if (request == null)
+            if (user == null || user.UserID <= 0)
             {
                 return false;
             }
 
-            AppUser user = new AppUser
+            AppUser userAccess = new AppUser
             {
-                UserID = request.UserID,
-                IsActive = request.IsActive,
-                CanViewProduction = request.CanViewProduction,
-                CanViewStock = request.CanViewStock,
-                CanManageUsers = request.CanManageUsers
+                UserID = user.UserID,
+                IsActive = user.IsActive,
+                CanViewProduction = user.CanViewProduction,
+                CanViewStock = user.CanViewStock,
+                CanManageUsers = user.CanManageUsers
             };
 
             DBservices dbs = new DBservices();
-            return dbs.UpdateUserAccess(user) > 0;
+            return dbs.UpdateUserAccess(userAccess) > 0;
         }
 
-        public ResetPasswordResult ResetPassword(ResetPasswordRequest? request)
+        public bool ResetPassword(int userID, out string message, out string temporaryPassword)
         {
-            if (request == null)
+            message = string.Empty;
+            temporaryPassword = string.Empty;
+
+            if (userID <= 0)
             {
-                return new ResetPasswordResult
-                {
-                    Success = false,
-                    Message = "Request is required"
-                };
+                message = "Request is required";
+                return false;
             }
 
             DBservices dbs = new DBservices();
-            AppUser? user = dbs.GetUserByID(request.UserID);
+            AppUser? user = dbs.GetUserByID(userID);
             if (user == null)
             {
-                return new ResetPasswordResult
-                {
-                    Success = false,
-                    Message = "User not found"
-                };
+                message = "User not found";
+                return false;
             }
 
-            string temporaryPassword = GenerateTemporaryPassword();
+            temporaryPassword = GenerateTemporaryPassword();
             string passwordHash = HashPassword(temporaryPassword);
-            int rows = dbs.UpdateUserPassword(request.UserID, passwordHash, true);
+            int rows = dbs.UpdateUserPassword(userID, passwordHash, true);
+            bool success = rows > 0;
+            message = success ? "Password reset successfully" : "Password reset failed";
 
-            return new ResetPasswordResult
-            {
-                Success = rows > 0,
-                Message = rows > 0 ? "Password reset successfully" : "Password reset failed",
-                TemporaryPassword = temporaryPassword
-            };
+            return success;
         }
 
         public ChangePasswordResult ChangePassword(ChangePasswordRequest? request)
@@ -241,43 +230,35 @@ namespace Server.Models
             };
         }
 
-        public ActionResultData DeleteUser(DeleteUserRequest? request)
+        public bool DeleteUser(int userID, int currentUserID, out string message)
         {
-            if (request == null || request.UserID <= 0)
+            message = string.Empty;
+
+            if (userID <= 0)
             {
-                return new ActionResultData
-                {
-                    Success = false,
-                    Message = "User is required"
-                };
+                message = "User is required";
+                return false;
             }
 
-            if (request.CurrentUserID > 0 && request.CurrentUserID == request.UserID)
+            if (currentUserID > 0 && currentUserID == userID)
             {
-                return new ActionResultData
-                {
-                    Success = false,
-                    Message = "Cannot delete current logged-in user"
-                };
+                message = "Cannot delete current logged-in user";
+                return false;
             }
 
             DBservices dbs = new DBservices();
-            AppUser? user = dbs.GetUserByID(request.UserID);
+            AppUser? user = dbs.GetUserByID(userID);
             if (user == null)
             {
-                return new ActionResultData
-                {
-                    Success = false,
-                    Message = "User not found"
-                };
+                message = "User not found";
+                return false;
             }
 
-            int rows = dbs.DeleteUser(request.UserID);
-            return new ActionResultData
-            {
-                Success = rows > 0,
-                Message = rows > 0 ? "User deleted successfully" : "User delete failed"
-            };
+            int rows = dbs.DeleteUser(userID);
+            bool success = rows > 0;
+            message = success ? "User deleted successfully" : "User delete failed";
+
+            return success;
         }
 
         private static string HashPassword(string password)
@@ -339,56 +320,6 @@ namespace Server.Models
         public bool CanManageUsers { get; set; }
     }
 
-    public class CreateUserRequest
-    {
-        public string Username { get; set; } = string.Empty;
-        public string FullName { get; set; } = string.Empty;
-        public bool IsActive { get; set; } = true;
-        public bool CanViewProduction { get; set; }
-        public bool CanViewStock { get; set; }
-        public bool CanManageUsers { get; set; }
-        public int? CreatedByUserID { get; set; }
-    }
-
-    public class UpdateUserRequest
-    {
-        public int UserID { get; set; }
-        public string FullName { get; set; } = string.Empty;
-        public bool IsActive { get; set; }
-        public bool CanViewProduction { get; set; }
-        public bool CanViewStock { get; set; }
-        public bool CanManageUsers { get; set; }
-    }
-
-    public class CreateUserResult
-    {
-        public bool Success { get; set; }
-        public string Message { get; set; } = string.Empty;
-        public int UserID { get; set; }
-        public string TemporaryPassword { get; set; } = string.Empty;
-    }
-
-    public class UpdateUserAccessRequest
-    {
-        public int UserID { get; set; }
-        public bool IsActive { get; set; }
-        public bool CanViewProduction { get; set; }
-        public bool CanViewStock { get; set; }
-        public bool CanManageUsers { get; set; }
-    }
-
-    public class ResetPasswordRequest
-    {
-        public int UserID { get; set; }
-    }
-
-    public class ResetPasswordResult
-    {
-        public bool Success { get; set; }
-        public string Message { get; set; } = string.Empty;
-        public string TemporaryPassword { get; set; } = string.Empty;
-    }
-
     public class ChangePasswordRequest
     {
         public int UserID { get; set; }
@@ -402,15 +333,4 @@ namespace Server.Models
         public string Message { get; set; } = string.Empty;
     }
 
-    public class DeleteUserRequest
-    {
-        public int UserID { get; set; }
-        public int CurrentUserID { get; set; }
-    }
-
-    public class ActionResultData
-    {
-        public bool Success { get; set; }
-        public string Message { get; set; } = string.Empty;
-    }
 }

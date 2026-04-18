@@ -116,17 +116,17 @@ namespace Server.Models
             return dbs.GetTasksBoard();
         }
 
-        public ItemsInProductionInitialFormData GetInitialFormData()
+        public object GetInitialFormData()
         {
             DBservices dbs = new DBservices();
-            return new ItemsInProductionInitialFormData
+            return new
             {
-                ProductionItems = dbs.GetProductionItems(),
-                Projects = dbs.GetProjects(),
-                PlaneTypes = dbs.GetPlaneTypes(),
-                ExistingWorkOrders = dbs.GetUniqueWorkOrders(),
-                Priorities = dbs.GetPriorityLevels(),
-                Planes = dbs.GetPlanes()
+                productionItems = dbs.GetProductionItems(),
+                projects = dbs.GetProjects(),
+                planeTypes = dbs.GetPlaneTypes(),
+                existingWorkOrders = dbs.GetUniqueWorkOrders(),
+                priorities = dbs.GetPriorityLevels(),
+                planes = dbs.GetPlanes()
             };
         }
 

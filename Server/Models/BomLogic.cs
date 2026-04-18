@@ -2,7 +2,7 @@ using Server.DAL;
 
 namespace Server.Models;
 
-public class BomModel
+public class BomLogic
 {
     public List<BomRow> GetBomRows(
         int page = 1,
@@ -20,15 +20,24 @@ public class BomModel
         return dbs.GetBomRows(page, pageSize, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
     }
 
-    public List<BomPlaneOption> GetBomPlaneOptions()
+    public List<object> GetBomPlaneOptions()
     {
         DBservices dbs = new DBservices();
         return dbs.GetBomPlaneOptions();
     }
 
-    public BomFilterOptions GetBomFilterOptions(int? planeTypeId = null)
+    public object GetBomFilterOptions(int? planeTypeId = null)
     {
         DBservices dbs = new DBservices();
-        return dbs.GetBomFilterOptions(planeTypeId);
+        var optionsData = dbs.GetBomFilterOptions(planeTypeId);
+        return new 
+        {
+            MeasureUnits = optionsData.MeasureUnits,
+            Warehouses = optionsData.Warehouses,
+            BomLevels = optionsData.BomLevels,
+            HasChildOptions = optionsData.HasChildOptions,
+            BuyMethods = optionsData.BuyMethods,
+            BodyPlanes = optionsData.BodyPlanes
+        };
     }
 }

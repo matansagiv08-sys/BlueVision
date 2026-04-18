@@ -130,9 +130,9 @@ public class DBservices
         }
     }
 
-    public List<BomPlaneOption> GetBomPlaneOptions()
+    public List<object> GetBomPlaneOptions()
     {
-        List<BomPlaneOption> options = new List<BomPlaneOption>();
+        List<object> options = new List<object>();
 
         SqlConnection con = null;
         try
@@ -144,7 +144,7 @@ public class DBservices
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                options.Add(new BomPlaneOption
+                options.Add(new
                 {
                     PlaneTypeID = Convert.ToInt32(reader["PlaneTypeID"]),
                     PlaneTypeName = reader["PlaneTypeName"]?.ToString() ?? string.Empty
@@ -232,9 +232,14 @@ public class DBservices
         }
     }
 
-    public BomFilterOptions GetBomFilterOptions(int? planeTypeId = null)
+    public (List<string> MeasureUnits, List<string> Warehouses, List<int> BomLevels, List<bool> HasChildOptions, List<string> BuyMethods, List<string> BodyPlanes) GetBomFilterOptions(int? planeTypeId = null)
     {
-        BomFilterOptions options = new BomFilterOptions();
+        List<string> measureUnits = new List<string>();
+        List<string> warehouses = new List<string>();
+        List<int> bomLevels = new List<int>();
+        List<bool> hasChildOptions = new List<bool>();
+        List<string> buyMethods = new List<string>();
+        List<string> bodyPlanes = new List<string>();
 
         SqlConnection con = null;
         try
@@ -249,34 +254,34 @@ public class DBservices
             cmd.CommandType = CommandType.StoredProcedure;
             SqlDataReader reader = cmd.ExecuteReader();
 
-            while (reader.Read()) options.MeasureUnits.Add(reader["Value"]?.ToString() ?? string.Empty);
+            while (reader.Read()) measureUnits.Add(reader["Value"]?.ToString() ?? string.Empty);
 
             if (reader.NextResult())
             {
-                while (reader.Read()) options.Warehouses.Add(reader["Value"]?.ToString() ?? string.Empty);
+                while (reader.Read()) warehouses.Add(reader["Value"]?.ToString() ?? string.Empty);
             }
 
             if (reader.NextResult())
             {
-                while (reader.Read()) options.BomLevels.Add(Convert.ToInt32(reader["BomLevel"]));
+                while (reader.Read()) bomLevels.Add(Convert.ToInt32(reader["BomLevel"]));
             }
 
             if (reader.NextResult())
             {
-                while (reader.Read()) options.HasChildOptions.Add(Convert.ToBoolean(reader["HasChild"]));
+                while (reader.Read()) hasChildOptions.Add(Convert.ToBoolean(reader["HasChild"]));
             }
 
             if (reader.NextResult())
             {
-                while (reader.Read()) options.BuyMethods.Add(reader["Value"]?.ToString() ?? string.Empty);
+                while (reader.Read()) buyMethods.Add(reader["Value"]?.ToString() ?? string.Empty);
             }
 
             if (reader.NextResult())
             {
-                while (reader.Read()) options.BodyPlanes.Add(reader["Value"]?.ToString() ?? string.Empty);
+                while (reader.Read()) bodyPlanes.Add(reader["Value"]?.ToString() ?? string.Empty);
             }
 
-            return options;
+            return (measureUnits, warehouses, bomLevels, hasChildOptions, buyMethods, bodyPlanes);
         }
         catch (Exception)
         {
@@ -1336,10 +1341,10 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
-    public List<PriorityOption> GetPriorityLevels()
+    public List<object> GetPriorityLevels()
     {
         SqlConnection con = null;
-        List<PriorityOption> list = new List<PriorityOption>();
+        List<object> list = new List<object>();
         try
         {
             con = connect("myProjDB");
@@ -1348,10 +1353,10 @@ public class DBservices
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                list.Add(new PriorityOption
+                list.Add(new
                 {
-                    ID = Convert.ToInt32(reader["PriorityID"]),
-                    Name = reader["PriorityName"]?.ToString() ?? string.Empty
+                    id = Convert.ToInt32(reader["PriorityID"]),
+                    name = reader["PriorityName"]?.ToString() ?? string.Empty
                 });
             }
             return list;
@@ -1363,10 +1368,10 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
-    public List<PlaneOption> GetPlanes()
+    public List<object> GetPlanes()
     {
         SqlConnection con = null;
-        List<PlaneOption> list = new List<PlaneOption>();
+        List<object> list = new List<object>();
         try
         {
             con = connect("myProjDB");
@@ -1375,11 +1380,11 @@ public class DBservices
             SqlDataReader reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                list.Add(new PlaneOption
+                list.Add(new
                 {
-                    PlaneID = reader["PlaneID"]?.ToString() ?? string.Empty,
-                    TypeID = Convert.ToInt32(reader["PlaneTypeID"]),
-                    ProjectID = Convert.ToInt32(reader["ProjectID"])
+                    planeID = reader["PlaneID"]?.ToString() ?? string.Empty,
+                    typeID = Convert.ToInt32(reader["PlaneTypeID"]),
+                    projectID = Convert.ToInt32(reader["ProjectID"])
                 });
             }
             return list;
