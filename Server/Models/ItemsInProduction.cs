@@ -182,6 +182,8 @@ namespace Server.Models
         }
     }
 
+    //DTO 
+    //מחלקת עזר להוספת פריט חדש לייצור
     public class InsertItemInProductionRequest
     {
         public string? ProjectName { get; set; }
@@ -198,6 +200,9 @@ namespace Server.Models
         public string? Comments { get; set; }
     }
 
+
+    //DTO
+    //מחלקת עזר לעריכת סטטוס לפריט בתחנה
     public class UpdateProductionStatusRequest
     {
         public int? SerialNumber { get; set; }
@@ -208,4 +213,4 @@ namespace Server.Models
         public DateTime? UserTime { get; set; }
         public bool? ResetFuture { get; set; }
     }
-} // סיום ה-Namespace
+} 

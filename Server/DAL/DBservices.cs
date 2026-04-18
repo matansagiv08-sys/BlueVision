@@ -1130,7 +1130,6 @@ public class DBservices
         }
     }
 
-
     //שליפת כל תחנות העבודה
     public List<ProductionStage> GetProductionStages()
     {
@@ -1653,11 +1652,14 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+
+    //הוספת פריט חדש לייצור
     public int InsertItemInProduction(InsertItemInProductionRequest item)
     {
         const int defaultProjectPriority = 2;
 
         SqlConnection con = null;
+        //שימוש בטרנזקציה כדי שלא ישמרו חלק מהנתונים במידה ולא כל הנתונים תקינים או הוכנסו כראוי
         SqlTransaction trans = null;
 
         try
@@ -1676,9 +1678,11 @@ public class DBservices
             DateTime itemDueDate = (item.DueDate ?? DateTime.Today).Date;
             int projectPriorityLevel = item.ProjectPriorityLevel ?? defaultProjectPriority;
 
+            //קריאה לפונקציה שמוסיפה מטוס ופרוייקט אם המשתמש מזין ערך חדש
             HandleProjectAndPlane(con, trans, projectName, planeID, planeTypeID, projectDueDate, projectPriorityLevel);
-            HandleWorkOrder(con, trans, workOrderID); 
-
+            //קריאה לפונקציה שמוסיפה פק"ע חדש במידה והמשתמש הזין ערך חדש
+            HandleWorkOrder(con, trans, workOrderID);
+            //יצירת פריט לייצור חדש בטבלה
             using (SqlCommand mainCmd = new SqlCommand("dbo.SP_InsertItemInProduction", con, trans))
             {
                 mainCmd.CommandType = CommandType.StoredProcedure;
@@ -1692,7 +1696,7 @@ public class DBservices
                 mainCmd.Parameters.AddWithValue("@comments", (object)item.Comments ?? DBNull.Value);
                 mainCmd.ExecuteNonQuery();
             }
-
+            //קריאה לפונקציה שמוסיפה תחנות עבודה לפריט החדש שהוכנס
             InsertStagesForProduct(con, trans, serialNumber, productionItemID);
 
             trans.Commit();
@@ -1706,6 +1710,8 @@ public class DBservices
         finally { if (con != null) con.Close(); }
     }
 
+
+    //הוספת פקודת עבודה חדשה במידה והמשתמש הוסיף בתהליך הוספת פריט
     private void HandleWorkOrder(SqlConnection con, SqlTransaction trans, string workOrderID)
     {
         if (string.IsNullOrEmpty(workOrderID)) return;
@@ -1718,6 +1724,8 @@ public class DBservices
         }
     }
 
+
+    //הוספת פרוייקט ומטוס חדשים במידה והמשתמש הוסיף בתהליך של הוספת פריט
     private void HandleProjectAndPlane(SqlConnection con, SqlTransaction trans, string projectName, string planeID, int planeTypeID, DateTime dueDate, int projectPriorityLevel)
     {
         using (SqlCommand cmd = new SqlCommand("dbo.SP_HandleProjectAndPlane", con, trans))
@@ -1731,6 +1739,8 @@ public class DBservices
             cmd.ExecuteNonQuery();
         }
     }
+
+    //יצירת תחנות עבור פריט ייצור חדש שנוצר במערכת
     private void InsertStagesForProduct(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID)
     {
         using (SqlCommand cmd = new SqlCommand("dbo.SP_InsertStagesForProduct", con, trans))
@@ -1741,6 +1751,9 @@ public class DBservices
             cmd.ExecuteNonQuery();
         }
     }
+
+    //עדכון סטטוס לתחנה ספציפית
+    //הפונקציה מקבלת את הפריט והתחנה שהוא נמצא, את הסטטוס החדש והנתונים הנוספים במידה והוסיף
     public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime, bool resetFuture)
     {
         SqlConnection con = null;
@@ -1761,11 +1774,10 @@ public class DBservices
             { "@NewStatusID", newStatusID },
             { "@Comment", (object)comment ?? DBNull.Value },
             { "@UserTime", (object)userTime ?? DBNull.Value },
-            { "@ResetFuture", resetFuture } // הוספת הפרמטר שחסר ל-SQL
+            { "@ResetFuture", resetFuture } 
         };
 
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spItemsInProduction_UpdateStageStatus", con, paramDic);
-            // שים לב: CreateCommandWithStoredProcedureGeneral כבר מגדירה CommandType ו-Parameters
             cmd.ExecuteNonQuery();
 
             return 1;
