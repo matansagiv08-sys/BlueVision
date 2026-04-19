@@ -1,10 +1,15 @@
-﻿$(document).ready(function () {
+﻿//$(document).ready(function () {
+//    console.log("Projects Status: DOM ready.");
+//    if (typeof ajaxCall === 'undefined') {
+//        $.getScript("../../../JS/ajaxCalls.js").done(() => loadFullProjectsStatus());
+//    } else {
+//        loadFullProjectsStatus();
+//    }
+//});
+
+$(document).ready(function () {
     console.log("Projects Status: DOM ready.");
-    if (typeof ajaxCall === 'undefined') {
-        $.getScript("../../../JS/ajaxCalls.js").done(() => loadFullProjectsStatus());
-    } else {
-        loadFullProjectsStatus();
-    }
+    loadFullProjectsStatus();
 });
 
 function loadFullProjectsStatus() {

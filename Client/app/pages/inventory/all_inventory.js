@@ -1,11 +1,16 @@
+//global variables that store the current state of the Inventory page
+//actual rows returned from the server
 let fullInventoryData = [];
+//pagination and filter state
 let currentInventoryPage = 1;
 const inventoryPageSize = 100;
 let lastLoadedCount = 0;
 let knownLastInventoryPage = null;
+//main filters
 let currentSearch = "";
 let currentStockStatus = "all";
 let currentPlaneTypeId = "all";
+//advanced filters
 let advancedBuyMethod = "all";
 let advancedItemGrpID = "all";
 let advancedSupplierID = "all";
@@ -18,13 +23,16 @@ window.initAllInventory = function () {
     loadInventoryPage(1);
 };
 
+//renders the inventory table based on the current page and filters
 function loadInventoryPage(page) {
     if (page < 1) return;
     if (knownLastInventoryPage !== null && page > knownLastInventoryPage) return;
 
+    //construct query parameters based on current filters and pagination state.
     const params = new URLSearchParams();
     params.set("page", page);
     params.set("pageSize", inventoryPageSize);
+    //add filters to the query params only if they are set to a specific value
     if (currentSearch) params.set("search", currentSearch);
     if (currentStockStatus && currentStockStatus !== "all") params.set("stockStatus", currentStockStatus);
     if (currentPlaneTypeId && currentPlaneTypeId !== "all") params.set("planeTypeId", currentPlaneTypeId);
@@ -33,6 +41,7 @@ function loadInventoryPage(page) {
     if (advancedSupplierID && advancedSupplierID !== "all") params.set("supplierID", advancedSupplierID);
     if (advancedBodyPlane && advancedBodyPlane !== "all") params.set("bodyPlane", advancedBodyPlane);
     if (advancedLastPODate) params.set("lastPODate", advancedLastPODate);
+    //example for what params might look like: page=1&pageSize=100&buyMethod=B&supplierID=5
 
     const apiUrl = `https://localhost:7296/api/InventoryItems?${params.toString()}`;
 
@@ -41,10 +50,11 @@ function loadInventoryPage(page) {
         apiUrl,
         null,
         function (data) {
+            //ensures the vaiable is always an array no matter how the data was sent
             fullInventoryData = Array.isArray(data)
                 ? data
                 : (Array.isArray(data?.$values) ? data.$values : []);
-
+            //pagination logic to know when we are the last page. 
             currentInventoryPage = page;
             lastLoadedCount = fullInventoryData.length;
             if (lastLoadedCount < inventoryPageSize) {
@@ -65,10 +75,12 @@ function loadInventoryPage(page) {
     );
 }
 
+//Renders the inventory items into the HTML table. It maps each item to a table row
 function renderInventoryTable(data) {
     const tbody = document.getElementById("inventory-table-body");
     if (!tbody) return;
 
+    //.map loops through each item in the data array and returns a string of HTML for a table row
     tbody.innerHTML = data.map(item => {
         const inventoryItemID = item.inventoryItemID ?? item.InventoryItemID ?? "";
         const itemName = item.itemName ?? item.ItemName ?? "";
@@ -108,6 +120,7 @@ function renderInventoryTable(data) {
     }).join("");
 }
 
+//displays the value or a dash if the value is null, undefined, or an empty string after trimming.
 function displayOrDash(value) {
     if (value === null || value === undefined) return "-";
     const text = String(value).trim();
@@ -123,6 +136,7 @@ function escapeHtml(value) {
         .replace(/'/g, "&#39;");
 }
 
+//Event handlers for filter changes and pagination controls. They update the relevant state variables and reload the inventory data accordingly.
 window.filterInventory = function () {
     currentSearch = (document.getElementById("inventorySearch")?.value || "").trim();
     currentStockStatus = document.getElementById("stockStatusFilter")?.value || "all";
@@ -131,6 +145,7 @@ window.filterInventory = function () {
     loadInventoryPage(1);
 };
 
+//three functions called in html page
 window.sortInventory = function () {
     renderInventoryTable(fullInventoryData);
 };
@@ -147,6 +162,7 @@ window.nextInventoryPage = function () {
     }
 };
 
+//Updates the state of the pagination controls (previous/next buttons and page numbers) based on the current page, known last page, and how many items were loaded in the last request.
 function updateInventoryPager() {
     const prevBtn = document.getElementById("prevInventoryPageBtn");
     const nextBtn = document.getElementById("nextInventoryPageBtn");
@@ -192,6 +208,7 @@ window.goToInventoryPage = function (page) {
     loadInventoryPage(page);
 };
 
+// Loads options for filters from the server and populates the filter dropdowns. Called on page init.
 function loadInventoryFilterOptions() {
     ajaxCall(
         "GET",
@@ -206,6 +223,7 @@ function loadInventoryFilterOptions() {
     );
 }
 
+//5 window functinos related to actions done in through html
 window.openAdvancedInventoryFilters = function () {
     syncAdvancedFilterControls();
     const modal = document.getElementById("advancedInventoryFiltersModal");
@@ -267,6 +285,7 @@ window.clearAllInventoryFilters = function () {
 };
 
 function populateFilterOptions(options) {
+    //html elements for the filters
     const platformSelect = document.getElementById("platformFilter");
     const buyMethodSelect = document.getElementById("advBuyMethod");
     const itemGrpSelect = document.getElementById("advItemGrpID");
@@ -274,24 +293,30 @@ function populateFilterOptions(options) {
     const bodyPlaneSelect = document.getElementById("advBodyPlane");
     if (!platformSelect || !buyMethodSelect || !itemGrpSelect || !supplierSelect || !bodyPlaneSelect) return;
 
+    //extracting options arrays from the response, with support for different possible property names and formats
+    //if a is an array , use it, if not check if A is an array and use it, otherwise default to empty array (a : b : [])
     const platforms = Array.isArray(options.platforms) ? options.platforms : (Array.isArray(options.Platforms) ? options.Platforms : []);
     const buyMethods = Array.isArray(options.buyMethods) ? options.buyMethods : (Array.isArray(options.BuyMethods) ? options.BuyMethods : []);
     const groups = Array.isArray(options.groups) ? options.groups : (Array.isArray(options.Groups) ? options.Groups : []);
     const suppliers = Array.isArray(options.suppliers) ? options.suppliers : (Array.isArray(options.Suppliers) ? options.Suppliers : []);
     const bodyPlanes = Array.isArray(options.bodyPlanes) ? options.bodyPlanes : (Array.isArray(options.BodyPlanes) ? options.BodyPlanes : []);
 
+    //populate platform filter, each time adds another <option>. We start with a default "all" option, then add options from the response.
     platformSelect.innerHTML = '<option value="all">כל הפלטפורמות</option>';
     platforms.forEach(platform => {
         const id = platform.planeTypeID ?? platform.PlaneTypeID;
         const name = (platform.planeTypeName ?? platform.PlaneTypeName ?? "").toString().trim();
         if (id === undefined || id === null || name === "") return;
+        //escapeHtml is used to prevent XSS in case the server returns malicious data. It converts special characters to HTML entities.
         platformSelect.insertAdjacentHTML("beforeend", `<option value="${id}">${escapeHtml(name)}</option>`);
     });
 
+    //take buyMethods (which is already an array), clean and normalize each value (map), remove unwanted values (filter), and then loop through 
+    //the cleaned results(forEach) to create < option > elements one by one
     buyMethodSelect.innerHTML = '<option value="all">הכל</option>';
     buyMethods
         .map(v => String(v ?? "").trim())
-        .filter(v => v !== "")
+        .filter(v => v !== "") 
         .forEach(value => {
             buyMethodSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`);
         });
@@ -320,10 +345,12 @@ function populateFilterOptions(options) {
             bodyPlaneSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`);
     });
 
+    //after user selects options, this is how we set the filter selections
     syncAdvancedFilterControls();
     if (platformSelect) platformSelect.value = currentPlaneTypeId;
 }
 
+//Counts how many advanced filters are currently active (not set to "all" or empty) and returns that count. Used for the badge on the "Advanced Filters" button.
 function getAdvancedFiltersCount() {
     let count = 0;
     if (advancedBuyMethod !== "all") count++;
@@ -334,6 +361,7 @@ function getAdvancedFiltersCount() {
     return count;
 }
 
+//Updates the badge on the "Advanced Filters" button to show how many advanced filters are currently active
 function updateAdvancedFiltersBadge() {
     const badge = document.getElementById("advancedFiltersCount");
     if (!badge) return;
@@ -343,6 +371,7 @@ function updateAdvancedFiltersBadge() {
     badge.hidden = count === 0;
 }
 
+//shows selected advanced filters in the modal when opened, by setting the value of each control to the corresponding state variable
 function syncAdvancedFilterControls() {
     const buyMethodEl = document.getElementById("advBuyMethod");
     const itemGrpEl = document.getElementById("advItemGrpID");

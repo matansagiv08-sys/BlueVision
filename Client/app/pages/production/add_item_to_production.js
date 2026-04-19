@@ -2,11 +2,11 @@ const server = "https://localhost:7296/";
 let allData = {};
 
 window.initAddItemToProduction = function () {
-    if (typeof ajaxCall === 'undefined') {
-        $.getScript("../../../JS/ajaxCalls.js").done(() => loadInitialData());
-    } else {
-        loadInitialData();
-    }
+    //if (typeof ajaxCall === 'undefined') {
+    //    $.getScript("../../../JS/ajaxCalls.js").done(() => loadInitialData());
+    //} else {
+    //    loadInitialData();
+    //}
 
     // 1. סנכרון שם פריט לפי הקלדת מק"ט
     $('#item-code-input').off('input').on('input', function () {

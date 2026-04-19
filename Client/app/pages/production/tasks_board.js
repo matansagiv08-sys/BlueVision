@@ -1,9 +1,13 @@
+//window.initTasksBoard = function () {
+//    if (typeof ajaxCall === 'undefined') {
+//        $.getScript("../../../JS/ajaxCalls.js").done(() => initBoard());
+//    } else {
+//        initBoard();
+//    }
+//};
+
 window.initTasksBoard = function () {
-    if (typeof ajaxCall === 'undefined') {
-        $.getScript("../../../JS/ajaxCalls.js").done(() => initBoard());
-    } else {
-        initBoard();
-    }
+    initBoard();
 };
 
 window.closeTaskStatusModal = function () {
