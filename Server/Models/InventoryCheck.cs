@@ -18,6 +18,7 @@ public class InventoryCheck
         response.Mode = mode;
         string targetBodyPlane = mode == "body" ? "B" : "P";
 
+        //Aggregates and cleans the input by grouping requests per plane type and summing their quantities into a dictionary.
         Dictionary<int, int> planeRequests = request.Requests
             .Where(r => r != null && r.PlaneTypeID > 0 && r.Quantity > 0)
             .GroupBy(r => r.PlaneTypeID)
@@ -37,11 +38,13 @@ public class InventoryCheck
         Dictionary<string, AggregatedBomNeed> needsByItem = new Dictionary<string, AggregatedBomNeed>(StringComparer.OrdinalIgnoreCase);
         bool debugBomExplosion = false;
 
+        //This loop goes plane type by plane type
         foreach (KeyValuePair<int, int> requestEntry in planeRequests)
         {
             int planeTypeId = requestEntry.Key;
             int requestedQty = requestEntry.Value;
 
+            //the row order is important for the upward scan calculation, so we order them here
             List<BomRow> rowsForPlane = bomRows
                 .Where(r => r.PlaneTypeID == planeTypeId)
                 .OrderBy(r => r.RowOrder)
@@ -52,6 +55,7 @@ public class InventoryCheck
                 continue;
             }
 
+            //This loop goes row by row through the BOM and does 2 filterr - buymethod B and itemsID exists
             for (int rowIndex = 0; rowIndex < rowsForPlane.Count; rowIndex++)
             {
                 BomRow row = rowsForPlane[rowIndex];
@@ -67,8 +71,10 @@ public class InventoryCheck
                     continue;
                 }
 
+                //calculate the effective quantity required for this buy row by doing an upward scan through the BOM levels to multiply the quantities along the path
                 decimal effectiveQty = CalculateBuyRowRequiredQtyByUpwardScan(rowsForPlane, rowIndex, requestedQty, debugBomExplosion);
 
+                //aggregate the effective quantity into the needsByItem dictionary, if the item already has an entry, we sum the required quantity and add the plane type to the contributing planes set, otherwise we create a new entry
                 if (!needsByItem.TryGetValue(itemId, out AggregatedBomNeed? existing))
                 {
                     existing = new AggregatedBomNeed
@@ -90,8 +96,10 @@ public class InventoryCheck
             return response;
         }
 
+        //gets current stock for all items in the needs list with a single query to the database and stores it in a dictionary for quick access
         Dictionary<string, InventorySnapshot> stockByItem = dbs.GetInventorySnapshotsForItems(needsByItem.Keys.ToList());
 
+        //compares required quantity vs stock
         foreach (AggregatedBomNeed need in needsByItem.Values)
         {
             stockByItem.TryGetValue(need.InventoryItemID, out InventorySnapshot? stock);
@@ -115,6 +123,7 @@ public class InventoryCheck
                 .OrderBy(id => id)
                 .Select(id => planeTypeNames.TryGetValue(id, out string? name) ? name : id.ToString()));
 
+            //for each item that has a shortage, we create an InventoryCheckShortageItem object with all the relevant information and add it to the response list
             InventoryCheckShortageItem item = new InventoryCheckShortageItem
             {
                 InventoryItemID = need.InventoryItemID,
@@ -132,11 +141,13 @@ public class InventoryCheck
             response.Items.Add(item);
         }
 
+        //sort the response items by shortage quantity desc, then by item id asc
         response.Items = response.Items
             .OrderByDescending(i => i.ShortageQty)
             .ThenBy(i => i.InventoryItemID)
             .ToList();
 
+        //calculate the summary fields for the response which are displayed at the top of the client page
         response.TotalShortageItems = response.Items.Count;
         response.TotalShortageUnits = Decimal.Round(response.Items.Sum(i => i.ShortageQty), 4);
         response.TotalEstimatedCost = Decimal.Round(response.Items.Sum(i => (decimal)(i.Price ?? 0d) * i.ShortageQty), 2);
@@ -144,6 +155,7 @@ public class InventoryCheck
         return response;
     }
 
+    //How many units of this buy item are needed for the requested number of planes, based on the BOM hierarchy and the quantities specified at each level.
     private static decimal CalculateBuyRowRequiredQtyByUpwardScan(
         List<BomRow> rowsForPlane,
         int currentRowIndex,
@@ -159,6 +171,7 @@ public class InventoryCheck
             Debug.WriteLine($"[BOM UPWARD] Start Item={currentRow.InventoryItemID} RowOrder={currentRow.RowOrder} Level={currentLevel} RowQty={currentRow.Quantity ?? 0m}");
         }
 
+        //searching for the parent level which is -1 than the current level in an upward scan
         int targetLevel = currentLevel - 1;
         int searchIndex = currentRowIndex - 1;
 
@@ -166,6 +179,7 @@ public class InventoryCheck
         {
             int foundIndex = -1;
 
+            //loops in an upward scan looking for the first row that matches the target level
             for (int i = searchIndex; i >= 0; i--)
             {
                 int candidateLevel = rowsForPlane[i].BomLevel <= 0 ? 1 : rowsForPlane[i].BomLevel;
@@ -185,6 +199,7 @@ public class InventoryCheck
                 break;
             }
 
+            //multiplies the parent row quantity with the quantity calculated so far
             BomRow ancestor = rowsForPlane[foundIndex];
             decimal ancestorQty = ancestor.Quantity ?? 0m;
             effectiveQty *= ancestorQty;

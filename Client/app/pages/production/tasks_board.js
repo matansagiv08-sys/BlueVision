@@ -10,6 +10,7 @@ window.initTasksBoard = function () {
     initBoard();
 };
 
+// פונקציה לסגירת המודל של עדכון סטטוס
 window.closeTaskStatusModal = function () {
     const modal = document.getElementById("tbStatusModal");
     if (modal) {
