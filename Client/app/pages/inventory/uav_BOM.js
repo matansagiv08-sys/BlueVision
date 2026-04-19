@@ -326,6 +326,7 @@ function populateHasChildSelect(values, placeholderText) {
     currentBomHasChild = select.value;
 }
 
+//פונקציית עזר לבדיקה של מה המשתמש בחר לפילטור
 function readFilterValue(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return "";

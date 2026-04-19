@@ -232,6 +232,7 @@ public class DBservices
         }
     }
 
+    //שליפת השדות עבור הצגת אופציות הפילטור בדף עץ מוצר
     public (List<string> MeasureUnits, List<string> Warehouses, List<int> BomLevels, List<bool> HasChildOptions, List<string> BuyMethods, List<string> BodyPlanes) GetBomFilterOptions(int? planeTypeId = null)
     {
         List<string> measureUnits = new List<string>();
@@ -518,6 +519,7 @@ public class DBservices
         }
     }
 
+    //הכנסת הנתונים שנשלפו מהאקסל לDB
     public InventoryImportResult ImportInventoryDataToDatabase(InventoryImportData importData)
     {
         int insertedGroups = 0;
@@ -595,7 +597,7 @@ public class DBservices
                     bomRow.BodyPlane ?? (object)DBNull.Value
                 );
             }
-
+            //מחיקת הנתונים הקיימים והחלפת בנתונים החדשים שנשלפו
             using (SqlCommand deleteBomCmd = new SqlCommand("dbo.SP_TruncateBom", con))
             {
                 deleteBomCmd.CommandType = CommandType.StoredProcedure;
@@ -620,7 +622,7 @@ public class DBservices
                 bomBulkCopy.ColumnMappings.Add("BodyPlane", "BodyPlane");
                 bomBulkCopy.WriteToServer(bomTable);
             }
-
+            //סנכרון פרטי הייצור בנתונים החדשים
             using (SqlCommand syncProductionItemsCmd = new SqlCommand("dbo.SP_SyncProductionItemsFromBom", con))
             {
                 syncProductionItemsCmd.CommandType = CommandType.StoredProcedure;
@@ -634,7 +636,7 @@ public class DBservices
                     finalProductionItemsCount = syncReader["FinalProductionItemsCount"] == DBNull.Value ? 0 : Convert.ToInt32(syncReader["FinalProductionItemsCount"]);
                 }
             }
-
+            //הכנסת רשימת הספקים
             using (SqlCommand supplierCmd = new SqlCommand("dbo.SP_InsertSupplierIfMissing", con))
             {
                 supplierCmd.CommandType = CommandType.StoredProcedure;
@@ -650,7 +652,7 @@ public class DBservices
                     }
                 }
             }
-
+            //שליפת הספקים 
             using (SqlCommand selectSuppliersCmd = new SqlCommand("dbo.SP_GetSuppliersForImport", con))
             {
                 selectSuppliersCmd.CommandType = CommandType.StoredProcedure;

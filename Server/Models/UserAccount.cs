@@ -284,6 +284,7 @@ namespace Server.Models
         }
     }
 
+    //נתוני משתמש
     public class AppUser
     {
         public int UserID { get; set; }

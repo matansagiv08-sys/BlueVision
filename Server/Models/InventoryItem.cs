@@ -31,10 +31,10 @@ public class InventoryItem
         string finalPath = ResolveExcelPath(filePath);
         Console.WriteLine("Using Excel file: " + finalPath);
         Console.WriteLine("Excel last modified: " + File.GetLastWriteTime(finalPath).ToString("yyyy-MM-dd HH:mm:ss"));
-
+        //פתיחת הקובץ גם אם פתוח במחשב ולקריאה בלבד
         using FileStream excelStream = new FileStream(finalPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using XLWorkbook workbook = new XLWorkbook(excelStream);
-
+        //גישה לגליונות האקסל
         IXLWorksheet detailsSheet = workbook.Worksheet("פריטים ומלאים");
         IXLWorksheet supplierSheet = workbook.Worksheet("ספק אחרון לפריט");
         IXLWorksheet wbBomSheet = workbook.Worksheet("עץ מוצר WB");
@@ -44,24 +44,26 @@ public class InventoryItem
         Dictionary<string, string> itemToBuyMethod = BuildItemToBuyMethodMap(detailsSheet);
         Dictionary<string, string> itemToSupplierMap = BuildItemToSupplierMap(supplierSheet);
         Dictionary<string, DateTime> itemToLastPODateMap = BuildItemToLastPODateMap(supplierSheet);
+
+        //יצירת רשימה של עץ מוצר מסוגי המטוסים
         List<BomRow> wbBomRows = BuildBomRowsForSheet(wbBomSheet, "WB");
         List<BomRow> tbvBomRows = BuildBomRowsForSheet(tbvBomSheet, "TBV");
-
+        //  חישוב האם החלק מיועד לגוף או למטוס
         CalculateBodyPlaneForBomRows(wbBomRows);
         CalculateBodyPlaneForBomRows(tbvBomRows);
-
+        //יצירת רשימה של ספקים
         List<string> uniqueSuppliers = itemToSupplierMap.Values
             .Select(v => v.Trim())
             .Where(v => !string.IsNullOrWhiteSpace(v))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
+        //יצירת רשימה של קבוצות
         List<string> uniqueGroupNames = itemToGroupMap.Values
             .Select(v => v.Trim())
             .Where(v => !string.IsNullOrWhiteSpace(v))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-
+        //ריכוז כל מה שנשלף מהאקסל לאובייקט אחד
         InventoryImportData importData = new InventoryImportData
         {
             ItemToGroupMap = itemToGroupMap,
@@ -73,11 +75,12 @@ public class InventoryItem
             UniqueSuppliers = uniqueSuppliers,
             UniqueGroupNames = uniqueGroupNames
         };
-
+        // הכנסת הנתונים מהאקסל לDB
         DBservices dbs = new DBservices();
         return dbs.ImportInventoryDataToDatabase(importData);
     }
 
+    //שליפת נתוני המלאי
     public List<InventoryItem> GetInventoryItems(
         int page = 1,
         int pageSize = 100,
@@ -94,6 +97,7 @@ public class InventoryItem
         return dbs.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate);
     }
 
+    //שליפת אפשרויות הפילטור
     public InventoryFilterOptions GetInventoryFilterOptions()
     {
         DBservices dbs = new DBservices();
@@ -227,11 +231,11 @@ public class InventoryItem
         return itemToLastPODate;
     }
 
+    //
     private static List<BomRow> BuildBomRowsForSheet(IXLWorksheet sheet, string planeTypeName)
     {
         List<BomRow> rows = new List<BomRow>();
         int rowOrder = 1;
-
         foreach (IXLRow row in sheet.RowsUsed().Where(r => r.RowNumber() >= 4))
         {
             string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
