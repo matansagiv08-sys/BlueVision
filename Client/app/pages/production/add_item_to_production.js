@@ -2,6 +2,8 @@ const server = "https://localhost:7296/";
 let allData = {};
 
 window.initAddItemToProduction = function () {
+    loadInitialData();
+
     //if (typeof ajaxCall === 'undefined') {
     //    $.getScript("../../../JS/ajaxCalls.js").done(() => loadInitialData());
     //} else {
