@@ -38,29 +38,67 @@ function initBoard() {
         container.innerHTML = "";
     }
 
-    //  שליפת הסטטוסים
-    ajaxCall("GET", server + "api/ProductionStatuses", "", (statuses) => {
+    loadStatuses(function (statuses) {
         allStatusesData = statuses;
 
-        //  שליפת התחנות 
-        ajaxCall("GET", server + "api/ProductionStages", "", (allStages) => {
-            allStagesData = [...allStages].sort((a, b) => {
+        loadStages(function (stages) {
+            allStagesData = stages;
+            populateStageFilter(allStagesData);
+
+            loadBoardData(function (boardData) {
+                allBoardData = boardData;
+                populateProjectFilter(allBoardData);
+                applyFilters();
+            });
+        });
+    });
+}
+
+function loadStatuses(successCallback) {
+    ajaxCall(
+        "GET",
+        server + "api/ProductionStatuses",
+        "",
+        function (statuses) {
+            successCallback(statuses);
+        },
+        function (err) {
+            console.error("Error fetching statuses:", err);
+        }
+    );
+}
+
+function loadStages(successCallback) {
+    ajaxCall(
+        "GET",
+        server + "api/ProductionStages",
+        "",
+        function (allStages) {
+            const sortedStages = [...allStages].sort((a, b) => {
                 const orderA = parseInt(a.stageOrder || a.StageOrder || 0);
                 const orderB = parseInt(b.stageOrder || b.StageOrder || 0);
                 return orderA - orderB;
             });
-            populateStageFilter(allStagesData);
+            successCallback(sortedStages);
+        },
+        function (err) {
+            console.error("Error stages:", err);
+        }
+    );
+}
 
-            // שליפת נתוני הלוח
-            ajaxCall("GET", server + "api/ItemsInProduction/boardData", "", (boardData) => {
-                allBoardData = boardData;
-                populateProjectFilter(boardData);
-                applyFilters(); 
-            }, (err) => console.error("Error board data:", err));
-
-        }, (err) => console.error("Error stages:", err));
-
-    }, (err) => console.error("Error fetching statuses:", err));
+function loadBoardData(successCallback) {
+    ajaxCall(
+        "GET",
+        server + "api/ItemsInProduction/boardData",
+        "",
+        function (boardData) {
+            successCallback(boardData);
+        },
+        function (err) {
+            console.error("Error board data:", err);
+        }
+    );
 }
 
 function renderTasksBoard(boardData, allStages) {

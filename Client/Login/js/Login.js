@@ -11,7 +11,7 @@ let pendingCurrentPassword = "";
 
 initializeAuthView();
 
-loginForm?.addEventListener("submit", async function (e) {
+loginForm?.addEventListener("submit", function (e) {
     e.preventDefault();
     clearMessage();
 
@@ -23,44 +23,37 @@ loginForm?.addEventListener("submit", async function (e) {
         return;
     }
 
-    try {
-        const response = await fetch(`${server}api/Auth/login`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                username,
-                password
-            })
-        });
+    ajaxCall(
+        "POST",
+        server + "api/Auth/login",
+        JSON.stringify({ username, password }),
+        function (result) {
+            if (!result || !result.success) {
+                showMessage(result?.message || "ההתחברות נכשלה", true);
+                return;
+            }
 
-        const result = await response.json();
+            const userState = mapUserState(result);
+            sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userState));
 
-        if (!response.ok || !result.success) {
-            showMessage(result.message || "ההתחברות נכשלה", true);
-            return;
+            if (userState.mustChangePassword) {
+                pendingUser = userState;
+                pendingCurrentPassword = password;
+                loginForm.classList.add("hidden-block");
+                changePasswordForm.classList.remove("hidden-block");
+                showMessage("יש להחליף סיסמה לפני כניסה למערכת", false);
+                return;
+            }
+
+            window.location.href = "../app/index.html";
+        },
+        function (err) {
+            showMessage("שגיאה בתקשורת מול השרת", true);
         }
-
-        const userState = mapUserState(result);
-        sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userState));
-
-        if (userState.mustChangePassword) {
-            pendingUser = userState;
-            pendingCurrentPassword = password;
-            loginForm.classList.add("hidden-block");
-            changePasswordForm.classList.remove("hidden-block");
-            showMessage("יש להחליף סיסמה לפני כניסה למערכת", false);
-            return;
-        }
-
-        window.location.href = "../app/index.html";
-    } catch (err) {
-        showMessage("שגיאה בתקשורת מול השרת", true);
-    }
+    );
 });
 
-changePasswordForm?.addEventListener("submit", async function (e) {
+changePasswordForm?.addEventListener("submit", function (e) {
     e.preventDefault();
     clearMessage();
 
@@ -83,33 +76,29 @@ changePasswordForm?.addEventListener("submit", async function (e) {
         return;
     }
 
-    try {
-        const response = await fetch(`${server}api/Auth/change-password`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                userID: pendingUser.userID,
-                currentPassword: pendingCurrentPassword,
-                newPassword
-            })
-        });
+    ajaxCall(
+        "POST",
+        server + "api/Auth/change-password",
+        JSON.stringify({
+            userID: pendingUser.userID,
+            currentPassword: pendingCurrentPassword,
+            newPassword
+        }),
+        function (result) {
+            if (!result || !result.success) {
+                showMessage(result?.message || "עדכון הסיסמה נכשל", true);
+                return;
+            }
 
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-            showMessage(result.message || "עדכון הסיסמה נכשל", true);
-            return;
+            pendingUser.mustChangePassword = false;
+            sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(pendingUser));
+            showMessage("הסיסמה עודכנה בהצלחה", false);
+            window.location.href = "../app/index.html";
+        },
+        function (err) {
+            showMessage("שגיאה בתקשורת מול השרת", true);
         }
-
-        pendingUser.mustChangePassword = false;
-        sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(pendingUser));
-        showMessage("הסיסמה עודכנה בהצלחה", false);
-        window.location.href = "../app/index.html";
-    } catch (err) {
-        showMessage("שגיאה בתקשורת מול השרת", true);
-    }
+    );
 });
 
 forgotPasswordLink?.addEventListener("click", function (e) {
@@ -155,7 +144,7 @@ function initializeAuthView() {
     }
 
     try {
-        const savedUser = JSON.parse(rawUser);
+        const savedUser = JSON.parse(rawUser);  
         if (savedUser && savedUser.userID && !savedUser.mustChangePassword) {
             window.location.href = "../app/index.html";
         }

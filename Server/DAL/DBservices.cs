@@ -442,8 +442,10 @@ public class DBservices
         }
     }
 
+    //db connection to get all the options for inventory filters (platforms, groups, buy methods, suppliers, body planes)
     public InventoryFilterOptions GetInventoryFilterOptions()
     {
+        //options is a
         InventoryFilterOptions options = new InventoryFilterOptions();
 
         SqlConnection con = null;

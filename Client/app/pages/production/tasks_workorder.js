@@ -379,11 +379,11 @@ window.discardChanges = function () {
 };
 
 // כפתור "החזר לסדר אלגוריתמי" - מוחק את ה-ManualPriority ב-DB
-window.resetToAlgorithm = function () {
-    if (confirm("האם להסיר את כל העדיפויות הידניות בתחנה זו ולהחזיר לניהול אוטומטי?")) {
-        ajaxCall("POST", server + "api/ProductionItemStage/ResetStationOrder", { stationId: currentStation },
-            (res) => {
-                window.initTasksWorkOrder(); // טעינה מחדש של הנתונים מהשרת
-            });
-    }
-};
+//window.resetToAlgorithm = function () {
+//    if (confirm("האם להסיר את כל העדיפויות הידניות בתחנה זו ולהחזיר לניהול אוטומטי?")) {
+//        ajaxCall("POST", server + "api/ProductionItemStage/ResetStationOrder", { stationId: currentStation },
+//            (res) => {
+//                window.initTasksWorkOrder(); // טעינה מחדש של הנתונים מהשרת
+//            });
+//    }
+//};
