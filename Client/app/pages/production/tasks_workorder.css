@@ -18,6 +18,32 @@
     white-space: nowrap;
 }
 
+.tasks-workorder-page .workorder-filter-row {
+    display: flex;
+    direction: rtl;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.tasks-workorder-page .workorder-search-wrap {
+    flex: 0 1 320px;
+    min-width: 260px;
+    margin: 0;
+}
+
+.tasks-workorder-page .workorder-search-wrap .standard-input {
+    width: 100%;
+}
+
+.tasks-workorder-page .workorder-filter-select {
+    flex: 0 0 170px;
+    min-width: 150px;
+    max-width: 190px;
+}
+
 /* Urgency dropdown styling (workorder page) */
 /*.tasks-workorder-page .urgency-select {
     width: auto;

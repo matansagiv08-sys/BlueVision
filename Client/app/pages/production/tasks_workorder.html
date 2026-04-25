@@ -6,19 +6,32 @@
     </div>
 
     <div class="global-toolbar">
-        <div class="search-container">
-            <input type="text" id="taskSearch" class="standard-input" placeholder="חפש פק״ע, מק״ט, שם פריט, פרויקט או סיריאלי..." oninput="window.filterWorkOrder()">
-        </div>
+        <div class="workorder-filter-row">
+            <div class="search-container workorder-search-wrap">
+                <input type="text" id="taskSearch" class="standard-input" placeholder="חפש פק״ע, מק״ט, שם פריט, פרויקט או סיריאלי..." oninput="window.filterWorkOrder()">
+            </div>
 
-        <div class="toolbar-actions">
-            <select id="urgencyFilter" class="standard-input urgency-select" onchange="window.filterWorkOrder()">
-                <option value="all">כל הדחיפויות</option>
-                <option value="critical">קריטי</option>
-                <option value="high">גבוה</option>
+            <select id="planeTypeFilter" class="standard-input workorder-filter-select" onchange="window.filterWorkOrder()">
+                <option value="all">כל סוגי הכטב״ם</option>
             </select>
 
-            <button id="resetAlgoBtn" class="btn-cancel" onclick="window.optimizeRoute()" disabled>איפוס לאלגוריתם</button>
+            <select id="projectFilter" class="standard-input workorder-filter-select" onchange="window.filterWorkOrder()">
+                <option value="all">כל הפרויקטים</option>
+            </select>
+
+            <select id="lateStatusFilter" class="standard-input workorder-filter-select" onchange="window.filterWorkOrder()">
+                <option value="all">מצב זמנים</option>
+                <option value="late">באיחור</option>
+                <option value="onTime">בזמן</option>
+            </select>
+
+            <select id="planeNumberFilter" class="standard-input workorder-filter-select" onchange="window.filterWorkOrder()">
+                <option value="all">כל מספרי המטוס</option>
+            </select>
+
             <button id="saveOrderBtn" class="btn-save" onclick="window.saveWorkOrder()" disabled>שמור שינויים</button>
+            <button id="resetAlgoBtn" class="btn-cancel" onclick="window.optimizeRoute()" disabled>איפוס לאלגוריתם</button>
+            <button class="btn-secondary-action clear-filters-btn" onclick="window.clearWorkOrderFilters()">נקה סינונים</button>
         </div>
     </div>
 

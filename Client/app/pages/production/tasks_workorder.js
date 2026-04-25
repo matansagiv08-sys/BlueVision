@@ -17,6 +17,7 @@ window.initTasksWorkOrder = async function () {
                     (data) => {
                         console.log("Data received:", data);
                         allTasks = data;
+                        populateWorkOrderFilters(allTasks);
 
                         // שמירת סדר האלגוריתם המקורי
                         originalGlobalOrder = allTasks.map(t => getTaskValue(t, ["serialNumber", "SerialNumber"], ""));
@@ -138,6 +139,76 @@ function escapeAttribute(value) {
     return String(value ?? '').replace(/"/g, '&quot;');
 }
 
+function getPlaneTypeValue(task) {
+    return getTaskValue(task, ["planeTypeName", "PlaneTypeName"], '')
+        || task.planeID?.type?.planeTypeName
+        || task.PlaneID?.Type?.PlaneTypeName
+        || '';
+}
+
+function getProjectNameValue(task) {
+    return getTaskValue(task, ["projectName", "ProjectName"], '') || '';
+}
+
+function getPlaneNumberValue(task) {
+    return getTaskValue(task, ["planeNumber", "PlaneNumber", "tailNumber", "TailNumber"], '') || '';
+}
+
+function isLateTask(task) {
+    const projectDueDateRaw = getTaskValue(task, ["projectDueDate", "ProjectDueDate"], null)
+        || task.planeID?.project?.dueDate
+        || task.PlaneID?.Project?.DueDate;
+    const itemDueDateRaw = getTaskValue(task, ["itemDueDate", "ItemDueDate"], null);
+
+    return isExpiredDate(projectDueDateRaw) || isExpiredDate(itemDueDateRaw);
+}
+
+function setSelectOptions(selectElement, defaultValue, defaultLabel, values) {
+    if (!selectElement) return;
+
+    const previousValue = selectElement.value;
+    selectElement.innerHTML = '';
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = defaultValue;
+    defaultOption.textContent = defaultLabel;
+    selectElement.appendChild(defaultOption);
+
+    values.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        selectElement.appendChild(option);
+    });
+
+    selectElement.value = values.includes(previousValue) ? previousValue : defaultValue;
+}
+
+function populateWorkOrderFilters(tasks) {
+    const planeTypeSelect = document.getElementById('planeTypeFilter');
+    const projectSelect = document.getElementById('projectFilter');
+    const planeNumberSelect = document.getElementById('planeNumberFilter');
+
+    const planeTypes = [...new Set(tasks
+        .map(getPlaneTypeValue)
+        .map(v => String(v || '').trim())
+        .filter(v => v !== ''))].sort((a, b) => a.localeCompare(b, 'he'));
+
+    const projects = [...new Set(tasks
+        .map(getProjectNameValue)
+        .map(v => String(v || '').trim())
+        .filter(v => v !== ''))].sort((a, b) => a.localeCompare(b, 'he'));
+
+    const planeNumbers = [...new Set(tasks
+        .map(getPlaneNumberValue)
+        .map(v => String(v || '').trim())
+        .filter(v => v !== ''))].sort((a, b) => a.localeCompare(b, 'he'));
+
+    setSelectOptions(planeTypeSelect, 'all', 'כל סוגי הכטב״ם', planeTypes);
+    setSelectOptions(projectSelect, 'all', 'כל הפרויקטים', projects);
+    setSelectOptions(planeNumberSelect, 'all', 'כל מספרי המטוס', planeNumbers);
+}
+
 function wireRowDnD() {
     const tbody = document.getElementById("tasksTableBody");
     if (!tbody) return;
@@ -211,6 +282,10 @@ function reorderGlobally(draggedSn, targetSn) {
 // שומרים על פונקציות הסינון והכפתורים
 window.filterWorkOrder = function () {
     const q = (document.getElementById("taskSearch")?.value || "").trim().toLowerCase();
+    const selectedPlaneType = document.getElementById("planeTypeFilter")?.value || 'all';
+    const selectedProject = document.getElementById("projectFilter")?.value || 'all';
+    const selectedLateStatus = document.getElementById("lateStatusFilter")?.value || 'all';
+    const selectedPlaneNumber = document.getElementById("planeNumberFilter")?.value || 'all';
 
     let tasks = allTasks;
 
@@ -221,6 +296,24 @@ window.filterWorkOrder = function () {
                 t.currentStage?.stage?.productionStageName || t.CurrentStage?.Stage?.ProductionStageName || '';
             return stationName === currentStation;
         });
+    }
+
+    if (selectedPlaneType !== 'all') {
+        tasks = tasks.filter(t => getPlaneTypeValue(t) === selectedPlaneType);
+    }
+
+    if (selectedProject !== 'all') {
+        tasks = tasks.filter(t => getProjectNameValue(t) === selectedProject);
+    }
+
+    if (selectedPlaneNumber !== 'all') {
+        tasks = tasks.filter(t => getPlaneNumberValue(t) === selectedPlaneNumber);
+    }
+
+    if (selectedLateStatus === 'late') {
+        tasks = tasks.filter(isLateTask);
+    } else if (selectedLateStatus === 'onTime') {
+        tasks = tasks.filter(t => !isLateTask(t));
     }
 
     // סינון לפי חיפוש
@@ -245,6 +338,22 @@ window.filterWorkOrder = function () {
     // מיון לפי הסדר הנוכחי (ידני או אלגוריתם)
     tasks = sortByCurrentOrder(tasks);
     renderTasks(tasks);
+};
+
+window.clearWorkOrderFilters = function () {
+    const planeTypeFilter = document.getElementById('planeTypeFilter');
+    const projectFilter = document.getElementById('projectFilter');
+    const lateStatusFilter = document.getElementById('lateStatusFilter');
+    const planeNumberFilter = document.getElementById('planeNumberFilter');
+    const searchInput = document.getElementById('taskSearch');
+
+    if (planeTypeFilter) planeTypeFilter.value = 'all';
+    if (projectFilter) projectFilter.value = 'all';
+    if (lateStatusFilter) lateStatusFilter.value = 'all';
+    if (planeNumberFilter) planeNumberFilter.value = 'all';
+    if (searchInput) searchInput.value = '';
+
+    window.filterWorkOrder();
 };
 
 function sortByCurrentOrder(tasks) {
