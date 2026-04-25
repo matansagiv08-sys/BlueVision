@@ -32,10 +32,14 @@ body, html {
 
 .logo-container {
     margin-bottom: 40px;
+    display: flex;
+    justify-content: center;
 }
 
     .logo-container img {
-        max-width: 220px;
+        height: 52px;
+        width: auto;
+        display: block;
     }
 
 /* שדות קלט */
