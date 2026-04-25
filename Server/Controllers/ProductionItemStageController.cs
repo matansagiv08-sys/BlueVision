@@ -10,7 +10,7 @@ namespace Server.Controllers
     public class ProductionItemStageController : ControllerBase
     {
         [HttpPost("UpdateManualOrder")]
-        public IActionResult UpdateManualOrder([FromBody] List<dynamic> updates)
+        public IActionResult UpdateManualOrder([FromBody] List<ManualPriorityUpdateRequest> updates)
         {
             if (updates == null) return BadRequest("Updates list is null");
 

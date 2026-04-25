@@ -2,6 +2,7 @@ let allTasks = [];
 let currentStation = 'all';
 let originalGlobalOrder = [];
 let currentGlobalOrder = [];
+let hasPersistedManualOrder = false;
 
 // פונקציית ה-Init שנקראת מה-app.js
 window.initTasksWorkOrder = async function () {
@@ -18,13 +19,15 @@ window.initTasksWorkOrder = async function () {
                         console.log("Data received:", data);
                         allTasks = data;
                         populateWorkOrderFilters(allTasks);
+                        hasPersistedManualOrder = hasSavedManualPriority(allTasks);
 
                         // שמירת סדר האלגוריתם המקורי
-                        originalGlobalOrder = allTasks.map(t => getTaskValue(t, ["serialNumber", "SerialNumber"], ""));
+                        originalGlobalOrder = allTasks.map(getRowKey);
                         currentGlobalOrder = [...originalGlobalOrder];
 
                         // הצגת הטבלה (בברירת מחדל על "כל התחנות")
                         window.filterWorkOrder();
+                        updateWorkOrderButtonsState();
                     },
                     (err) => console.error("Error fetching board data:", err)
                 );
@@ -69,17 +72,18 @@ function renderTasks(tasks) {
         const score = Number(getTaskValue(task, ["urgencyScore", "UrgencyScore", "calculatedScore", "CalculatedScore"], 0)) || 0;
         const currentStageId = getTaskValue(task, ["currentStage", "CurrentStage"], null)?.stage?.productionStageID ||
             getTaskValue(task, ["currentStage", "CurrentStage"], null)?.Stage?.ProductionStageID || 0;
+        const rowKey = getRowKey(task);
 
         const projectDueDate = formatDate(projectDueDateRaw);
         const itemDueDate = formatDate(itemDueDateRaw);
         const isExpiredRow = isExpiredDate(projectDueDateRaw) || isExpiredDate(itemDueDateRaw);
 
-        const hasManualPriority = task.currentStage?.manualPriority > 0 || task.CurrentStage?.ManualPriority > 0;
-        const magicIconColor = hasManualPriority ? "orange" : "#94a3b8";
+        const rowHasManualPriority = hasManualPriority(task);
+        const magicIconColor = rowHasManualPriority ? "orange" : "#94a3b8";
         const safeItemId = String(itemId).replace(/'/g, "\\'");
 
         const rowHtml = `
-            <tr class="${isExpiredRow ? 'workorder-expired-row' : ''}" data-sn="${sn}" data-itemid="${itemId}" data-stageid="${currentStageId}">
+            <tr class="${isExpiredRow ? 'workorder-expired-row' : ''}" data-rowkey="${rowKey}" data-sn="${sn}" data-itemid="${itemId}" data-stageid="${currentStageId}">
                 <td class="drag-col">
                     <div class="drag-handle">⋮⋮</div>
                     <button class="btn-tiny-algo" 
@@ -152,6 +156,46 @@ function getProjectNameValue(task) {
 
 function getPlaneNumberValue(task) {
     return getTaskValue(task, ["planeNumber", "PlaneNumber", "tailNumber", "TailNumber"], '') || '';
+}
+
+function getCurrentStageId(task) {
+    return getTaskValue(task, ["currentStage", "CurrentStage"], null)?.stage?.productionStageID
+        || getTaskValue(task, ["currentStage", "CurrentStage"], null)?.Stage?.ProductionStageID
+        || 0;
+}
+
+function getItemIdValue(task) {
+    return getTaskValue(task, ["inventoryItemID", "InventoryItemID"], '')
+        || task.productionItem?.productionItemID
+        || task.ProductionItem?.ProductionItemID
+        || '';
+}
+
+function getSerialValue(task) {
+    return String(getTaskValue(task, ["serialNumber", "SerialNumber"], ''));
+}
+
+function getRowKey(task) {
+    const serial = getSerialValue(task);
+    const itemId = String(getItemIdValue(task));
+    const stageId = String(getCurrentStageId(task));
+    return `${serial}|${itemId}|${stageId}`;
+}
+
+function hasManualPriority(task) {
+    const manualPriority = task.currentStage?.manualPriority ?? task.CurrentStage?.ManualPriority;
+    return Number(manualPriority || 0) > 0;
+}
+
+function hasSavedManualPriority(tasks) {
+    return (tasks || []).some(task => {
+        if (hasManualPriority(task)) {
+            return true;
+        }
+
+        const stages = task.stages || task.Stages || [];
+        return stages.some(stage => Number(stage?.manualPriority ?? stage?.ManualPriority ?? 0) > 0);
+    });
 }
 
 function isLateTask(task) {
@@ -250,7 +294,7 @@ function wireRowDnD() {
     tbody.addEventListener('drop', (e) => {
         e.preventDefault();
         // עדכון המערך הגלובלי לפי הסדר הוויזואלי החדש בטבלה
-        const newOrder = Array.from(tbody.querySelectorAll('tr')).map(r => r.getAttribute('data-sn'));
+        const newOrder = Array.from(tbody.querySelectorAll('tr')).map(r => r.getAttribute('data-rowkey'));
         currentGlobalOrder = newOrder;
 
         updateDirtyState(); // מדליק את כפתור השמירה
@@ -357,22 +401,26 @@ window.clearWorkOrderFilters = function () {
 };
 
 function sortByCurrentOrder(tasks) {
-    const rank = new Map(currentGlobalOrder.map((sn, index) => [sn, index]));
+    const rank = new Map(currentGlobalOrder.map((key, index) => [key, index]));
     return [...tasks].sort((a, b) => {
-        const aSn = getTaskValue(a, ["serialNumber", "SerialNumber"], "");
-        const bSn = getTaskValue(b, ["serialNumber", "SerialNumber"], "");
-        const aRank = rank.has(aSn) ? rank.get(aSn) : 999;
-        const bRank = rank.has(bSn) ? rank.get(bSn) : 999;
+        const aKey = getRowKey(a);
+        const bKey = getRowKey(b);
+        const aRank = rank.has(aKey) ? rank.get(aKey) : 999999;
+        const bRank = rank.has(bKey) ? rank.get(bKey) : 999999;
         return aRank - bRank;
     });
 }
 
-function updateDirtyState() {
+function updateWorkOrderButtonsState() {
     const isDirty = JSON.stringify(originalGlobalOrder) !== JSON.stringify(currentGlobalOrder);
     const saveBtn = document.getElementById("saveOrderBtn");
     const resetBtn = document.getElementById("resetAlgoBtn");
     if (saveBtn) saveBtn.disabled = !isDirty;
-    if (resetBtn) resetBtn.disabled = !isDirty;
+    if (resetBtn) resetBtn.disabled = !(isDirty || hasPersistedManualOrder);
+}
+
+function updateDirtyState() {
+    updateWorkOrderButtonsState();
 }
 
 // פונקציה לייצור כפתורי התחנות בסליידר
@@ -406,9 +454,34 @@ window.filterByStation = function (station, btn) {
 };
 
 window.optimizeRoute = function () {
-    currentGlobalOrder = [...originalGlobalOrder];
-    window.filterWorkOrder();
-    updateDirtyState();
+    const updates = allTasks
+        .filter(t => currentStation === 'all' || (getTaskValue(t, ["currentStationName", "CurrentStationName"], '') || t.currentStage?.stage?.productionStageName || t.CurrentStage?.Stage?.ProductionStageName || '') === currentStation)
+        .map(t => ({
+            serial: Number(getSerialValue(t)),
+            itemId: String(getItemIdValue(t)),
+            stageId: Number(getCurrentStageId(t)),
+            newPriority: 0
+        }))
+        .filter(u => Number.isFinite(u.serial) && u.serial > 0 && u.itemId && Number.isFinite(u.stageId) && u.stageId > 0);
+
+    if (updates.length === 0) {
+        return;
+    }
+
+    ajaxCall("POST", server + "api/ProductionItemStage/UpdateManualOrder", JSON.stringify(updates),
+        () => {
+            if (typeof showNotification === 'function') {
+                showNotification("הסדר הידני אופס לאלגוריתם", "success");
+            }
+            window.initTasksWorkOrder();
+        },
+        (err) => {
+            console.error("Error resetting manual order:", err);
+            if (typeof showNotification === 'function') {
+                showNotification("שגיאה באיפוס הסדר", "error");
+            }
+        }
+    );
 };
 
 window.saveWorkOrder = function () {
@@ -419,21 +492,31 @@ window.saveWorkOrder = function () {
         itemId: row.getAttribute('data-itemid'),
         stageId: parseInt(row.getAttribute('data-stageid')),
         newPriority: index + 1
-    }));
+    })).filter(u => Number.isFinite(u.serial) && u.serial > 0 && u.itemId && Number.isFinite(u.stageId) && u.stageId > 0);
 
     console.log("Sending to server:", updates);
+
+    if (updates.length === 0) {
+        return;
+    }
 
     ajaxCall("POST",
         server + "api/ProductionItemStage/UpdateManualOrder",
         JSON.stringify(updates), // <--- זה הקריטי!
         (res) => {
-            alert("הסדר נשמר בהצלחה!"); 
-            updateInterfaceState(false);
-            window.initTasksWorkOrder();
+            if (typeof showNotification === 'function') {
+                showNotification("הסדר נשמר בהצלחה", "success");
+            }
+
+            originalGlobalOrder = [...currentGlobalOrder];
+            hasPersistedManualOrder = true;
+            updateDirtyState();
         },
         (err) => {
             console.error("פרטי השגיאה מהשרת:", err.responseText);
-            alert("שגיאה בשמירה, פרטים בקונסול");
+            if (typeof showNotification === 'function') {
+                showNotification("שגיאה בשמירה", "error");
+            }
         }
     );
 };
@@ -487,7 +570,9 @@ window.resetSingleRow = function (serial, itemId, stageId) {
 
     ajaxCall("POST", server + "api/ProductionItemStage/UpdateManualOrder", JSON.stringify(updates),
         (res) => {
-            showNotification("השורה חזרה לניהול אלגוריתם", "success");
+            if (typeof showNotification === 'function') {
+                showNotification("השורה חזרה לניהול אלגוריתם", "success");
+            }
             window.initTasksWorkOrder(); // טעינה מחדש של הנתונים מהשרת
         },
         (err) => console.error(err)
@@ -504,7 +589,9 @@ window.resetToAlgo = function (serial, itemId, stageId) {
 
     ajaxCall("POST", server + "api/ProductionItemStage/UpdateManualOrder", JSON.stringify(updates),
         (res) => {
-            showNotification("הפריט הוחזר לניהול אלגוריתם", "success");
+            if (typeof showNotification === 'function') {
+                showNotification("הפריט הוחזר לניהול אלגוריתם", "success");
+            }
             window.initTasksWorkOrder(); // טעינה מחדש של הנתונים המעודכנים
         },
         (err) => console.error("Error resetting priority:", err)
@@ -542,7 +629,7 @@ window.safeNavigate = function (targetPage) {
 window.discardChanges = function () {
     allTasks = JSON.parse(JSON.stringify(originalTasksFromServer)); // שחזור מהגיבוי
     window.renderTasks(allTasks);
-    updateInterfaceState(false);
+    updateDirtyState();
 };
 
 // כפתור "החזר לסדר אלגוריתמי" - מוחק את ה-ManualPriority ב-DB

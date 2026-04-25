@@ -20,7 +20,7 @@ namespace Server.Models
             this.Status = new ProductionStatus();
         }
 
-        public int UpdateAllManualPriorities(List<dynamic> updates)
+        public int UpdateAllManualPriorities(List<ManualPriorityUpdateRequest> updates)
         {
             DBservices dbs = new DBservices();
             int count = 0;
@@ -29,12 +29,15 @@ namespace Server.Models
             {
                 try
                 {
-                    // שימוש ב-GetProperty במידה והאובייקט מגיע כ-JsonElement
-                    // או המרה ישירה אם זה dynamic רגיל:
-                    int serial = Convert.ToInt32(update.serial);
-                    string itemId = update.itemId.ToString();
-                    int stageId = Convert.ToInt32(update.stageId);
-                    int newPriority = Convert.ToInt32(update.newPriority);
+                    int serial = update.Serial;
+                    string itemId = update.ItemId?.Trim() ?? string.Empty;
+                    int stageId = update.StageId;
+                    int newPriority = update.NewPriority ?? 0;
+
+                    if (serial <= 0 || string.IsNullOrWhiteSpace(itemId) || stageId <= 0)
+                    {
+                        continue;
+                    }
 
                     count += dbs.UpdateManualPriority(serial, itemId, stageId, newPriority);
                 }
@@ -46,5 +49,13 @@ namespace Server.Models
             }
             return count;
         }
+    }
+
+    public class ManualPriorityUpdateRequest
+    {
+        public int Serial { get; set; }
+        public string? ItemId { get; set; }
+        public int StageId { get; set; }
+        public int? NewPriority { get; set; }
     }
 }
