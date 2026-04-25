@@ -137,6 +137,7 @@ namespace Server.Models
             return new
             {
                 productionItems = dbs.GetProductionItems(),
+                itemPlaneMappings = dbs.GetProductionItemPlaneTypeMappings(),
                 projects = dbs.GetProjects(),
                 planeTypes = dbs.GetPlaneTypes(),
                 existingWorkOrders = dbs.GetUniqueWorkOrders(),
@@ -148,8 +149,123 @@ namespace Server.Models
         //הוספת פריט לייצור
         public int InsertItem(InsertItemInProductionRequest? itemData)
         {
+            if (itemData == null)
+            {
+                return 0;
+            }
+
+            List<InsertItemInProductionRequest> rowsToInsert = BuildInsertRows(itemData);
+            if (rowsToInsert.Count == 0)
+            {
+                return 0;
+            }
+
             DBservices dbs = new DBservices();
-            return dbs.InsertItemInProduction(itemData ?? new InsertItemInProductionRequest());
+            int inserted = 0;
+            foreach (InsertItemInProductionRequest row in rowsToInsert)
+            {
+                inserted += dbs.InsertItemInProduction(row);
+            }
+
+            return inserted;
+        }
+
+        private static List<InsertItemInProductionRequest> BuildInsertRows(InsertItemInProductionRequest itemData)
+        {
+            int quantity = Math.Max(1, itemData.Quantity ?? 1);
+            string productionItemId = itemData.ProductionItemID?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(productionItemId))
+            {
+                throw new Exception("Production item code is required.");
+            }
+
+            if (!itemData.PlaneTypeID.HasValue || itemData.PlaneTypeID.Value <= 0)
+            {
+                throw new Exception("Plane type is required.");
+            }
+
+            InsertItemInProductionRequest baseRequest = new InsertItemInProductionRequest
+            {
+                ProjectName = string.IsNullOrWhiteSpace(itemData.ProjectName) ? null : itemData.ProjectName.Trim(),
+                DueDate = itemData.DueDate,
+                ProjectDueDate = itemData.ProjectDueDate,
+                ProductionItemID = productionItemId,
+                WorkOrderID = string.IsNullOrWhiteSpace(itemData.WorkOrderID) ? null : itemData.WorkOrderID.Trim(),
+                PlaneTypeID = itemData.PlaneTypeID,
+                PriorityID = itemData.PriorityID,
+                ProjectPriorityLevel = itemData.ProjectPriorityLevel,
+                Comments = string.IsNullOrWhiteSpace(itemData.Comments) ? null : itemData.Comments.Trim(),
+                Quantity = 1
+            };
+
+            if (quantity == 1 && (itemData.Units == null || itemData.Units.Count == 0))
+            {
+                int serialNumber = itemData.SerialNumber ?? 0;
+                if (serialNumber <= 0)
+                {
+                    throw new Exception("Serial number is required.");
+                }
+
+                return new List<InsertItemInProductionRequest>
+                {
+                    new InsertItemInProductionRequest
+                    {
+                        ProjectName = baseRequest.ProjectName,
+                        PlaneID = string.IsNullOrWhiteSpace(itemData.PlaneID) ? null : itemData.PlaneID.Trim(),
+                        DueDate = baseRequest.DueDate,
+                        ProjectDueDate = baseRequest.ProjectDueDate,
+                        ProductionItemID = baseRequest.ProductionItemID,
+                        WorkOrderID = baseRequest.WorkOrderID,
+                        SerialNumber = serialNumber,
+                        PlaneTypeID = baseRequest.PlaneTypeID,
+                        PriorityID = baseRequest.PriorityID,
+                        ProjectPriorityLevel = baseRequest.ProjectPriorityLevel,
+                        Quantity = 1,
+                        Comments = baseRequest.Comments
+                    }
+                };
+            }
+
+            List<InsertTrackedUnitRequest> units = itemData.Units ?? new List<InsertTrackedUnitRequest>();
+            if (units.Count != quantity)
+            {
+                throw new Exception("Quantity does not match tracked units count.");
+            }
+
+            HashSet<int> uniqueSerials = new HashSet<int>();
+            List<InsertItemInProductionRequest> rows = new List<InsertItemInProductionRequest>();
+            foreach (InsertTrackedUnitRequest unit in units)
+            {
+                int serial = unit.SerialNumber ?? 0;
+                if (serial <= 0)
+                {
+                    throw new Exception("Each tracked row must include a valid SerialNumber.");
+                }
+
+                if (!uniqueSerials.Add(serial))
+                {
+                    throw new Exception($"Duplicate SerialNumber in request: {serial}.");
+                }
+
+                rows.Add(new InsertItemInProductionRequest
+                {
+                    ProjectName = baseRequest.ProjectName,
+                    PlaneID = string.IsNullOrWhiteSpace(unit.PlaneID) ? null : unit.PlaneID.Trim(),
+                    DueDate = baseRequest.DueDate,
+                    ProjectDueDate = baseRequest.ProjectDueDate,
+                    ProductionItemID = baseRequest.ProductionItemID,
+                    WorkOrderID = baseRequest.WorkOrderID,
+                    SerialNumber = serial,
+                    PlaneTypeID = baseRequest.PlaneTypeID,
+                    PriorityID = baseRequest.PriorityID,
+                    ProjectPriorityLevel = baseRequest.ProjectPriorityLevel,
+                    Quantity = 1,
+                    Comments = baseRequest.Comments
+                });
+            }
+
+            return rows;
         }
 
         //עדכון סטטוס לפריט בתחנה
@@ -238,6 +354,13 @@ namespace Server.Models
         public int? ProjectPriorityLevel { get; set; }
         public int? Quantity { get; set; }
         public string? Comments { get; set; }
+        public List<InsertTrackedUnitRequest>? Units { get; set; }
+    }
+
+    public class InsertTrackedUnitRequest
+    {
+        public int? SerialNumber { get; set; }
+        public string? PlaneID { get; set; }
     }
 
 

@@ -1628,6 +1628,35 @@ public class DBservices
         return null;
     }
 
+    //שליפת מיפוי בין פריט ייצור לסוג כטב"ם
+    public List<object> GetProductionItemPlaneTypeMappings()
+    {
+        SqlConnection con = null;
+        List<object> list = new List<object>();
+        try
+        {
+            con = connect("myProjDB");
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spProductionItems_GetPlaneTypeMappings", con, null);
+            cmd.CommandType = CommandType.StoredProcedure;
+            SqlDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new
+                {
+                    productionItemID = reader["ProductionItemID"]?.ToString() ?? string.Empty,
+                    planeTypeID = reader["PlaneTypeID"] == DBNull.Value ? 0 : Convert.ToInt32(reader["PlaneTypeID"]),
+                    planeTypeName = reader["PlaneTypeName"] == DBNull.Value ? string.Empty : reader["PlaneTypeName"].ToString()
+                });
+            }
+            return list;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
     private static string? ReadNullableString(SqlDataReader reader, params string[] columnNames)
     {
         foreach (string columnName in columnNames)

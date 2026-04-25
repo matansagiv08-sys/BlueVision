@@ -1,27 +1,61 @@
-﻿.add-parts-production-page {
-    max-width: 960px;
+.add-parts-production-page {
+    max-width: 1100px;
     margin: 0 auto;
     padding: 20px;
 }
 
 /* התאמת הכרטיס הגנרי לטופס */
 .form-wrapper {
-    padding: 35px;
+    padding: 28px;
     background: white;
     margin-top: 15px;
 }
 
-.form-columns {
+.form-feedback-message {
+    border: 1px solid #86efac;
+    background: #dcfce7;
+    color: #166534;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-weight: 600;
+}
+
+.form-feedback-message.error {
+    border-color: #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.form-section-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    margin: 0 0 14px;
+    font-size: 16px;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.section-grid {
     display: grid;
+    gap: 16px;
+}
+
+.section-grid.two-cols {
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 
     .form-group label {
@@ -39,7 +73,7 @@
 .form-group input,
 .form-group select,
 .form-group textarea {
-    padding: 12px 15px;
+    padding: 10px 12px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     font-size: 15px;
@@ -60,6 +94,70 @@
     grid-column: span 2;
 }
 
+.readonly-input {
+    background-color: #e2e8f0;
+}
+
+.input-with-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input-with-action select,
+.input-with-action input {
+    flex: 1;
+}
+
+.toggle-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.toggle-btn.active {
+    border-color: #0ea5b7;
+    color: #0ea5b7;
+}
+
+.multi-unit-wrapper {
+    margin-top: 8px;
+}
+
+.multi-unit-hint {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.tracked-items-table-wrap {
+    margin-top: 6px;
+}
+
+.tracked-items-table td {
+    vertical-align: middle;
+}
+
+.tracked-items-table .row-index-cell {
+    width: 60px;
+    text-align: center;
+    color: #334155;
+    font-weight: 600;
+}
+
+.tracked-items-table input {
+    width: 100%;
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: white;
+}
+
 .form-footer-actions {
     display: flex;
     justify-content: flex-end;
@@ -73,3 +171,13 @@
         padding-left: 35px;
         padding-right: 35px;
     }
+
+@media (max-width: 900px) {
+    .section-grid.two-cols {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width {
+        grid-column: span 1;
+    }
+}
