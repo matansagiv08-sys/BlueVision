@@ -904,29 +904,55 @@ public class DBservices
                         "ProjectDue")
                         ?? ReadNullableDate(reader, "DueDate");
 
+                    string productionItemId = ReadNullableString(reader,
+                        "InventoryItemID",
+                        "ProductionItemID") ?? string.Empty;
+
+                    string itemName = ReadNullableString(reader,
+                        "ItemName",
+                        "ProductionItemDescription") ?? string.Empty;
+
+                    string projectName = ReadNullableString(reader,
+                        "ProjectName") ?? string.Empty;
+
+                    string planeNumber = ReadNullableString(reader,
+                        "PlaneNumber",
+                        "TailNumber",
+                        "PlaneID") ?? string.Empty;
+
+                    string planeTypeName = ReadNullableString(reader,
+                        "PlaneTypeName") ?? string.Empty;
+
+                    int workOrderId = ReadNullableInt(reader,
+                        "WorkOrderNumber",
+                        "WorkOrderID") ?? 0;
+
+                    int plannedQty = ReadNullableInt(reader,
+                        "PlannedQty") ?? 0;
+
                     itemsMap[sn] = new ItemInProduction
                     {
                         SerialNumber = sn,
                         PriorityLevel = itemPriorityLevel,
                         ItemDueDate = itemDueDate,
-                        WorkOrderID = Convert.ToInt32(reader["WorkOrderID"]),
-                        ProjectName = reader["ProjectName"]?.ToString() ?? string.Empty,
-                        TailNumber = reader["TailNumber"]?.ToString() ?? string.Empty,
+                        WorkOrderID = workOrderId,
+                        ProjectName = projectName,
+                        TailNumber = planeNumber,
                         ProductionItem = new ProductionItem
                         {
-                            ProductionItemID = reader["ProductionItemID"].ToString(),
-                            ItemName = reader["ItemName"].ToString()
+                            ProductionItemID = productionItemId,
+                            ItemName = itemName
                         },
-                        PlannedQty = Convert.ToInt32(reader["PlannedQty"]),
+                        PlannedQty = plannedQty,
                         PlaneID = new Plane
                         {
                             Type = new PlaneType
                             {
-                                PlaneTypeName = reader["PlaneTypeName"].ToString()
+                                PlaneTypeName = planeTypeName
                             },
                             Project = new Project
                             {
-                                ProjectName = reader["ProjectName"].ToString(),
+                                ProjectName = projectName,
                                 DueDate = projectDueDate,
                                 PriorityLevel = projectPriorityLevel
                             }
@@ -955,6 +981,7 @@ public class DBservices
                     {
                         ProductionStageID = Convert.ToInt32(reader["ProductionStageID"]),
                         ProductionStageName = reader["ProductionStageName"].ToString(),
+                        StageOrder = ReadNullableInt(reader, "StageOrder") ?? 0,
                         TargetDuration = duration 
                     },
                     Status = new ProductionStatus
@@ -1596,6 +1623,26 @@ public class DBservices
             }
 
             return Convert.ToDateTime(reader.GetValue(ordinal));
+        }
+
+        return null;
+    }
+
+    private static string? ReadNullableString(SqlDataReader reader, params string[] columnNames)
+    {
+        foreach (string columnName in columnNames)
+        {
+            if (!TryGetColumnOrdinal(reader, columnName, out int ordinal))
+            {
+                continue;
+            }
+
+            if (reader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return reader.GetValue(ordinal)?.ToString();
         }
 
         return null;

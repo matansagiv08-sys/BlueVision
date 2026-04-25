@@ -19,7 +19,7 @@ window.initTasksWorkOrder = async function () {
                         allTasks = data;
 
                         // שמירת סדר האלגוריתם המקורי
-                        originalGlobalOrder = allTasks.map(t => t.serialNumber);
+                        originalGlobalOrder = allTasks.map(t => getTaskValue(t, ["serialNumber", "SerialNumber"], ""));
                         currentGlobalOrder = [...originalGlobalOrder];
 
                         // הצגת הטבלה (בברירת מחדל על "כל התחנות")
@@ -42,59 +42,100 @@ function renderTasks(tasks) {
     tbody.innerHTML = '';
 
     // סעיף 2: סינון פריטים שהסתיימו (100% התקדמות)
-    const activeTasks = tasks.filter(t => (t.progress || 0) < 100);
+    const activeTasks = tasks.filter(t => Number(getTaskValue(t, ["progress", "Progress"], 0)) < 100);
 
     if (activeTasks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">אין משימות פעילות להצגה</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;">אין משימות פעילות להצגה</td></tr>';
         return;
     }
 
-    const isSpecificStation = typeof currentStation !== 'undefined' && currentStation !== 'all';
-
     activeTasks.forEach(task => {
-        const sn = task.serialNumber || task.SerialNumber;
-        const po = task.workOrderID || task.WorkOrderID || '-';
-        const itemId = task.productionItem?.productionItemID || task.ProductionItem?.ProductionItemID || '';
-        const itemName = task.productionItem?.itemName || task.itemDescription || "---";
+        const sn = getTaskValue(task, ["serialNumber", "SerialNumber"], '-');
+        const workOrder = getTaskValue(task, ["workOrderNumber", "workOrderID", "WorkOrderNumber", "WorkOrderID"], '-');
+        const itemId = getTaskValue(task, ["inventoryItemID", "InventoryItemID"], '') ||
+            task.productionItem?.productionItemID || task.ProductionItem?.ProductionItemID || '';
+        const itemName = getTaskValue(task, ["itemName", "ItemName"], '') ||
+            task.productionItem?.itemName || task.ProductionItem?.ItemName || "---";
+        const planeType = getTaskValue(task, ["planeTypeName", "PlaneTypeName"], '') ||
+            task.planeID?.type?.planeTypeName || task.PlaneID?.Type?.PlaneTypeName || "-";
+        const projectName = getTaskValue(task, ["projectName", "ProjectName"], '-') || "-";
+        const projectDueDateRaw = getTaskValue(task, ["projectDueDate", "ProjectDueDate"], null) ||
+            task.planeID?.project?.dueDate || task.PlaneID?.Project?.DueDate;
+        const itemDueDateRaw = getTaskValue(task, ["itemDueDate", "ItemDueDate"], null);
+        const planeNumber = getTaskValue(task, ["planeNumber", "PlaneNumber", "tailNumber", "TailNumber"], '-') || '-';
+        const currentStationName = getTaskValue(task, ["currentStationName", "CurrentStationName"], '') ||
+            task.currentStage?.stage?.productionStageName || task.CurrentStage?.Stage?.ProductionStageName || "לא הוגדר";
+        const score = Number(getTaskValue(task, ["urgencyScore", "UrgencyScore", "calculatedScore", "CalculatedScore"], 0)) || 0;
+        const currentStageId = getTaskValue(task, ["currentStage", "CurrentStage"], null)?.stage?.productionStageID ||
+            getTaskValue(task, ["currentStage", "CurrentStage"], null)?.Stage?.ProductionStageID || 0;
 
-        // סעיף 1: הצגת ציון אמיתי (אם הוא 0 בשרת, הוא יופיע כאן כ-0 עד שנתקן את C#)
-        const score = task.calculatedScore || task.CalculatedScore || 0;
+        const projectDueDate = formatDate(projectDueDateRaw);
+        const itemDueDate = formatDate(itemDueDateRaw);
+        const isExpiredRow = isExpiredDate(projectDueDateRaw) || isExpiredDate(itemDueDateRaw);
 
-        // סעיף 3: בדיקה אם הפריט נערך ידנית (manualPriority > 0)
-        // הערה: ודאי שהשדה הזה חוזר מה-API בתוך currentStage
         const hasManualPriority = task.currentStage?.manualPriority > 0 || task.CurrentStage?.ManualPriority > 0;
         const magicIconColor = hasManualPriority ? "orange" : "#94a3b8";
+        const safeItemId = String(itemId).replace(/'/g, "\\'");
 
         const rowHtml = `
-            <tr data-sn="${sn}" data-itemid="${itemId}" data-stageid="${task.currentStage?.stage?.productionStageID || 0}">
+            <tr class="${isExpiredRow ? 'workorder-expired-row' : ''}" data-sn="${sn}" data-itemid="${itemId}" data-stageid="${currentStageId}">
                 <td class="drag-col">
                     <div class="drag-handle">⋮⋮</div>
                     <button class="btn-tiny-algo" 
                             style="color: ${magicIconColor}; border:none; background:none; cursor:pointer;" 
-                            onclick="window.resetToAlgo(${sn}, '${itemId}', ${task.currentStage?.stage?.productionStageID || 0})" 
+                            onclick="window.resetToAlgo(${sn}, '${safeItemId}', ${currentStageId})" 
                             title="החזר לאלגוריתם">🪄</button>
                 </td>
-                <td>${po}</td>
+                <td>${workOrder}</td>
                 <td>${itemId}</td>
-                <td title="${itemName}">${itemName}</td>
+                <td class="truncate-cell item-name-cell" title="${escapeAttribute(itemName)}">${itemName}</td>
                 <td>${sn}</td>
+                <td>${planeType}</td>
+                <td class="truncate-cell project-name-cell" title="${escapeAttribute(projectName)}">${projectName}</td>
+                <td>${projectDueDate}</td>
+                <td>${itemDueDate}</td>
+                <td>${planeNumber}</td>
+                <td><span class="status-pill">${currentStationName}</span></td>
                 <td>${score.toFixed(4)}</td>
-                ${isSpecificStation ? '' : `<td><span class="status-pill">${task.currentStage?.stage?.productionStageName || "לא הוגדר"}</span></td>`}
-                <td><span class="urgency-label">${task.priorityLevel || 0}</span></td>
             </tr>
         `;
         tbody.insertAdjacentHTML('beforeend', rowHtml);
     });
 
-    updateTableHeaders(isSpecificStation);
     if (typeof wireRowDnD === 'function') wireRowDnD();
 }
 
-function updateTableHeaders(isSpecificStation) {
-    const stationHeader = document.querySelector(".station-header");
-    if (stationHeader) {
-        stationHeader.style.display = isSpecificStation ? "none" : "";
+function getTaskValue(task, keys, fallback = '') {
+    for (const key of keys) {
+        if (task && task[key] !== undefined && task[key] !== null) {
+            return task[key];
+        }
     }
+    return fallback;
+}
+
+function formatDate(value) {
+    if (!value) return '-';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return '-';
+    return dt.toLocaleDateString('he-IL');
+}
+
+function isExpiredDate(value) {
+    if (!value) return false;
+
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return false;
+
+    const dateOnly = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    return dateOnly < today;
+}
+
+function escapeAttribute(value) {
+    return String(value ?? '').replace(/"/g, '&quot;');
 }
 
 function wireRowDnD() {
@@ -175,15 +216,30 @@ window.filterWorkOrder = function () {
 
     // סינון לפי תחנה
     if (currentStation !== 'all') {
-        tasks = tasks.filter(t => t.currentStage?.stage?.productionStageName === currentStation);
+        tasks = tasks.filter(t => {
+            const stationName = getTaskValue(t, ["currentStationName", "CurrentStationName"], '') ||
+                t.currentStage?.stage?.productionStageName || t.CurrentStage?.Stage?.ProductionStageName || '';
+            return stationName === currentStation;
+        });
     }
 
     // סינון לפי חיפוש
     if (q) {
-        tasks = tasks.filter(t =>
-            t.serialNumber.toLowerCase().includes(q) ||
-            (t.workOrderID && t.workOrderID.toString().includes(q))
-        );
+        tasks = tasks.filter(t => {
+            const serial = String(getTaskValue(t, ["serialNumber", "SerialNumber"], '')).toLowerCase();
+            const workOrder = String(getTaskValue(t, ["workOrderNumber", "workOrderID", "WorkOrderNumber", "WorkOrderID"], '')).toLowerCase();
+            const itemCode = String(getTaskValue(t, ["inventoryItemID", "InventoryItemID"], '') || t.productionItem?.productionItemID || t.ProductionItem?.ProductionItemID || '').toLowerCase();
+            const itemName = String(getTaskValue(t, ["itemName", "ItemName"], '') || t.productionItem?.itemName || t.ProductionItem?.ItemName || '').toLowerCase();
+            const projectName = String(getTaskValue(t, ["projectName", "ProjectName"], '')).toLowerCase();
+            const planeNumber = String(getTaskValue(t, ["planeNumber", "PlaneNumber", "tailNumber", "TailNumber"], '')).toLowerCase();
+
+            return serial.includes(q)
+                || workOrder.includes(q)
+                || itemCode.includes(q)
+                || itemName.includes(q)
+                || projectName.includes(q)
+                || planeNumber.includes(q);
+        });
     }
 
     // מיון לפי הסדר הנוכחי (ידני או אלגוריתם)
@@ -194,8 +250,10 @@ window.filterWorkOrder = function () {
 function sortByCurrentOrder(tasks) {
     const rank = new Map(currentGlobalOrder.map((sn, index) => [sn, index]));
     return [...tasks].sort((a, b) => {
-        const aRank = rank.has(a.serialNumber) ? rank.get(a.serialNumber) : 999;
-        const bRank = rank.has(b.serialNumber) ? rank.get(b.serialNumber) : 999;
+        const aSn = getTaskValue(a, ["serialNumber", "SerialNumber"], "");
+        const bSn = getTaskValue(b, ["serialNumber", "SerialNumber"], "");
+        const aRank = rank.has(aSn) ? rank.get(aSn) : 999;
+        const bRank = rank.has(bSn) ? rank.get(bSn) : 999;
         return aRank - bRank;
     });
 }

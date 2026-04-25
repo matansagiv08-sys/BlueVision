@@ -7,7 +7,7 @@
 
     <div class="global-toolbar">
         <div class="search-container">
-            <input type="text" id="taskSearch" class="standard-input" placeholder="חפש פק״ע, מק״ט או סיריאלי..." oninput="window.filterWorkOrder()">
+            <input type="text" id="taskSearch" class="standard-input" placeholder="חפש פק״ע, מק״ט, שם פריט, פרויקט או סיריאלי..." oninput="window.filterWorkOrder()">
         </div>
 
         <div class="toolbar-actions">
@@ -27,13 +27,17 @@
             <thead>
                 <tr>
                     <th class="drag-col"></th>
-                    <th>מספר פק"ע</th>
-                    <th>מק"ט פריט</th>
-                    <th>תיאור פריט</th>
-                    <th>מספר סיריאלי</th>
-                    <th>ציון דחיפות</th>
+                    <th>מספר פק״ע</th>
+                    <th>מק״ט / קוד פריט</th>
+                    <th>שם פריט</th>
+                    <th>מספר סריאלי</th>
+                    <th>סוג כטב״ם</th>
+                    <th>פרויקט</th>
+                    <th>תאריך יעד פרויקט</th>
+                    <th>תאריך יעד פריט</th>
+                    <th>מספר מטוס</th>
                     <th class="station-header">תחנה נוכחית</th>
-                    <th>דחיפות</th>
+                    <th>ציון דחיפות</th>
                 </tr>
             </thead>
             <tbody id="tasksTableBody">

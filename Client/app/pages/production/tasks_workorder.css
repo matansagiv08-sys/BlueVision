@@ -124,6 +124,29 @@
     vertical-align: middle;
 }
 
+.tasks-workorder-page .truncate-cell {
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tasks-workorder-page .item-name-cell {
+    max-width: 250px;
+}
+
+.tasks-workorder-page .project-name-cell {
+    max-width: 210px;
+}
+
+.tasks-workorder-page .workorder-expired-row td {
+    background-color: #fff1f1;
+}
+
+.tasks-workorder-page .workorder-expired-row:hover td {
+    background-color: #ffe6e6;
+}
+
 .btn-tiny-algo {
     background: none;
     border: none;

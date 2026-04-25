@@ -115,6 +115,14 @@ namespace Server.Models
             }
         }
 
+        public int WorkOrderNumber => WorkOrderID;
+        public string InventoryItemID => ProductionItem?.ProductionItemID ?? string.Empty;
+        public string PlaneTypeName => PlaneID?.Type?.PlaneTypeName ?? string.Empty;
+        public DateTime? ProjectDueDate => PlaneID?.Project?.DueDate;
+        public string PlaneNumber => TailNumber;
+        public string CurrentStationName => CurrentStage?.Stage?.ProductionStageName ?? string.Empty;
+        public double UrgencyScore => CalculatedScore;
+
         //שליפת נתוני לוח משימות וניהול סדר עבודה
         public List<ItemInProduction> GetBoardData()
         {
