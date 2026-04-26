@@ -198,6 +198,23 @@ function getFirstAllowedRoute(user) {
     return null;
 }
 
+function getUserAvatarInitial(user) {
+    const rawUsername = String(user?.username || user?.fullName || "").trim();
+    if (!rawUsername) {
+        return "?";
+    }
+
+    const cleanUsername = rawUsername.includes("@")
+        ? rawUsername.split("@")[0].trim()
+        : rawUsername;
+
+    if (!cleanUsername) {
+        return "?";
+    }
+
+    return cleanUsername.charAt(0).toLocaleUpperCase("he-IL");
+}
+
 function applyPermissionVisibility(user) {
     document.querySelectorAll("[data-permission='production']").forEach(el => {
         el.classList.toggle("perm-hidden", !user?.canViewProduction);
@@ -220,6 +237,136 @@ function applyPermissionVisibility(user) {
     if (userRoleEl) {
         userRoleEl.textContent = user?.canManageUsers ? "Admin" : "User";
     }
+
+    const popupUserNameEl = document.getElementById("popupUserName");
+    if (popupUserNameEl) {
+        popupUserNameEl.textContent = user?.fullName || user?.username || "משתמש";
+    }
+
+    const popupUserRoleEl = document.getElementById("popupUserRole");
+    if (popupUserRoleEl) {
+        popupUserRoleEl.textContent = user?.canManageUsers ? "Admin" : "User";
+    }
+
+    const userAvatarEl = document.querySelector(".user-avatar");
+    if (userAvatarEl) {
+        userAvatarEl.textContent = getUserAvatarInitial(user);
+    }
+
+    syncSidebarOpenWidth();
+}
+
+function closeSidebarUserPopup() {
+    const popup = document.getElementById("sidebarUserPopup");
+    const trigger = document.getElementById("sidebarUserTrigger");
+    const confirm = document.getElementById("popupLogoutConfirm");
+    const actions = document.getElementById("popupActions");
+
+    if (popup) {
+        popup.hidden = true;
+    }
+    if (trigger) {
+        trigger.setAttribute("aria-expanded", "false");
+    }
+    if (confirm) {
+        confirm.hidden = true;
+    }
+    if (actions) {
+        actions.hidden = false;
+    }
+}
+
+function setupSidebarUserPopup() {
+    const trigger = document.getElementById("sidebarUserTrigger");
+    const popup = document.getElementById("sidebarUserPopup");
+    const logoutBtn = document.getElementById("popupLogoutBtn");
+    const confirmWrap = document.getElementById("popupLogoutConfirm");
+    const confirmBtn = document.getElementById("popupConfirmLogoutBtn");
+    const cancelBtn = document.getElementById("popupCancelLogoutBtn");
+    const actions = document.getElementById("popupActions");
+
+    if (!trigger || !popup) {
+        return;
+    }
+
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const shouldOpen = popup.hidden;
+        if (shouldOpen) {
+            popup.hidden = false;
+            trigger.setAttribute("aria-expanded", "true");
+        } else {
+            closeSidebarUserPopup();
+        }
+    });
+
+    popup.addEventListener("click", (e) => {
+        e.stopPropagation();
+    });
+
+    logoutBtn?.addEventListener("click", () => {
+        if (confirmWrap) {
+            confirmWrap.hidden = false;
+        }
+        if (actions) {
+            actions.hidden = true;
+        }
+    });
+
+    cancelBtn?.addEventListener("click", () => {
+        if (confirmWrap) {
+            confirmWrap.hidden = true;
+        }
+        if (actions) {
+            actions.hidden = false;
+        }
+    });
+
+    confirmBtn?.addEventListener("click", () => {
+        closeSidebarUserPopup();
+        logoutUser();
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!popup.hidden && !trigger.contains(e.target) && !popup.contains(e.target)) {
+            closeSidebarUserPopup();
+        }
+    });
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            closeSidebarUserPopup();
+        }
+    });
+}
+
+function syncSidebarOpenWidth() {
+    const sidebar = document.getElementById("sidebar");
+    if (!sidebar || sidebar.classList.contains("collapsed")) {
+        return;
+    }
+
+    const cs = window.getComputedStyle(sidebar);
+    const horizontalPadding = parseFloat(cs.paddingLeft || "0") + parseFloat(cs.paddingRight || "0");
+
+    let contentMax = 0;
+    const navLinks = Array.from(sidebar.querySelectorAll(".sidebar-nav a")).filter(el => !el.classList.contains("perm-hidden"));
+    navLinks.forEach(link => {
+        contentMax = Math.max(contentMax, link.scrollWidth);
+    });
+
+    const userSection = sidebar.querySelector(".sidebar-user");
+    if (userSection && window.getComputedStyle(userSection).display !== "none") {
+        contentMax = Math.max(contentMax, userSection.scrollWidth);
+    }
+
+    const logoutBtn = sidebar.querySelector(".sidebar-logout-btn");
+    if (logoutBtn && window.getComputedStyle(logoutBtn).display !== "none") {
+        contentMax = Math.max(contentMax, logoutBtn.scrollWidth);
+    }
+
+    const openWidth = Math.max(190, Math.min(320, Math.ceil(contentMax + horizontalPadding + 10)));
+    document.documentElement.style.setProperty("--sidebar-open-width", `${openWidth}px`);
 }
 
 /* Load a JS file once (prevents duplicates) */
@@ -370,16 +517,21 @@ async function loadRoute() {
    SIDEBAR TOGGLE (global)
 ========================= */
 document.getElementById("sidebarToggle")?.addEventListener("click", () => {
-    document.getElementById("sidebar")?.classList.toggle("collapsed");
+    const sidebar = document.getElementById("sidebar");
+    sidebar?.classList.toggle("collapsed");
+    if (sidebar && !sidebar.classList.contains("collapsed")) {
+        syncSidebarOpenWidth();
+    }
 });
 
-document.getElementById("logoutBtn")?.addEventListener("click", logoutUser);
+setupSidebarUserPopup();
 
 /* =========================
    EVENT LISTENERS
 ========================= */
 window.addEventListener("hashchange", loadRoute);
 window.addEventListener("load", loadRoute);
+window.addEventListener("resize", syncSidebarOpenWidth);
 
 /* Close generic modal */
 window.closeGenericModal = function () {

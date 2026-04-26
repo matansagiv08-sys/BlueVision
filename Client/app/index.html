@@ -26,25 +26,43 @@
         <nav class="sidebar-nav">
             <a href="#/production/tasks_board" data-route data-permission="production">
                 <span class="icon">🏭</span>
-                <span class="label">Production</span>
+                <span class="label">ייצור</span>
             </a>
             <a href="#/inventory/inventory_dashboard" data-route data-permission="stock">
                 <span class="icon">📦</span>
-                <span class="label">Stock</span>
+                <span class="label">מלאי</span>
             </a>
             <a href="#/admin/users" data-route data-permission="manageUsers">
                 <span class="icon">👤</span>
-                <span class="label">Users</span>
+                <span class="label">משתמשים</span>
             </a>
         </nav>
-        <div class="sidebar-user">
-            <div class="user-avatar">ד</div>
-            <div class="user-info">
-                <div class="user-name" id="sidebarUserName">משתמש</div>
-                <div class="user-role" id="sidebarUserRole">-</div>
+        <div class="sidebar-user-wrap">
+            <button id="sidebarUserTrigger" class="sidebar-user" type="button" aria-expanded="false" aria-controls="sidebarUserPopup">
+                <div class="user-avatar">ד</div>
+                <div class="user-info">
+                    <div class="user-name" id="sidebarUserName">משתמש</div>
+                    <div class="user-role" id="sidebarUserRole">-</div>
+                </div>
+            </button>
+
+            <div id="sidebarUserPopup" class="sidebar-user-popup" hidden>
+                <div class="popup-user-name" id="popupUserName">משתמש</div>
+                <div class="popup-user-role" id="popupUserRole">-</div>
+
+                <div class="popup-actions" id="popupActions">
+                    <button id="popupLogoutBtn" class="sidebar-popup-logout-btn" type="button">התנתק</button>
+                </div>
+
+                <div class="popup-logout-confirm" id="popupLogoutConfirm" hidden>
+                    <div class="confirm-text">האם אתה בטוח שברצונך להתנתק?</div>
+                    <div class="confirm-actions">
+                        <button id="popupCancelLogoutBtn" class="btn-cancel" type="button">ביטול</button>
+                        <button id="popupConfirmLogoutBtn" class="btn-save" type="button">התנתק</button>
+                    </div>
+                </div>
             </div>
         </div>
-        <button id="logoutBtn" class="sidebar-logout-btn" type="button">התנתק</button>
     </aside>
 
     <div class="main">

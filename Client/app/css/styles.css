@@ -12,12 +12,19 @@ body {
     color: #1a2b42;
 }
 
+:root {
+    --sidebar-open-width: 220px;
+    --sidebar-collapsed-width: 80px;
+    --sidebar-icon-slot: 48px;
+    --sidebar-icon-right-offset: 0px;
+}
+
 /* =======================
    SIDEBAR
 ======================= */
 
 .sidebar {
-    width: 260px;
+    width: var(--sidebar-open-width);
     height: 100vh;
     position: fixed;
     top: 0;
@@ -27,17 +34,20 @@ body {
     color: white;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    direction: rtl;
     padding: 20px 15px;
     transition: width 0.3s ease;
 }
 
     .sidebar.collapsed {
-        width: 80px;
+        width: var(--sidebar-collapsed-width);
     }
 
 /* Logo top left */
 .sidebar-top {
     position: relative;
+    width: 100%;
     margin-bottom: 48px; /* more space before Production */
 }
 
@@ -54,14 +64,18 @@ body {
 .sidebar-toggle-btn {
     position: absolute;
     top: 0;
-    right: 0;
+    right: var(--sidebar-icon-right-offset);
+    width: var(--sidebar-icon-slot);
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     color: #fff;
     font-size: 24px;
     cursor: pointer;
-    /* match nav items so it's flush with the icons */
-    padding: 10px 12px;
+    padding: 0;
     line-height: 1;
 }
 
@@ -69,18 +83,20 @@ body {
 .sidebar-nav {
     display: flex;
     flex-direction: column;
+    width: 100%;
     gap: 12px;
 }
 
     .sidebar-nav a {
         display: flex;
         align-items: center;
-        /* RTL alignment: icon sits on the RIGHT consistently */
-        flex-direction: row-reverse;
-        gap: 12px;
+        position: relative;
+        direction: rtl;
+        justify-content: flex-start;
         text-decoration: none;
         color: #d1d9e6;
         padding: 10px 12px;
+        min-height: 44px;
         border-radius: 8px;
         transition: background 0.2s;
     }
@@ -90,55 +106,149 @@ body {
         }
 
     .sidebar-nav .icon {
-        width: 26px;
-        text-align: center;
+        width: var(--sidebar-icon-slot);
+        min-width: var(--sidebar-icon-slot);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         font-size: 18px;
-        flex: 0 0 26px;
+        flex: 0 0 var(--sidebar-icon-slot);
+        position: absolute;
+        right: var(--sidebar-icon-right-offset);
+        top: 50%;
+        transform: translateY(-50%);
     }
 
     .sidebar-nav .label {
+        display: block;
+        flex: 1 1 auto;
+        margin-right: var(--sidebar-icon-slot);
         text-align: right;
+        padding-left: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        opacity: 1;
+        transition: opacity 0.2s ease, width 0.2s ease;
     }
 
 /* Hide labels when collapsed */
 .sidebar.collapsed .label {
-    display: none;
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* =======================
    USER SECTION
 ======================= */
 
-.sidebar-user {
+.sidebar-user-wrap {
     margin-top: auto;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    width: 100%;
+    position: relative;
     padding-top: 20px;
     border-top: 1px solid rgba(255,255,255,0.2);
 }
 
-.sidebar-logout-btn {
-    margin-top: 12px;
+.sidebar-user {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    text-align: inherit;
+    padding: 0;
+}
+
+.sidebar-user-popup {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 12px;
+    right: 12px;
+    width: calc(100% - 24px);
+    max-width: none;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: #133458;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    padding: 10px;
+    z-index: 120;
+}
+
+.popup-user-name {
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.popup-user-role {
+    color: #cbd5e1;
+    font-size: 12px;
+    margin-top: 3px;
+}
+
+.popup-actions {
+    margin-top: 10px;
+}
+
+.sidebar-popup-logout-btn {
     width: 100%;
     border: 1px solid rgba(255, 255, 255, 0.28);
     background: rgba(255, 255, 255, 0.06);
     color: #f8fafc;
     border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 14px;
+    padding: 7px 10px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.sidebar-logout-btn:hover {
+.sidebar-popup-logout-btn:hover {
     background: rgba(255, 255, 255, 0.14);
 }
 
-.sidebar.collapsed .sidebar-logout-btn {
-    padding: 10px 0;
+.popup-logout-confirm {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+}
+
+.confirm-text {
+    color: #f8fafc;
     font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 10px;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.confirm-actions .btn-cancel,
+.confirm-actions .btn-save {
+    flex: 1;
+    padding: 7px 8px;
+    font-size: 12px;
+}
+
+.sidebar.collapsed .sidebar-user-popup {
+    left: 6px;
+    right: 6px;
+    width: calc(100% - 12px);
+    padding: 8px;
+}
+
+.sidebar.collapsed .popup-user-name,
+.sidebar.collapsed .popup-user-role {
+    display: none;
+}
+
+.sidebar.collapsed .popup-actions {
+    margin-top: 0;
 }
 
 .user-avatar {
@@ -163,12 +273,12 @@ body {
 
 .main {
     flex: 1;
-    margin-right: 260px;
+    margin-right: var(--sidebar-open-width);
     padding: 30px;
 }
 
 .sidebar.collapsed + .main {
-    margin-right: 80px;
+    margin-right: var(--sidebar-collapsed-width);
 }
 
 .topbar {
