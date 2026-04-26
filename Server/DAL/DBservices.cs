@@ -51,6 +51,49 @@ public class DBservices
         return cmd;
     }
 
+    private void ExecuteStoredProcedure(SqlConnection con, string procedureName)
+    {
+        try
+        {
+            using SqlCommand cmd = new SqlCommand(procedureName, con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.ExecuteNonQuery();
+        }
+        catch (SqlException ex) when (ex.Number == 2812)
+        {
+            throw new Exception($"Required stored procedure is missing: {procedureName}", ex);
+        }
+    }
+
+    private void EnsureTempTableExists(SqlConnection con, string tempTableName)
+    {
+        using SqlCommand cmd = new SqlCommand("SELECT OBJECT_ID(@TempTableName)", con);
+        cmd.CommandType = CommandType.Text;
+        cmd.Parameters.AddWithValue("@TempTableName", $"tempdb..{tempTableName}");
+
+        object? result = cmd.ExecuteScalar();
+        if (result == null || result == DBNull.Value)
+        {
+            throw new Exception($"{tempTableName} was not created on active connection");
+        }
+    }
+
+    private string ValidateTempItemCode(string itemCode, string tempTableName)
+    {
+        string normalized = (itemCode ?? string.Empty).Trim();
+        if (normalized.Length == 0)
+        {
+            throw new Exception($"ItemCode is empty for {tempTableName}");
+        }
+
+        if (normalized.Length > 100)
+        {
+            throw new Exception($"ItemCode '{normalized}' exceeds NVARCHAR(100) for {tempTableName}");
+        }
+
+        return normalized;
+    }
+
     public List<InventoryItem> GetInventoryItems(
         int page = 1,
         int pageSize = 100,
@@ -536,6 +579,24 @@ public class DBservices
         try
         {
             con = connect("myProjDB");
+            using (SqlCommand appLockCmd = new SqlCommand("sp_getapplock", con))
+            {
+                appLockCmd.CommandType = CommandType.StoredProcedure;
+                appLockCmd.Parameters.AddWithValue("@Resource", "InventoryImportTempTables");
+                appLockCmd.Parameters.AddWithValue("@LockMode", "Exclusive");
+                appLockCmd.Parameters.AddWithValue("@LockOwner", "Session");
+                appLockCmd.Parameters.AddWithValue("@LockTimeout", 60000);
+                SqlParameter returnValue = appLockCmd.Parameters.Add("@RETURN_VALUE", SqlDbType.Int);
+                returnValue.Direction = ParameterDirection.ReturnValue;
+
+                appLockCmd.ExecuteNonQuery();
+                int lockResult = returnValue.Value == DBNull.Value ? -999 : Convert.ToInt32(returnValue.Value);
+                if (lockResult < 0)
+                {
+                    throw new Exception($"Failed to acquire import lock. sp_getapplock result: {lockResult}");
+                }
+            }
+
             Dictionary<string, int> planeTypeNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             using (SqlCommand selectPlaneTypesCmd = new SqlCommand("dbo.SP_GetPlaneTypesForImport", con))
             {
@@ -683,20 +744,17 @@ public class DBservices
                     continue;
                 }
 
-                supplierUpdatesTable.Rows.Add(itemCode, supplierId);
+                supplierUpdatesTable.Rows.Add(ValidateTempItemCode(itemCode, "#SupplierUpdates"), supplierId);
             }
 
             if (supplierUpdatesTable.Rows.Count > 0)
             {
-                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateSupplierUpdatesTempTable", con))
-                {
-                    createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.ExecuteNonQuery();
-                }
+                ExecuteStoredProcedure(con, "dbo.SP_CreateSupplierUpdatesTempTable");
+                EnsureTempTableExists(con, "##SupplierUpdates");
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
-                    bulkCopy.DestinationTableName = "#SupplierUpdates";
+                    bulkCopy.DestinationTableName = "##SupplierUpdates";
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("SupplierID", "SupplierID");
@@ -714,20 +772,17 @@ public class DBservices
 
             foreach (var mapping in importData.ItemToLastPODateMap)
             {
-                lastPoDateUpdatesTable.Rows.Add(mapping.Key, mapping.Value.Date);
+                lastPoDateUpdatesTable.Rows.Add(ValidateTempItemCode(mapping.Key, "#LastPODateUpdates"), mapping.Value.Date);
             }
 
             if (lastPoDateUpdatesTable.Rows.Count > 0)
             {
-                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateLastPoDateUpdatesTempTable", con))
-                {
-                    createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.ExecuteNonQuery();
-                }
+                ExecuteStoredProcedure(con, "dbo.SP_CreateLastPoDateUpdatesTempTable");
+                EnsureTempTableExists(con, "##LastPODateUpdates");
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
-                    bulkCopy.DestinationTableName = "#LastPODateUpdates";
+                    bulkCopy.DestinationTableName = "##LastPODateUpdates";
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("LastPODate", "LastPODate");
@@ -785,20 +840,17 @@ public class DBservices
                     continue;
                 }
 
-                updatesTable.Rows.Add(itemCode, itemGrpId);
+                updatesTable.Rows.Add(ValidateTempItemCode(itemCode, "#ItemGroupUpdates"), itemGrpId);
             }
 
             if (updatesTable.Rows.Count > 0)
             {
-                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateItemGroupUpdatesTempTable", con))
-                {
-                    createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.ExecuteNonQuery();
-                }
+                ExecuteStoredProcedure(con, "dbo.SP_CreateItemGroupUpdatesTempTable");
+                EnsureTempTableExists(con, "##ItemGroupUpdates");
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
-                    bulkCopy.DestinationTableName = "#ItemGroupUpdates";
+                    bulkCopy.DestinationTableName = "##ItemGroupUpdates";
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("ItemGrpID", "ItemGrpID");
@@ -816,20 +868,17 @@ public class DBservices
 
             foreach (var mapping in importData.ItemToBuyMethod)
             {
-                buyMethodUpdatesTable.Rows.Add(mapping.Key, mapping.Value);
+                buyMethodUpdatesTable.Rows.Add(ValidateTempItemCode(mapping.Key, "#BuyMethodUpdates"), mapping.Value);
             }
 
             if (buyMethodUpdatesTable.Rows.Count > 0)
             {
-                using (SqlCommand createTempCmd = new SqlCommand("dbo.SP_CreateBuyMethodUpdatesTempTable", con))
-                {
-                    createTempCmd.CommandType = CommandType.StoredProcedure;
-                    createTempCmd.ExecuteNonQuery();
-                }
+                ExecuteStoredProcedure(con, "dbo.SP_CreateBuyMethodUpdatesTempTable");
+                EnsureTempTableExists(con, "##BuyMethodUpdates");
 
                 using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
                 {
-                    bulkCopy.DestinationTableName = "#BuyMethodUpdates";
+                    bulkCopy.DestinationTableName = "##BuyMethodUpdates";
                     bulkCopy.BatchSize = 2000;
                     bulkCopy.ColumnMappings.Add("ItemCode", "ItemCode");
                     bulkCopy.ColumnMappings.Add("BuyMethod", "BuyMethod");

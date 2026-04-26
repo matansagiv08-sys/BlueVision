@@ -1,5 +1,6 @@
 using Server.DAL;
 using ClosedXML.Excel;
+using Microsoft.Extensions.Configuration;
 using System.Globalization;
 
 namespace Server.Models;
@@ -102,18 +103,60 @@ public class InventoryItem
 
     private static string ResolveExcelPath(string? filePath)
     {
+        List<string> attemptedPaths = new List<string>();
+
         if (!string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath))
         {
             return filePath;
         }
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            attemptedPaths.Add(filePath);
+        }
+
+        string currentDirectory = Directory.GetCurrentDirectory();
+
+        string appSettingsPath = Path.Combine(currentDirectory, "appsettings.json");
+        string? configuredPath = null;
+        if (File.Exists(appSettingsPath))
+        {
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                .SetBasePath(currentDirectory)
+                .AddJsonFile("appsettings.json", optional: false)
+                .Build();
+
+            configuredPath = configuration["InventoryImport:DefaultExcelPath"];
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            string candidateFromConfig = Path.IsPathRooted(configuredPath)
+                ? configuredPath
+                : Path.GetFullPath(Path.Combine(currentDirectory, configuredPath));
+
+            if (File.Exists(candidateFromConfig))
+            {
+                return candidateFromConfig;
+            }
+
+            attemptedPaths.Add(candidateFromConfig);
+        }
+
+        string projectDatafilesPath = Path.GetFullPath(Path.Combine(currentDirectory, "Datafiles", "BlueBird_Data.xlsx"));
+        if (File.Exists(projectDatafilesPath))
+        {
+            return projectDatafilesPath;
+        }
+        attemptedPaths.Add(projectDatafilesPath);
 
         string fallback = Path.Combine(AppContext.BaseDirectory, "Output", "final_inventory_data.xlsx");
         if (File.Exists(fallback))
         {
             return fallback;
         }
+        attemptedPaths.Add(fallback);
 
-        throw new FileNotFoundException("Inventory source file not found", filePath ?? fallback);
+        throw new FileNotFoundException($"Inventory source file not found. Attempted paths: {string.Join(" | ", attemptedPaths)}");
     }
 
     private static Dictionary<string, string> BuildItemToGroupMap(IXLWorksheet sheet)
@@ -122,8 +165,8 @@ public class InventoryItem
 
         foreach (IXLRow row in sheet.RowsUsed().Skip(1))
         {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            string itmsGrpNam = row.Cell(3).GetValue<string>().Trim();
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
+            string itmsGrpNam = GetCellText(row.Cell(3), sheet.Name, row.RowNumber(), "C", "ItemGroupName");
 
             if (string.IsNullOrWhiteSpace(itemCode) || string.IsNullOrWhiteSpace(itmsGrpNam))
             {
@@ -142,13 +185,13 @@ public class InventoryItem
 
         foreach (IXLRow row in sheet.RowsUsed().Skip(1))
         {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
             if (string.IsNullOrWhiteSpace(itemCode))
             {
                 continue;
             }
 
-            string buyMethod = row.Cell(4).GetValue<string>().Trim().ToUpper();
+            string buyMethod = GetCellText(row.Cell(4), sheet.Name, row.RowNumber(), "D", "BuyMethod").ToUpper();
             if (buyMethod != "B" && buyMethod != "M")
             {
                 continue;
@@ -166,8 +209,8 @@ public class InventoryItem
 
         foreach (IXLRow row in sheet.RowsUsed().Skip(1))
         {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
-            string lastVendor = row.Cell(2).GetValue<string>().Trim();
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
+            string lastVendor = GetCellText(row.Cell(2), sheet.Name, row.RowNumber(), "B", "LastVendor");
 
             if (string.IsNullOrWhiteSpace(itemCode) || string.IsNullOrWhiteSpace(lastVendor))
             {
@@ -186,7 +229,7 @@ public class InventoryItem
 
         foreach (IXLRow row in sheet.RowsUsed().Skip(1))
         {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
             if (string.IsNullOrWhiteSpace(itemCode))
             {
                 continue;
@@ -207,7 +250,7 @@ public class InventoryItem
             }
             else
             {
-                string rawDate = dateCell.GetValue<string>().Trim();
+                string rawDate = GetCellText(dateCell, sheet.Name, row.RowNumber(), "C", "LastPODate");
                 if (DateTime.TryParse(rawDate, CultureInfo.CurrentCulture, DateTimeStyles.None, out parsedDate) ||
                     DateTime.TryParse(rawDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate) ||
                     DateTime.TryParse(rawDate, new CultureInfo("he-IL"), DateTimeStyles.None, out parsedDate))
@@ -234,19 +277,19 @@ public class InventoryItem
 
         foreach (IXLRow row in sheet.RowsUsed().Where(r => r.RowNumber() >= 4))
         {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1));
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
             if (string.IsNullOrWhiteSpace(itemCode))
             {
                 continue;
             }
 
-            string itemName = row.Cell(2).GetValue<string>().Trim();
-            string measureUnit = row.Cell(3).GetValue<string>().Trim();
-            decimal quantity = ToSafeDecimal(row.Cell(4));
-            string warehouse = row.Cell(5).GetValue<string>().Trim();
-            int bomLevel = ToSafeInt(row.Cell(6));
-            string hasChildRaw = row.Cell(7).GetValue<string>().Trim();
-            string buyMethod = row.Cell(8).GetValue<string>().Trim();
+            string itemName = GetCellText(row.Cell(2), sheet.Name, row.RowNumber(), "B", "ItemName");
+            string measureUnit = GetCellText(row.Cell(3), sheet.Name, row.RowNumber(), "C", "MeasureUnit");
+            decimal quantity = ToSafeDecimal(row.Cell(4), sheet.Name, row.RowNumber(), "D", "Quantity");
+            string warehouse = GetCellText(row.Cell(5), sheet.Name, row.RowNumber(), "E", "Warehouse");
+            int bomLevel = ToSafeInt(row.Cell(6), sheet.Name, row.RowNumber(), "F", "BomLevel");
+            string hasChildRaw = GetCellText(row.Cell(7), sheet.Name, row.RowNumber(), "G", "HasChild");
+            string buyMethod = GetCellText(row.Cell(8), sheet.Name, row.RowNumber(), "H", "BuyMethod");
 
             rows.Add(new BomRow
             {
@@ -304,12 +347,12 @@ public class InventoryItem
         }
     }
 
-    private static decimal ToSafeDecimal(IXLCell cell)
+    private static decimal ToSafeDecimal(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
     {
         if (cell.IsEmpty()) return 0;
         if (cell.DataType == XLDataType.Number) return Convert.ToDecimal(cell.GetDouble());
 
-        string raw = cell.GetValue<string>().Trim();
+        string raw = GetCellText(cell, sheetName, rowNumber, columnLetter, fieldName);
         if (string.IsNullOrWhiteSpace(raw)) return 0;
 
         if (double.TryParse(raw, NumberStyles.Any, CultureInfo.CurrentCulture, out double currentCultureValue))
@@ -322,10 +365,10 @@ public class InventoryItem
             return Convert.ToDecimal(invariantValue);
         }
 
-        return 0;
+        throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid decimal value");
     }
 
-    private static int ToSafeInt(IXLCell cell)
+    private static int ToSafeInt(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
     {
         if (cell.IsEmpty()) return 0;
         if (cell.DataType == XLDataType.Number)
@@ -333,7 +376,7 @@ public class InventoryItem
             return Convert.ToInt32(Math.Round(cell.GetDouble(), MidpointRounding.AwayFromZero));
         }
 
-        string raw = cell.GetValue<string>().Trim();
+        string raw = GetCellText(cell, sheetName, rowNumber, columnLetter, fieldName);
         if (string.IsNullOrWhiteSpace(raw)) return 0;
 
         if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double invariantNumber))
@@ -346,7 +389,7 @@ public class InventoryItem
             return Convert.ToInt32(Math.Round(currentCultureNumber, MidpointRounding.AwayFromZero));
         }
 
-        return 0;
+        throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid integer value");
     }
 
     private static string? NullIfEmpty(string? value)
@@ -354,7 +397,7 @@ public class InventoryItem
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static string GetExcelCellTextPreserveFormatting(IXLCell cell)
+    private static string GetExcelCellTextPreserveFormatting(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
     {
         if (cell == null || cell.IsEmpty())
         {
@@ -363,13 +406,38 @@ public class InventoryItem
 
         if (cell.DataType == XLDataType.Number)
         {
-            decimal numeric = Convert.ToDecimal(cell.Value);
+            if (!cell.TryGetValue<decimal>(out decimal numeric))
+            {
+                if (cell.TryGetValue<double>(out double numericDouble))
+                {
+                    numeric = Convert.ToDecimal(numericDouble);
+                }
+                else
+                {
+                    string rawNumeric = cell.GetString().Trim();
+                    throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{rawNumeric}' - invalid numeric code value");
+                }
+            }
+
             return decimal.Truncate(numeric) == numeric
                 ? ((long)numeric).ToString(CultureInfo.InvariantCulture)
                 : numeric.ToString(CultureInfo.InvariantCulture);
         }
 
-        return cell.GetValue<string>().Trim();
+        return GetCellText(cell, sheetName, rowNumber, columnLetter, fieldName);
+    }
+
+    private static string GetCellText(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
+    {
+        try
+        {
+            return cell.GetString().Trim();
+        }
+        catch (Exception ex)
+        {
+            string rawValue = cell.Value.ToString();
+            throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{rawValue}' - text conversion failed: {ex.Message}", ex);
+        }
     }
 }
 
