@@ -60,4 +60,12 @@ public class InventoryController : ControllerBase
             });
         }
     }
+
+    [HttpGet("excel-last-modified")]
+    public ActionResult<ExcelLastModifiedInfo> GetExcelLastModified()
+    {
+        InventoryItem inventoryItem = new InventoryItem();
+        ExcelLastModifiedInfo info = inventoryItem.GetExcelLastModifiedInfo();
+        return Ok(info);
+    }
 }

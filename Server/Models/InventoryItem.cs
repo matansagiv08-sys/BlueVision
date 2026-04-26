@@ -101,13 +101,52 @@ public class InventoryItem
         return dbs.GetInventoryFilterOptions();
     }
 
+    public ExcelLastModifiedInfo GetExcelLastModifiedInfo(string? filePath = null)
+    {
+        ExcelPathResolution resolution = ResolveExcelPathResolution(filePath);
+        if (!resolution.FileExists)
+        {
+            return new ExcelLastModifiedInfo
+            {
+                FileExists = false,
+                ExcelLastModifiedAt = null,
+                ResolvedPath = resolution.ResolvedPath,
+                Message = "Excel file not found"
+            };
+        }
+
+        return new ExcelLastModifiedInfo
+        {
+            FileExists = true,
+            ExcelLastModifiedAt = File.GetLastWriteTime(resolution.ResolvedPath),
+            ResolvedPath = resolution.ResolvedPath,
+            Message = "Excel file found"
+        };
+    }
+
     private static string ResolveExcelPath(string? filePath)
+    {
+        ExcelPathResolution resolution = ResolveExcelPathResolution(filePath);
+        if (resolution.FileExists)
+        {
+            return resolution.ResolvedPath;
+        }
+
+        throw new FileNotFoundException($"Inventory source file not found. Attempted paths: {string.Join(" | ", resolution.AttemptedPaths)}");
+    }
+
+    private static ExcelPathResolution ResolveExcelPathResolution(string? filePath)
     {
         List<string> attemptedPaths = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath))
         {
-            return filePath;
+            return new ExcelPathResolution
+            {
+                FileExists = true,
+                ResolvedPath = filePath,
+                AttemptedPaths = attemptedPaths
+            };
         }
         if (!string.IsNullOrWhiteSpace(filePath))
         {
@@ -136,7 +175,12 @@ public class InventoryItem
 
             if (File.Exists(candidateFromConfig))
             {
-                return candidateFromConfig;
+                return new ExcelPathResolution
+                {
+                    FileExists = true,
+                    ResolvedPath = candidateFromConfig,
+                    AttemptedPaths = attemptedPaths
+                };
             }
 
             attemptedPaths.Add(candidateFromConfig);
@@ -145,18 +189,40 @@ public class InventoryItem
         string projectDatafilesPath = Path.GetFullPath(Path.Combine(currentDirectory, "Datafiles", "BlueBird_Data.xlsx"));
         if (File.Exists(projectDatafilesPath))
         {
-            return projectDatafilesPath;
+            return new ExcelPathResolution
+            {
+                FileExists = true,
+                ResolvedPath = projectDatafilesPath,
+                AttemptedPaths = attemptedPaths
+            };
         }
         attemptedPaths.Add(projectDatafilesPath);
 
         string fallback = Path.Combine(AppContext.BaseDirectory, "Output", "final_inventory_data.xlsx");
         if (File.Exists(fallback))
         {
-            return fallback;
+            return new ExcelPathResolution
+            {
+                FileExists = true,
+                ResolvedPath = fallback,
+                AttemptedPaths = attemptedPaths
+            };
         }
         attemptedPaths.Add(fallback);
 
-        throw new FileNotFoundException($"Inventory source file not found. Attempted paths: {string.Join(" | ", attemptedPaths)}");
+        return new ExcelPathResolution
+        {
+            FileExists = false,
+            ResolvedPath = attemptedPaths.FirstOrDefault() ?? string.Empty,
+            AttemptedPaths = attemptedPaths
+        };
+    }
+
+    private class ExcelPathResolution
+    {
+        public bool FileExists { get; set; }
+        public string ResolvedPath { get; set; } = string.Empty;
+        public List<string> AttemptedPaths { get; set; } = new List<string>();
     }
 
     private static Dictionary<string, string> BuildItemToGroupMap(IXLWorksheet sheet)
@@ -461,4 +527,12 @@ public class InventoryImportData
     public List<BomRow> TbvBomRows { get; set; } = new List<BomRow>();
     public List<string> UniqueSuppliers { get; set; } = new List<string>();
     public List<string> UniqueGroupNames { get; set; } = new List<string>();
+}
+
+public class ExcelLastModifiedInfo
+{
+    public bool FileExists { get; set; }
+    public DateTime? ExcelLastModifiedAt { get; set; }
+    public string ResolvedPath { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
 }
