@@ -1,5 +1,6 @@
 let currentCheckMode = "uav";
 let bomPlaneTypeOptions = [];
+const INVENTORY_CHECK_STATE_KEY = "inventoryCheckFormState";
 
 //When the page loads, initInventoryCheck() runs, commanded by app.js. It sets up the page and loads the plane types for the dropdowns.
 window.initInventoryCheck = function () {
@@ -24,12 +25,12 @@ function loadBomPlaneTypes() {
                 ? data
                 : (Array.isArray(data?.$values) ? data.$values : []);
 
-            resetCheckPage();
+            restoreCheckState();
         },
         function (xhr) {
             console.error("Failed to load BOM plane types", xhr);
             bomPlaneTypeOptions = [];
-            resetCheckPage();
+            restoreCheckState();
         }
     );
 }
@@ -44,6 +45,37 @@ function resetCheckPage() {
     updateCalculateButton();
 }
 
+function restoreCheckState() {
+    const savedState = readSavedState();
+    const container = document.getElementById("check-rows-container");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (savedState?.mode === "uav" || savedState?.mode === "body") {
+        currentCheckMode = savedState.mode;
+    } else {
+        currentCheckMode = "uav";
+    }
+
+    document.querySelectorAll(".slider-btn").forEach(btn => btn.classList.remove("active"));
+    document.getElementById(`mode-${currentCheckMode}`)?.classList.add("active");
+
+    const rows = Array.isArray(savedState?.rows) && savedState.rows.length > 0
+        ? savedState.rows
+        : [{ planeTypeID: "", quantity: "" }];
+
+    rows.forEach(row => {
+        window.addNewCheckRow({
+            planeTypeID: row?.planeTypeID ?? "",
+            quantity: row?.quantity ?? ""
+        });
+    });
+
+    updateAddRowButtonText();
+    updateCalculateButton();
+}
+
 //Switches between UAV/body mode and updates UI accordingly.
 window.switchCheckMode = function (mode) {
     currentCheckMode = mode;
@@ -52,6 +84,7 @@ window.switchCheckMode = function (mode) {
     document.getElementById(`mode-${mode}`)?.classList.add("active");
 
     updateAddRowButtonText();
+    saveCheckState();
 };
 
 //Changes the “add row” button text based on the selected mode.
@@ -62,7 +95,7 @@ function updateAddRowButtonText() {
 }
 
 //Creates and adds a new input row (plane type + quantity).
-window.addNewCheckRow = function () {
+window.addNewCheckRow = function (prefill = null) {
     const container = document.getElementById("check-rows-container");
     if (!container) return;
 
@@ -99,14 +132,31 @@ window.addNewCheckRow = function () {
     `;
 
     container.insertAdjacentHTML("beforeend", html);
+
+    const row = document.getElementById(rowId);
+    const planeSelect = row?.querySelector(".check-plane");
+    const qtyInput = row?.querySelector(".check-qty");
+    if (planeSelect && prefill?.planeTypeID) {
+        planeSelect.value = String(prefill.planeTypeID);
+    }
+    if (qtyInput && prefill?.quantity !== undefined && prefill?.quantity !== null && String(prefill.quantity) !== "") {
+        qtyInput.value = String(prefill.quantity);
+    }
+
+    window.validateRow(rowId);
     updateAddRowButtonText();
     updateCalculateButton();
+    saveCheckState();
 };
 
 //Deletes a specific row from the page.
 window.removeRow = function (id) {
     document.getElementById(id)?.remove();
+    if (document.querySelectorAll(".check-row-card").length === 0) {
+        window.addNewCheckRow();
+    }
     updateCalculateButton();
+    saveCheckState();
 };
 
 //Checks if a row has valid inputs and marks it as complete if valid.
@@ -121,6 +171,7 @@ window.validateRow = function (rowId) {
     const isComplete = planeValue !== "" && Number.isInteger(qty) && qty > 0;
     row.classList.toggle("row-complete", isComplete);
     updateCalculateButton();
+    saveCheckState();
 };
 
 //Enables the calculate button only if all rows are complete and there is at least one row.
@@ -154,10 +205,51 @@ window.navigateToResults = function () {
         requests
     };
 
+    saveCheckState();
+
     //Saves the payload in sessionStorage as a JSON string so the results page can retrieve and send it to the server.
     sessionStorage.setItem("inventoryCheckPayload", JSON.stringify(payload));
     window.location.hash = "/inventory/inventory_check/results";
 };
+
+window.clearInventoryCheck = function () {
+    sessionStorage.removeItem(INVENTORY_CHECK_STATE_KEY);
+    sessionStorage.removeItem("inventoryCheckPayload");
+    currentCheckMode = "uav";
+    resetCheckPage();
+    document.querySelectorAll(".slider-btn").forEach(btn => btn.classList.remove("active"));
+    document.getElementById("mode-uav")?.classList.add("active");
+    updateAddRowButtonText();
+};
+
+function collectCheckRows() {
+    const rows = [];
+    document.querySelectorAll(".check-row-card").forEach(row => {
+        const planeTypeID = row.querySelector(".check-plane")?.value || "";
+        const quantity = row.querySelector(".check-qty")?.value || "";
+        rows.push({ planeTypeID: String(planeTypeID), quantity: String(quantity) });
+    });
+    return rows;
+}
+
+function saveCheckState() {
+    const state = {
+        mode: currentCheckMode,
+        rows: collectCheckRows()
+    };
+    sessionStorage.setItem(INVENTORY_CHECK_STATE_KEY, JSON.stringify(state));
+}
+
+function readSavedState() {
+    const raw = sessionStorage.getItem(INVENTORY_CHECK_STATE_KEY);
+    if (!raw) return null;
+
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
 
 //Simple function to escape HTML special characters to prevent injection issues.
 function escapeHtml(value) {

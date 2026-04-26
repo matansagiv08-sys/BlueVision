@@ -147,8 +147,12 @@ const routes = {
    GLOBAL HELPERS
 ========================= */
 function setActiveMenu(path) {
+    const activePath = path === "/inventory/inventory_check/results"
+        ? "/inventory/inventory_check"
+        : path;
+
     document.querySelectorAll(".top-menu a[data-route]").forEach(a => {
-        a.classList.toggle("active", a.getAttribute("href") === `#${path}`);
+        a.classList.toggle("active", a.getAttribute("href") === `#${activePath}`);
     });
 }
 

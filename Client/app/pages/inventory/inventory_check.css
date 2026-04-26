@@ -5,6 +5,12 @@
     padding: 10px;
 }
 
+.check-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
 /* כרטיס שורת בדיקה */
 .check-row-card {
     background: #ffffff;
