@@ -18,10 +18,9 @@
     padding: 24px;
     margin-bottom: 20px;
     display: grid;
-    /* חלוקה ל-3 עמודות: סוג, כמות, וכפתור מחיקה */
-    grid-template-columns: 2.5fr 1fr auto;
-    gap: 20px;
-    align-items: flex-end;
+    grid-template-columns: 2.3fr 1fr auto auto;
+    gap: 16px;
+    align-items: end;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
 }
@@ -61,6 +60,37 @@
         outline: none;
     }
 
+.priority-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.priority-checkbox-label input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #0c2340;
+}
+
+.priority-group {
+    align-self: end;
+    justify-self: start;
+    display: flex;
+    align-items: center;
+    padding-top: 3px;
+    position: relative;
+    top: -15px;
+}
+
 /* כפתור מחיקה ספציפי */
 .btn-delete-row {
     background: #fff1f2;
@@ -74,6 +104,22 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+}
+
+@media (max-width: 900px) {
+    .check-row-card {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .priority-group {
+        justify-self: end;
+    }
+
+    .btn-delete-row {
+        justify-self: end;
+    }
 }
 
     .btn-delete-row:hover {

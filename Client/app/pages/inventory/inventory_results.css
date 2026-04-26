@@ -1,5 +1,9 @@
-﻿.inventory-results-page {
+.inventory-results-page {
     padding: 20px;
+}
+
+.inventory-results-page .top-action-bar {
+    margin-bottom: 16px;
 }
 
 
@@ -38,4 +42,44 @@
     color: #0f766e;
     background: #ccfbf1;
     vertical-align: middle;
+}
+
+.inventory-results-page .shared-breakdown-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.inventory-results-page .shared-breakdown-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    inset-inline-end: 0;
+    min-width: 150px;
+    max-width: 220px;
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    text-align: right;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+    pointer-events: none;
+    z-index: 20;
+    white-space: normal;
+}
+
+.inventory-results-page .shared-breakdown-wrapper:hover .shared-breakdown-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.inventory-results-page .shared-breakdown-line + .shared-breakdown-line {
+    margin-top: 4px;
 }

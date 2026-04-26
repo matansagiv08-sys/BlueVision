@@ -42,8 +42,9 @@ window.initInventoryResults = function () {
             }, 0);
 
             populatePlatformFilter(currentResultsData);
-            renderResultsTable(currentResultsData);
-            updateSummaryCards(currentResultsData, totalShortageItems, totalShortageUnits, totalEstimatedCost);
+            const sortSelect = document.getElementById("shortageSortFilter");
+            if (sortSelect) sortSelect.value = "default";
+            applyResultsView(totalShortageItems, totalShortageUnits, totalEstimatedCost);
         },
         function (xhr) {
             console.error("Failed to calculate inventory shortages", xhr);
@@ -72,7 +73,7 @@ function renderResultsTable(data) {
         const platforms = item.contributingPlaneTypes ?? item.ContributingPlaneTypes ?? "";
         const shared = (item.isSharedAcrossPlanes ?? item.IsSharedAcrossPlanes) === true;
         const sharedClass = shared ? " shared-shortage-row" : "";
-        const sharedBadge = shared ? '<span class="shared-badge">משותף</span>' : "";
+        const sharedBadge = buildSharedBadge(item, shared);
 
         return `
             <tr class="${sharedClass}">
@@ -127,8 +128,13 @@ function populatePlatformFilter(data) {
 }
 
 window.filterResults = function () {
+    applyResultsView();
+};
+
+function applyResultsView(totalItemsOverride, totalUnitsOverride, totalCostOverride) {
     const searchTerm = (document.getElementById("resultsSearch")?.value || "").toLowerCase().trim();
     const platform = document.getElementById("platformFilter")?.value || "all";
+    const sortMode = document.getElementById("shortageSortFilter")?.value || "default";
 
     const filtered = currentResultsData.filter(item => {
         const sku = String(item.inventoryItemID ?? item.InventoryItemID ?? "").toLowerCase();
@@ -141,9 +147,16 @@ window.filterResults = function () {
         return matchesSearch && matchesPlatform;
     });
 
-    renderResultsTable(filtered);
-    updateSummaryCards(filtered);
-};
+    let finalResults = [...filtered];
+    if (sortMode === "shortageDesc") {
+        finalResults.sort((a, b) => Number(b.shortageQty ?? b.ShortageQty ?? 0) - Number(a.shortageQty ?? a.ShortageQty ?? 0));
+    } else if (sortMode === "shortageAsc") {
+        finalResults.sort((a, b) => Number(a.shortageQty ?? a.ShortageQty ?? 0) - Number(b.shortageQty ?? b.ShortageQty ?? 0));
+    }
+
+    renderResultsTable(finalResults);
+    updateSummaryCards(finalResults, totalItemsOverride, totalUnitsOverride, totalCostOverride);
+}
 
 window.backToCheck = function () {
     window.location.hash = "/inventory/inventory_check";
@@ -214,4 +227,46 @@ function escapeHtml(value) {
         .replace(/>/g, "&gt;")
         .replace(/\"/g, "&quot;")
         .replace(/'/g, "&#39;");
+}
+
+function buildSharedBadge(item, isShared) {
+    if (!isShared) {
+        return "";
+    }
+
+    const breakdownLines = getSharedBreakdownLines(item);
+    if (breakdownLines.length === 0) {
+        return '<span class="shared-badge">משותף</span>';
+    }
+
+    const linesHtml = breakdownLines
+        .map(line => `<div class="shared-breakdown-line">${escapeHtml(line)}</div>`)
+        .join("");
+
+    return `
+        <span class="shared-breakdown-wrapper">
+            <span class="shared-badge">משותף</span>
+            <span class="shared-breakdown-tooltip" role="tooltip" aria-hidden="true">
+                ${linesHtml}
+            </span>
+        </span>
+    `;
+}
+
+function getSharedBreakdownTooltip(item) {
+    return getSharedBreakdownLines(item).join("\n");
+}
+
+function getSharedBreakdownLines(item) {
+    const breakdown = item.shortageByPlane ?? item.ShortageByPlane;
+    if (!breakdown || typeof breakdown !== "object") {
+        return [];
+    }
+
+    const entries = Object.entries(breakdown);
+    if (entries.length === 0) {
+        return [];
+    }
+
+    return entries.map(([planeName, shortage]) => `${planeName}: חסר ${displayNumber(shortage)}`);
 }

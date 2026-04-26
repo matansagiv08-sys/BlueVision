@@ -24,6 +24,24 @@ public class InventoryCheck
             .GroupBy(r => r.PlaneTypeID)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
+        List<RequestDemandInput> requestDemandRows = request.Requests
+            .Where(r => r != null && r.PlaneTypeID > 0 && r.Quantity > 0)
+            .Select((r, idx) => new RequestDemandInput
+            {
+                RequestIndex = idx,
+                PlaneTypeID = r.PlaneTypeID,
+                Quantity = r.Quantity,
+                IsHighPriority = r.IsHighPriority
+            })
+            .ToList();
+
+        Dictionary<int, List<RequestDemandInput>> requestDemandRowsByPlaneType = requestDemandRows
+            .GroupBy(r => r.PlaneTypeID)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        Dictionary<int, decimal> requestQtyByPlaneType = planeRequests
+            .ToDictionary(kvp => kvp.Key, kvp => Convert.ToDecimal(kvp.Value));
+
         if (planeRequests.Count == 0)
         {
             return response;
@@ -88,6 +106,33 @@ public class InventoryCheck
 
                 existing.RequiredQty += effectiveQty;
                 existing.PlaneTypeIDs.Add(planeTypeId);
+                if (!existing.RequiredQtyByPlaneTypeID.ContainsKey(planeTypeId))
+                {
+                    existing.RequiredQtyByPlaneTypeID[planeTypeId] = 0m;
+                }
+                existing.RequiredQtyByPlaneTypeID[planeTypeId] += effectiveQty;
+
+                if (requestDemandRowsByPlaneType.TryGetValue(planeTypeId, out List<RequestDemandInput>? demandRows)
+                    && demandRows.Count > 0
+                    && requestedQty > 0)
+                {
+                    foreach (RequestDemandInput demandRow in demandRows)
+                    {
+                        decimal demandShare = effectiveQty * demandRow.Quantity / requestedQty;
+
+                        if (!existing.RequiredQtyByRequestIndex.TryGetValue(demandRow.RequestIndex, out RequestDemandAllocation? allocation))
+                        {
+                            allocation = new RequestDemandAllocation
+                            {
+                                PlaneTypeID = demandRow.PlaneTypeID,
+                                IsHighPriority = demandRow.IsHighPriority
+                            };
+                            existing.RequiredQtyByRequestIndex[demandRow.RequestIndex] = allocation;
+                        }
+
+                        allocation.RequiredQty += demandShare;
+                    }
+                }
             }
         }
 
@@ -123,6 +168,12 @@ public class InventoryCheck
                 .OrderBy(id => id)
                 .Select(id => planeTypeNames.TryGetValue(id, out string? name) ? name : id.ToString()));
 
+            Dictionary<string, decimal> shortageByPlane = BuildShortageByPlane(
+                need,
+                totalStock,
+                requestQtyByPlaneType,
+                planeTypeNames);
+
             //for each item that has a shortage, we create an InventoryCheckShortageItem object with all the relevant information and add it to the response list
             InventoryCheckShortageItem item = new InventoryCheckShortageItem
             {
@@ -135,7 +186,8 @@ public class InventoryCheck
                 SupplierName = stock?.SupplierName ?? string.Empty,
                 Price = stock?.Price,
                 IsSharedAcrossPlanes = need.PlaneTypeIDs.Count > 1,
-                ContributingPlaneTypes = planeNames
+                ContributingPlaneTypes = planeNames,
+                ShortageByPlane = shortageByPlane
             };
 
             response.Items.Add(item);
@@ -153,6 +205,194 @@ public class InventoryCheck
         response.TotalEstimatedCost = Decimal.Round(response.Items.Sum(i => (decimal)(i.Price ?? 0d) * i.ShortageQty), 2);
 
         return response;
+    }
+
+    private static Dictionary<string, decimal> BuildShortageByPlane(
+        AggregatedBomNeed need,
+        decimal totalStock,
+        Dictionary<int, decimal> requestQtyByPlaneType,
+        Dictionary<int, string> planeTypeNames)
+    {
+        Dictionary<string, decimal> shortageByPlane = new Dictionary<string, decimal>();
+
+        List<int> contributingPlaneIds = need.PlaneTypeIDs
+            .Distinct()
+            .OrderBy(id => id)
+            .ToList();
+
+        if (contributingPlaneIds.Count == 0 || need.RequiredQty <= 0)
+        {
+            return shortageByPlane;
+        }
+
+        Dictionary<int, decimal> requestWeights = new Dictionary<int, decimal>();
+        decimal totalRequestWeight = 0m;
+        foreach (int planeId in contributingPlaneIds)
+        {
+            decimal weight = requestQtyByPlaneType.TryGetValue(planeId, out decimal reqQty) ? reqQty : 0m;
+            requestWeights[planeId] = weight;
+            totalRequestWeight += weight;
+        }
+
+        if (totalRequestWeight <= 0)
+        {
+            foreach (int planeId in contributingPlaneIds)
+            {
+                decimal fallbackWeight = need.RequiredQtyByPlaneTypeID.TryGetValue(planeId, out decimal reqQty)
+                    ? reqQty
+                    : 0m;
+                requestWeights[planeId] = fallbackWeight;
+            }
+            totalRequestWeight = requestWeights.Values.Sum();
+        }
+
+        if (totalRequestWeight <= 0)
+        {
+            decimal evenWeight = 1m;
+            foreach (int planeId in contributingPlaneIds)
+            {
+                requestWeights[planeId] = evenWeight;
+            }
+            totalRequestWeight = contributingPlaneIds.Count;
+        }
+
+        Dictionary<int, decimal> requiredByPlane = new Dictionary<int, decimal>();
+        foreach (int planeId in contributingPlaneIds)
+        {
+            decimal ratio = requestWeights[planeId] / totalRequestWeight;
+            requiredByPlane[planeId] = Decimal.Round(need.RequiredQty * ratio, 6);
+        }
+
+        int maxRequiredPlane = contributingPlaneIds
+            .OrderByDescending(id => requiredByPlane[id])
+            .ThenBy(id => id)
+            .First();
+
+        decimal requiredDelta = need.RequiredQty - requiredByPlane.Values.Sum();
+        requiredByPlane[maxRequiredPlane] = Decimal.Round(requiredByPlane[maxRequiredPlane] + requiredDelta, 6);
+
+        if (need.RequiredQtyByRequestIndex.Count > 0)
+        {
+            List<RequestDemandAllocation> demandAllocations = need.RequiredQtyByRequestIndex.Values
+                .Where(v => v.RequiredQty > 0)
+                .Select(v => new RequestDemandAllocation
+                {
+                    PlaneTypeID = v.PlaneTypeID,
+                    IsHighPriority = v.IsHighPriority,
+                    RequiredQty = Decimal.Round(v.RequiredQty, 6),
+                    AllocatedQty = 0m
+                })
+                .ToList();
+
+            List<RequestDemandAllocation> highPriorityDemands = demandAllocations.Where(d => d.IsHighPriority).ToList();
+            List<RequestDemandAllocation> normalDemands = demandAllocations.Where(d => !d.IsHighPriority).ToList();
+
+            decimal remainingStock = totalStock;
+
+            AllocateStockForDemandGroup(highPriorityDemands, ref remainingStock);
+            AllocateStockForDemandGroup(normalDemands, ref remainingStock);
+
+            foreach (RequestDemandAllocation demand in demandAllocations)
+            {
+                decimal shortage = demand.RequiredQty - demand.AllocatedQty;
+                if (shortage < 0)
+                {
+                    shortage = 0;
+                }
+
+                string planeName = planeTypeNames.TryGetValue(demand.PlaneTypeID, out string? name)
+                    ? name
+                    : demand.PlaneTypeID.ToString();
+
+                if (!shortageByPlane.ContainsKey(planeName))
+                {
+                    shortageByPlane[planeName] = 0m;
+                }
+
+                shortageByPlane[planeName] += shortage;
+            }
+        }
+        else
+        {
+            Dictionary<int, decimal> allocatedByPlane = new Dictionary<int, decimal>();
+            foreach (int planeId in contributingPlaneIds)
+            {
+                decimal proportionalAllocation = (requiredByPlane[planeId] / need.RequiredQty) * totalStock;
+                allocatedByPlane[planeId] = Math.Floor(proportionalAllocation);
+            }
+
+            decimal leftoverStock = totalStock - allocatedByPlane.Values.Sum();
+            if (leftoverStock > 0)
+            {
+                allocatedByPlane[maxRequiredPlane] += leftoverStock;
+            }
+
+            foreach (int planeId in contributingPlaneIds)
+            {
+                decimal shortage = requiredByPlane[planeId] - allocatedByPlane[planeId];
+                if (shortage < 0)
+                {
+                    shortage = 0;
+                }
+
+                string planeName = planeTypeNames.TryGetValue(planeId, out string? name)
+                    ? name
+                    : planeId.ToString();
+
+                shortageByPlane[planeName] = shortage;
+            }
+        }
+
+        List<string> keys = shortageByPlane.Keys.ToList();
+        foreach (string key in keys)
+        {
+            shortageByPlane[key] = Decimal.Round(shortageByPlane[key], 2);
+        }
+
+        return shortageByPlane;
+    }
+
+    private static void AllocateStockForDemandGroup(List<RequestDemandAllocation> demands, ref decimal remainingStock)
+    {
+        if (demands.Count == 0 || remainingStock <= 0)
+        {
+            return;
+        }
+
+        decimal totalRequired = demands.Sum(d => d.RequiredQty);
+        if (totalRequired <= 0)
+        {
+            return;
+        }
+
+        if (remainingStock >= totalRequired)
+        {
+            foreach (RequestDemandAllocation demand in demands)
+            {
+                demand.AllocatedQty = demand.RequiredQty;
+            }
+            remainingStock -= totalRequired;
+            return;
+        }
+
+        foreach (RequestDemandAllocation demand in demands)
+        {
+            decimal proportional = (demand.RequiredQty / totalRequired) * remainingStock;
+            demand.AllocatedQty = Math.Floor(proportional);
+        }
+
+        decimal allocatedTotal = demands.Sum(d => d.AllocatedQty);
+        decimal leftover = remainingStock - allocatedTotal;
+        if (leftover > 0)
+        {
+            RequestDemandAllocation maxDemand = demands
+                .OrderByDescending(d => d.RequiredQty)
+                .ThenBy(d => d.PlaneTypeID)
+                .First();
+            maxDemand.AllocatedQty += leftover;
+        }
+
+        remainingStock = 0;
     }
 
     //How many units of this buy item are needed for the requested number of planes, based on the BOM hierarchy and the quantities specified at each level.
@@ -229,6 +469,24 @@ public class InventoryCheck
         public string MeasureUnit { get; set; } = "each";
         public decimal RequiredQty { get; set; }
         public HashSet<int> PlaneTypeIDs { get; set; } = new HashSet<int>();
+        public Dictionary<int, decimal> RequiredQtyByPlaneTypeID { get; set; } = new Dictionary<int, decimal>();
+        public Dictionary<int, RequestDemandAllocation> RequiredQtyByRequestIndex { get; set; } = new Dictionary<int, RequestDemandAllocation>();
+    }
+
+    private class RequestDemandInput
+    {
+        public int RequestIndex { get; set; }
+        public int PlaneTypeID { get; set; }
+        public decimal Quantity { get; set; }
+        public bool IsHighPriority { get; set; }
+    }
+
+    private class RequestDemandAllocation
+    {
+        public int PlaneTypeID { get; set; }
+        public bool IsHighPriority { get; set; }
+        public decimal RequiredQty { get; set; }
+        public decimal AllocatedQty { get; set; }
     }
 
     public class InventorySnapshot
@@ -250,6 +508,7 @@ public class InventoryCheckPlaneRequest
 {
     public int PlaneTypeID { get; set; }
     public int Quantity { get; set; }
+    public bool IsHighPriority { get; set; }
 }
 
 public class InventoryCheckResponse
@@ -273,4 +532,5 @@ public class InventoryCheckShortageItem
     public double? Price { get; set; }
     public bool IsSharedAcrossPlanes { get; set; }
     public string ContributingPlaneTypes { get; set; } = string.Empty;
+    public Dictionary<string, decimal> ShortageByPlane { get; set; } = new Dictionary<string, decimal>();
 }

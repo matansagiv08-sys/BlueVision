@@ -68,7 +68,8 @@ function restoreCheckState() {
     rows.forEach(row => {
         window.addNewCheckRow({
             planeTypeID: row?.planeTypeID ?? "",
-            quantity: row?.quantity ?? ""
+            quantity: row?.quantity ?? "",
+            isHighPriority: row?.isHighPriority ?? row?.IsHighPriority ?? false
         });
     });
 
@@ -125,6 +126,13 @@ window.addNewCheckRow = function (prefill = null) {
                 <input type="number" class="check-input check-qty" placeholder="0" min="1" step="1" oninput="window.validateRow('${rowId}')">
             </div>
 
+            <div class="input-group priority-group">
+                <label class="priority-checkbox-label">
+                    <input type="checkbox" class="check-priority" onchange="window.saveCheckInputsState()">
+                    עדיפות גבוהה
+                </label>
+            </div>
+
             <button class="btn-delete-row" onclick="window.removeRow('${rowId}')" title="מחק שורה">
                 🗑️
             </button>
@@ -136,11 +144,20 @@ window.addNewCheckRow = function (prefill = null) {
     const row = document.getElementById(rowId);
     const planeSelect = row?.querySelector(".check-plane");
     const qtyInput = row?.querySelector(".check-qty");
+    const priorityInput = row?.querySelector(".check-priority");
     if (planeSelect && prefill?.planeTypeID) {
         planeSelect.value = String(prefill.planeTypeID);
     }
     if (qtyInput && prefill?.quantity !== undefined && prefill?.quantity !== null && String(prefill.quantity) !== "") {
         qtyInput.value = String(prefill.quantity);
+    }
+    if (priorityInput) {
+        const restoredPriority =
+            prefill?.isHighPriority === true
+            || prefill?.IsHighPriority === true
+            || String(prefill?.isHighPriority ?? prefill?.IsHighPriority ?? "").toLowerCase() === "true";
+
+        priorityInput.checked = restoredPriority;
     }
 
     window.validateRow(rowId);
@@ -193,9 +210,10 @@ window.navigateToResults = function () {
     rows.forEach(row => {
         const planeTypeID = Number(row.querySelector(".check-plane")?.value || 0);
         const quantity = Number(row.querySelector(".check-qty")?.value || 0);
+        const isHighPriority = !!row.querySelector(".check-priority")?.checked;
 
         if (planeTypeID > 0 && Number.isInteger(quantity) && quantity > 0) {
-            requests.push({ planeTypeID, quantity });
+            requests.push({ planeTypeID, quantity, isHighPriority });
         }
     });
 
@@ -222,12 +240,21 @@ window.clearInventoryCheck = function () {
     updateAddRowButtonText();
 };
 
+window.saveCheckInputsState = function () {
+    saveCheckState();
+};
+
 function collectCheckRows() {
     const rows = [];
     document.querySelectorAll(".check-row-card").forEach(row => {
         const planeTypeID = row.querySelector(".check-plane")?.value || "";
         const quantity = row.querySelector(".check-qty")?.value || "";
-        rows.push({ planeTypeID: String(planeTypeID), quantity: String(quantity) });
+        const isHighPriority = !!row.querySelector(".check-priority")?.checked;
+        rows.push({
+            planeTypeID: String(planeTypeID),
+            quantity: String(quantity),
+            isHighPriority
+        });
     });
     return rows;
 }
