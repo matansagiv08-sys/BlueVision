@@ -97,7 +97,7 @@ body, html {
 
 /* קישור בתחתית */
 .forgot-password {
-    margin-top: 30px;
+    margin-top: 8px;
 }
 
     .forgot-password a {
@@ -107,19 +107,31 @@ body, html {
         font-weight: 500;
     }
 
-    .forgot-password a:hover {
-        text-decoration: underline;
-    }
+.forgot-password a:hover {
+    text-decoration: underline;
+}
+
+.forgot-password-message {
+    display: none;
+    margin-top: 5px;
+    font-size: 13px;
+    color: #b42318;
+    text-align: center;
+}
 
 .hidden-block {
     display: none;
 }
 
 .auth-message {
-    min-height: 22px;
-    margin-top: 14px;
+    min-height: 0;
+    margin-top: 8px;
     font-size: 14px;
     text-align: center;
+}
+
+.auth-message:empty {
+    display: none;
 }
 
 .auth-message.error {

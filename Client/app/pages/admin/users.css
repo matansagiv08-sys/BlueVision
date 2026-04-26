@@ -123,6 +123,7 @@
 }
 
 .users-create-result {
+    display: none;
     min-height: 28px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -162,9 +163,15 @@
 
 .users-manage-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
+    align-items: center;
     gap: 10px;
     margin-top: 6px;
+}
+
+.users-delete-wrap {
+    position: relative;
+    display: inline-flex;
 }
 
 .users-delete-btn {
@@ -175,4 +182,69 @@
 .users-delete-btn:hover {
     background: #fef2f2;
     color: #b42318;
+}
+
+.users-delete-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 240px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+    padding: 10px;
+    z-index: 50;
+}
+
+.users-delete-popover-text {
+    font-size: 14px;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.users-delete-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.users-delete-popover-actions .btn-cancel,
+.users-delete-popover-actions .btn-save {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.users-delete-confirm-btn {
+    background: #b42318;
+}
+
+.users-delete-confirm-btn:hover {
+    background: #991b1b;
+}
+
+.users-manage-result {
+    display: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px;
+    color: #334155;
+    font-size: 14px;
+    background: #f8fafc;
+}
+
+.users-manage-result.success {
+    background: #ecfdf3;
+    border-color: #abefc6;
+}
+
+.users-delete-error {
+    display: none;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 10px;
+    color: #b42318;
+    background: #fef2f2;
+    font-size: 14px;
 }

@@ -236,13 +236,19 @@ namespace Server.Models
 
             if (userID <= 0)
             {
-                message = "User is required";
+                message = "משתמש לא תקין";
                 return false;
             }
 
-            if (currentUserID > 0 && currentUserID == userID)
+            if (currentUserID <= 0)
             {
-                message = "Cannot delete current logged-in user";
+                message = "לא ניתן לאמת את המשתמש המחובר";
+                return false;
+            }
+
+            if (currentUserID == userID)
+            {
+                message = "לא ניתן למחוק את המשתמש המחובר";
                 return false;
             }
 
@@ -250,13 +256,31 @@ namespace Server.Models
             AppUser? user = dbs.GetUserByID(userID);
             if (user == null)
             {
-                message = "User not found";
+                message = "המשתמש לא נמצא";
                 return false;
+            }
+
+            if (user.CanManageUsers)
+            {
+                List<AppUser> allUsers = dbs.GetAllUsers();
+                int adminsCount = 0;
+                foreach (AppUser existingUser in allUsers)
+                {
+                    if (existingUser.CanManageUsers)
+                    {
+                        adminsCount++;
+                    }
+                }
+                if (adminsCount <= 1)
+                {
+                    message = "לא ניתן למחוק את המנהל האחרון במערכת";
+                    return false;
+                }
             }
 
             int rows = dbs.DeleteUser(userID);
             bool success = rows > 0;
-            message = success ? "User deleted successfully" : "User delete failed";
+            message = success ? "המשתמש נמחק בהצלחה" : "מחיקת המשתמש נכשלה";
 
             return success;
         }

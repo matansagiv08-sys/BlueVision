@@ -5,6 +5,7 @@ const loginForm = document.getElementById("loginForm");
 const changePasswordForm = document.getElementById("changePasswordForm");
 const authMessage = document.getElementById("authMessage");
 const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+const forgotPasswordMessage = document.getElementById("forgotPasswordMessage");
 
 let pendingUser = null;
 let pendingCurrentPassword = "";
@@ -14,6 +15,7 @@ initializeAuthView();
 loginForm?.addEventListener("submit", function (e) {
     e.preventDefault();
     clearMessage();
+    hideForgotPasswordMessage();
 
     const username = document.getElementById("username")?.value?.trim() || "";
     const password = document.getElementById("password")?.value || "";
@@ -56,6 +58,7 @@ loginForm?.addEventListener("submit", function (e) {
 changePasswordForm?.addEventListener("submit", function (e) {
     e.preventDefault();
     clearMessage();
+    hideForgotPasswordMessage();
 
     if (!pendingUser || !pendingUser.userID) {
         showMessage("יש להתחבר מחדש", true);
@@ -103,7 +106,7 @@ changePasswordForm?.addEventListener("submit", function (e) {
 
 forgotPasswordLink?.addEventListener("click", function (e) {
     e.preventDefault();
-    showMessage("יש לפנות למנהל משתמשים לצורך איפוס סיסמה", true);
+    showForgotPasswordMessage("יש לפנות למנהל משתמשים לצורך איפוס סיסמה");
 });
 
 function mapUserState(loginResult) {
@@ -135,6 +138,16 @@ function backToLogin() {
     pendingCurrentPassword = "";
     changePasswordForm.classList.add("hidden-block");
     loginForm.classList.remove("hidden-block");
+}
+
+function showForgotPasswordMessage(message) {
+    if (!forgotPasswordMessage) return;
+    forgotPasswordMessage.textContent = message || "";
+    forgotPasswordMessage.style.display = message ? "block" : "none";
+}
+
+function hideForgotPasswordMessage() {
+    showForgotPasswordMessage("");
 }
 
 function initializeAuthView() {

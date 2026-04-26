@@ -1,5 +1,6 @@
 const usersApiBase = "https://localhost:7296/api/Users";
 let usersCache = [];
+let pendingDeleteUserID = 0;
 
 window.initAdminUsers = function () {
     bindUsersPageEvents();
@@ -18,6 +19,9 @@ function bindUsersPageEvents() {
     document.getElementById("manageUserForm")?.addEventListener("submit", onManageUserSave);
     document.getElementById("resetPasswordBtn")?.addEventListener("click", onResetUserPassword);
     document.getElementById("deleteUserBtn")?.addEventListener("click", onDeleteUser);
+    document.getElementById("cancelDeleteInlineBtn")?.addEventListener("click", closeDeletePopover);
+    document.getElementById("confirmDeleteInlineBtn")?.addEventListener("click", confirmDeleteUser);
+    document.addEventListener("click", handleOutsideDeletePopoverClick);
 }
 
 function loadUsersList() {
@@ -94,12 +98,7 @@ function flagHtml(value) {
 function openCreateUserModal() {
     const form = document.getElementById("createUserForm");
     if (form) form.reset();
-
-    const resultBox = document.getElementById("createUserResult");
-    if (resultBox) {
-        resultBox.classList.remove("success");
-        resultBox.innerHTML = "";
-    }
+    resetCreateResult();
 
     const activeCheckbox = document.getElementById("newUserIsActive");
     if (activeCheckbox) activeCheckbox.checked = true;
@@ -108,6 +107,7 @@ function openCreateUserModal() {
 }
 
 function closeCreateUserModal() {
+    resetCreateResult();
     document.getElementById("createUserModal")?.classList.remove("open");
 }
 
@@ -142,7 +142,8 @@ function onCreateUserSubmit(event) {
             loadUsersList();
         },
         function (err) {
-            setCreateResult(readApiError(err, "יצירת המשתמש נכשלה"), false);
+            resetCreateResult();
+            setUsersAlert(readApiError(err, "יצירת המשתמש נכשלה"), "error");
         }
     );
 }
@@ -171,11 +172,7 @@ function openManageUserModal(userID) {
         null,
         function (user) {
             fillManageUserForm(user);
-            const resultBox = document.getElementById("manageUserResult");
-            if (resultBox) {
-                resultBox.classList.remove("success");
-                resultBox.innerHTML = "";
-            }
+            setManageResult("", false);
             document.getElementById("manageUserModal")?.classList.add("open");
         },
         function (err) {
@@ -196,10 +193,22 @@ function fillManageUserForm(user) {
     document.getElementById("editCanViewProduction").checked = boolOf(user, "canViewProduction", "CanViewProduction");
     document.getElementById("editCanViewStock").checked = boolOf(user, "canViewStock", "CanViewStock");
     document.getElementById("editCanManageUsers").checked = boolOf(user, "canManageUsers", "CanManageUsers");
+
+    updateDeleteButtonState(user);
+    setDeleteError("");
+}
+
+function updateDeleteButtonState(user) {
+    const deleteBtn = document.getElementById("deleteUserBtn");
+    if (!deleteBtn) return;
+    deleteBtn.disabled = false;
+    deleteBtn.removeAttribute("title");
 }
 
 function closeManageUserModal() {
     document.getElementById("manageUserModal")?.classList.remove("open");
+    closeDeletePopover();
+    setDeleteError("");
 }
 
 function onManageUserSave(event) {
@@ -269,24 +278,85 @@ function onResetUserPassword() {
     );
 }
 
-function onDeleteUser() {
+function onDeleteUser(event) {
+    event?.stopPropagation();
+
     const userID = parseInt(document.getElementById("editUserId")?.value || "0", 10);
     if (userID <= 0) {
         setManageResult("משתמש לא תקין", false);
         return;
     }
 
+    const blockedReason = getDeleteBlockedReason(userID);
+    if (blockedReason) {
+        closeDeletePopover();
+        setDeleteError(blockedReason);
+        return;
+    }
+
+    setDeleteError("");
+    openDeletePopover(userID);
+}
+
+function getDeleteBlockedReason(userID) {
     const currentUser = getCurrentSessionUser();
     if (currentUser?.userID === userID) {
-        setManageResult("לא ניתן למחוק את המשתמש המחובר", false);
+        return "לא ניתן למחוק את המשתמש המחובר";
+    }
+
+    const isAdmin = !!document.getElementById("editCanManageUsers")?.checked;
+    if (!isAdmin) {
+        return "";
+    }
+
+    let adminsCount = 0;
+    usersCache.forEach(u => {
+        if (boolOf(u, "canManageUsers", "CanManageUsers")) {
+            adminsCount += 1;
+        }
+    });
+
+    return adminsCount <= 1 ? "לא ניתן למחוק את המנהל האחרון במערכת" : "";
+}
+
+function openDeletePopover(userID) {
+    pendingDeleteUserID = userID;
+
+    const popover = document.getElementById("deleteConfirmPopover");
+    if (popover) {
+        popover.hidden = false;
+    }
+}
+
+function closeDeletePopover() {
+    pendingDeleteUserID = 0;
+    const popover = document.getElementById("deleteConfirmPopover");
+    if (popover) {
+        popover.hidden = true;
+    }
+}
+
+function handleOutsideDeletePopoverClick(event) {
+    const popover = document.getElementById("deleteConfirmPopover");
+    const deleteBtn = document.getElementById("deleteUserBtn");
+    if (!popover || popover.hidden) return;
+
+    const target = event.target;
+    if (popover.contains(target) || deleteBtn?.contains(target)) {
         return;
     }
 
-    const confirmed = window.confirm("האם למחוק את המשתמש?");
-    if (!confirmed) {
+    closeDeletePopover();
+}
+
+function confirmDeleteUser() {
+    const userID = pendingDeleteUserID;
+    if (userID <= 0) {
+        closeDeletePopover();
         return;
     }
 
+    const currentUser = getCurrentSessionUser();
     const currentUserID = currentUser?.userID || 0;
 
     ajaxCall(
@@ -294,12 +364,15 @@ function onDeleteUser() {
         `${usersApiBase}/${userID}?currentUserID=${currentUserID}`,
         null,
         function () {
+            closeDeletePopover();
             closeManageUserModal();
             setUsersAlert("המשתמש נמחק בהצלחה", "success");
             loadUsersList();
         },
         function (err) {
-            setManageResult(readApiError(err, "מחיקת המשתמש נכשלה"), false);
+            const errorMsg = readApiError(err, "מחיקת המשתמש נכשלה");
+            closeDeletePopover();
+            setDeleteError(errorMsg);
         }
     );
 }
@@ -308,16 +381,53 @@ function setCreateResult(message, isSuccess) {
     const resultBox = document.getElementById("createUserResult");
     if (!resultBox) return;
 
+    if (!message) {
+        resultBox.style.display = "none";
+        resultBox.classList.remove("success");
+        resultBox.innerHTML = "";
+        return;
+    }
+
+    resultBox.style.display = "block";
+
     resultBox.classList.toggle("success", !!isSuccess);
     resultBox.innerHTML = message || "";
+}
+
+function resetCreateResult() {
+    setCreateResult("", false);
 }
 
 function setManageResult(message, isSuccess) {
     const resultBox = document.getElementById("manageUserResult");
     if (!resultBox) return;
 
+    if (!message) {
+        resultBox.style.display = "none";
+        resultBox.classList.remove("success");
+        resultBox.innerHTML = "";
+        return;
+    }
+
+    resultBox.style.display = "block";
     resultBox.classList.toggle("success", !!isSuccess);
     resultBox.innerHTML = message || "";
+}
+
+function setDeleteError(message) {
+    const errorEl = document.getElementById("manageDeleteError");
+    if (!errorEl) return;
+
+    if (!message) {
+        errorEl.hidden = true;
+        errorEl.style.display = "none";
+        errorEl.textContent = "";
+        return;
+    }
+
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+    errorEl.style.display = "block";
 }
 
 function setUsersAlert(message, type) {

@@ -84,13 +84,23 @@
                     <label><input id="editCanManageUsers" type="checkbox"> ניהול משתמשים</label>
                 </div>
 
-                <div id="manageUserResult" class="users-create-result"></div>
-
                 <div class="users-manage-actions">
                     <button id="resetPasswordBtn" type="button" class="btn-secondary">איפוס סיסמה</button>
-                    <button id="deleteUserBtn" type="button" class="btn-cancel users-delete-btn">מחיקת משתמש</button>
+                    <div class="users-delete-wrap">
+                        <button id="deleteUserBtn" type="button" class="btn-cancel users-delete-btn">מחיקת משתמש</button>
+                        <div id="deleteConfirmPopover" class="users-delete-popover" hidden>
+                            <div class="users-delete-popover-text">האם למחוק את המשתמש?</div>
+                            <div class="users-delete-popover-actions">
+                                <button id="cancelDeleteInlineBtn" type="button" class="btn-cancel">ביטול</button>
+                                <button id="confirmDeleteInlineBtn" type="button" class="btn-save users-delete-confirm-btn">מחיקה</button>
+                            </div>
+                        </div>
+                    </div>
                     <button type="submit" class="btn-save">שמירה</button>
                 </div>
+
+                <div id="manageDeleteError" class="users-delete-error" hidden></div>
+                <div id="manageUserResult" class="users-manage-result"></div>
             </form>
         </div>
     </div>

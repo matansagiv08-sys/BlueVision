@@ -152,6 +152,13 @@ function setActiveMenu(path) {
     });
 }
 
+function updateTopMenuVisibility(path) {
+    const topMenu = document.querySelector(".top-menu");
+    if (!topMenu) return;
+
+    topMenu.style.display = path === "/admin/users" ? "none" : "flex";
+}
+
 function getCurrentUser() {
     const raw = sessionStorage.getItem(USER_STORAGE_KEY);
     if (!raw) return null;
@@ -507,6 +514,7 @@ async function loadRoute() {
 
         // 7) Highlight top menu active tab
         setActiveMenu(path);
+        updateTopMenuVisibility(path);
 
     } catch (err) {
         console.error("שגיאה בטעינת הדף:", err);
