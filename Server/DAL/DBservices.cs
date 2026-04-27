@@ -128,7 +128,8 @@ public class DBservices
                 { "@BuyMethod", string.IsNullOrWhiteSpace(buyMethod) ? DBNull.Value : buyMethod.Trim() },
                 { "@SupplierID", supplierID.HasValue ? supplierID.Value : DBNull.Value },
                 { "@BodyPlane", string.IsNullOrWhiteSpace(bodyPlane) ? DBNull.Value : bodyPlane.Trim() },
-                { "@LastPODate", lastPODate.HasValue ? lastPODate.Value.Date : DBNull.Value }
+                { "@LastPODate", lastPODate.HasValue ? lastPODate.Value.Date : DBNull.Value },
+                { "@OnlyActive", true }
             };
 
             cmd = CreateCommandWithStoredProcedureGeneral("spInventoryItems_GetPaged", con, paramDic);
@@ -597,6 +598,40 @@ public class DBservices
                 }
             }
 
+            DataTable inventoryItemsImportTable = new DataTable();
+            inventoryItemsImportTable.Columns.Add("InventoryItemID", typeof(string));
+            inventoryItemsImportTable.Columns.Add("ItemName", typeof(string));
+            inventoryItemsImportTable.Columns.Add("BuyMethod", typeof(string));
+            inventoryItemsImportTable.Columns.Add("ExcelRowNumber", typeof(int));
+
+            foreach (InventoryBaseRow row in importData.InventoryBaseRows)
+            {
+                inventoryItemsImportTable.Rows.Add(
+                    ValidateTempItemCode(row.InventoryItemID, "#InventoryItemsImport"),
+                    string.IsNullOrWhiteSpace(row.ItemName) ? DBNull.Value : row.ItemName.Trim(),
+                    string.IsNullOrWhiteSpace(row.BuyMethod) ? DBNull.Value : row.BuyMethod.Trim(),
+                    row.ExcelRowNumber > 0 ? row.ExcelRowNumber : 0);
+            }
+
+            if (inventoryItemsImportTable.Rows.Count > 0)
+            {
+                ExecuteStoredProcedure(con, "dbo.SP_CreateInventoryItemsImportTempTable");
+                EnsureTempTableExists(con, "##InventoryItemsImport");
+
+                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(con))
+                {
+                    bulkCopy.DestinationTableName = "##InventoryItemsImport";
+                    bulkCopy.BatchSize = 2000;
+                    bulkCopy.ColumnMappings.Add("InventoryItemID", "InventoryItemID");
+                    bulkCopy.ColumnMappings.Add("ItemName", "ItemName");
+                    bulkCopy.ColumnMappings.Add("BuyMethod", "BuyMethod");
+                    bulkCopy.ColumnMappings.Add("ExcelRowNumber", "ExcelRowNumber");
+                    bulkCopy.WriteToServer(inventoryItemsImportTable);
+                }
+
+                ExecuteStoredProcedure(con, "dbo.SP_UpsertInventoryItemsFromTemp");
+            }
+
             Dictionary<string, int> planeTypeNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             using (SqlCommand selectPlaneTypesCmd = new SqlCommand("dbo.SP_GetPlaneTypesForImport", con))
             {
@@ -901,7 +936,7 @@ public class DBservices
 
         return new InventoryImportResult
         {
-            ImportedRows = updatedRows,
+            ImportedRows = importData.InventoryBaseRows.Count,
             DeletedProductionItems = deletedProductionItems,
             InsertedProductionItems = insertedProductionItems,
             UpdatedProductionItems = updatedProductionItems,

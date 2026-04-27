@@ -43,6 +43,7 @@ public class InventoryItem
 
         Dictionary<string, string> itemToGroupMap = BuildItemToGroupMap(detailsSheet);
         Dictionary<string, string> itemToBuyMethod = BuildItemToBuyMethodMap(detailsSheet);
+        List<InventoryBaseRow> inventoryBaseRows = BuildInventoryBaseRows(detailsSheet);
         Dictionary<string, string> itemToSupplierMap = BuildItemToSupplierMap(supplierSheet);
         Dictionary<string, DateTime> itemToLastPODateMap = BuildItemToLastPODateMap(supplierSheet);
         List<BomRow> wbBomRows = BuildBomRowsForSheet(wbBomSheet, "WB");
@@ -67,6 +68,7 @@ public class InventoryItem
         {
             ItemToGroupMap = itemToGroupMap,
             ItemToBuyMethod = itemToBuyMethod,
+            InventoryBaseRows = inventoryBaseRows,
             ItemToSupplierMap = itemToSupplierMap,
             ItemToLastPODateMap = itemToLastPODateMap,
             WbBomRows = wbBomRows,
@@ -267,6 +269,34 @@ public class InventoryItem
         }
 
         return itemToBuyMethod;
+    }
+
+    private static List<InventoryBaseRow> BuildInventoryBaseRows(IXLWorksheet sheet)
+    {
+        Dictionary<string, InventoryBaseRow> rowsByItemCode = new Dictionary<string, InventoryBaseRow>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
+        {
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
+            if (string.IsNullOrWhiteSpace(itemCode))
+            {
+                continue;
+            }
+
+            string itemName = GetCellText(row.Cell(2), sheet.Name, row.RowNumber(), "B", "ItemName");
+            string buyMethodRaw = GetCellText(row.Cell(4), sheet.Name, row.RowNumber(), "D", "BuyMethod").ToUpperInvariant();
+            string? buyMethod = (buyMethodRaw == "B" || buyMethodRaw == "M") ? buyMethodRaw : null;
+
+            rowsByItemCode[itemCode] = new InventoryBaseRow
+            {
+                InventoryItemID = itemCode,
+                ItemName = NullIfEmpty(itemName),
+                BuyMethod = buyMethod,
+                ExcelRowNumber = row.RowNumber()
+            };
+        }
+
+        return rowsByItemCode.Values.ToList();
     }
 
     private static Dictionary<string, string> BuildItemToSupplierMap(IXLWorksheet sheet)
@@ -519,6 +549,7 @@ public class InventoryImportResult
 
 public class InventoryImportData
 {
+    public List<InventoryBaseRow> InventoryBaseRows { get; set; } = new List<InventoryBaseRow>();
     public Dictionary<string, string> ItemToGroupMap { get; set; } = new Dictionary<string, string>();
     public Dictionary<string, string> ItemToBuyMethod { get; set; } = new Dictionary<string, string>();
     public Dictionary<string, string> ItemToSupplierMap { get; set; } = new Dictionary<string, string>();
@@ -527,6 +558,14 @@ public class InventoryImportData
     public List<BomRow> TbvBomRows { get; set; } = new List<BomRow>();
     public List<string> UniqueSuppliers { get; set; } = new List<string>();
     public List<string> UniqueGroupNames { get; set; } = new List<string>();
+}
+
+public class InventoryBaseRow
+{
+    public string InventoryItemID { get; set; } = string.Empty;
+    public string? ItemName { get; set; }
+    public string? BuyMethod { get; set; }
+    public int ExcelRowNumber { get; set; }
 }
 
 public class ExcelLastModifiedInfo
