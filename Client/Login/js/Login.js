@@ -1,5 +1,6 @@
-﻿const server = "https://localhost:7296/";
+const server = "https://localhost:7296/";
 const USER_STORAGE_KEY = "bluevisionUser";
+const INVENTORY_IMPORT_CHECK_DONE_KEY = "inventoryAutoImportCheckDone";
 
 const loginForm = document.getElementById("loginForm");
 const changePasswordForm = document.getElementById("changePasswordForm");
@@ -37,6 +38,7 @@ loginForm?.addEventListener("submit", function (e) {
 
             const userState = mapUserState(result);
             sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userState));
+            sessionStorage.removeItem(INVENTORY_IMPORT_CHECK_DONE_KEY);
 
             if (userState.mustChangePassword) {
                 pendingUser = userState;
@@ -95,6 +97,7 @@ changePasswordForm?.addEventListener("submit", function (e) {
 
             pendingUser.mustChangePassword = false;
             sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(pendingUser));
+            sessionStorage.removeItem(INVENTORY_IMPORT_CHECK_DONE_KEY);
             showMessage("הסיסמה עודכנה בהצלחה", false);
             window.location.href = "../app/index.html";
         },

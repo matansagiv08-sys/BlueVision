@@ -1,5 +1,5 @@
 let allTasks = [];
-let currentStation = 'all';
+let currentStation = '';
 let originalGlobalOrder = [];
 let currentGlobalOrder = [];
 let hasPersistedManualOrder = false;
@@ -25,7 +25,7 @@ window.initTasksWorkOrder = async function () {
                         originalGlobalOrder = allTasks.map(getRowKey);
                         currentGlobalOrder = [...originalGlobalOrder];
 
-                        // הצגת הטבלה (בברירת מחדל על "כל התחנות")
+                        // הצגת הטבלה (ברירת מחדל: התחנה הראשונה ברשימה)
                         window.filterWorkOrder();
                         updateWorkOrderButtonsState();
                     },
@@ -334,7 +334,7 @@ window.filterWorkOrder = function () {
     let tasks = allTasks;
 
     // סינון לפי תחנה
-    if (currentStation !== 'all') {
+    if (currentStation) {
         tasks = tasks.filter(t => {
             const stationName = getTaskValue(t, ["currentStationName", "CurrentStationName"], '') ||
                 t.currentStage?.stage?.productionStageName || t.CurrentStage?.Stage?.ProductionStageName || '';
@@ -428,21 +428,22 @@ function renderStationSlider(stages) {
     const slider = document.getElementById('stationsSlider');
     if (!slider) return;
 
-    // ניקוי הסליידר (מלבד כפתור "כל התחנות" אם הוא קיים ב-HTML, או פשוט לבנות מחדש)
-    slider.innerHTML = '<button class="slider-btn active pill-blue" onclick="window.filterByStation(\'all\', this)">כל התחנות</button>';
+    slider.innerHTML = '';
 
     // מיון התחנות לפי ה-StageOrder שלהן
     stages.sort((a, b) => a.stageOrder - b.stageOrder);
 
-    stages.forEach(stage => {
+    stages.forEach((stage, index) => {
         const btn = document.createElement('button');
-        btn.className = 'slider-btn';
+        btn.className = index === 0 ? 'slider-btn active pill-blue' : 'slider-btn';
         // משתמשים בשם התחנה לתצוגה
         btn.innerText = stage.productionStageName;
         // לחיצה תסנן לפי שם התחנה
         btn.onclick = (e) => window.filterByStation(stage.productionStageName, e.target);
         slider.appendChild(btn);
     });
+
+    currentStation = stages.length > 0 ? stages[0].productionStageName : '';
 }
 
 window.filterByStation = function (station, btn) {
@@ -455,7 +456,7 @@ window.filterByStation = function (station, btn) {
 
 window.optimizeRoute = function () {
     const updates = allTasks
-        .filter(t => currentStation === 'all' || (getTaskValue(t, ["currentStationName", "CurrentStationName"], '') || t.currentStage?.stage?.productionStageName || t.CurrentStage?.Stage?.ProductionStageName || '') === currentStation)
+        .filter(t => !currentStation || (getTaskValue(t, ["currentStationName", "CurrentStationName"], '') || t.currentStage?.stage?.productionStageName || t.CurrentStage?.Stage?.ProductionStageName || '') === currentStation)
         .map(t => ({
             serial: Number(getSerialValue(t)),
             itemId: String(getItemIdValue(t)),

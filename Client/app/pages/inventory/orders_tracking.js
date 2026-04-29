@@ -1,14 +1,19 @@
 ﻿let allOrders = [];
 
 window.initOrdersTracking = function () {
-    // נתוני מוק
-    allOrders = [
-        { id: "PO-2024-001", vendor: "אולפסון תעשיות", date: "01/02/2024", due: "15/03/2024", status: "sent", value: "₪ 45,000" },
-        { id: "PO-2024-002", vendor: "מערכות תעופה", date: "05/02/2024", due: "10/02/2024", status: "delayed", value: "₪ 12,500" },
-        { id: "PO-2024-003", vendor: "אלביט", date: "10/02/2024", due: "20/03/2024", status: "partial", value: "₪ 180,000" }
-    ];
+    checkAndRunInventoryImport(function () {
+        // נתוני מוק
+        allOrders = [
+            { id: "PO-2024-001", vendor: "אולפסון תעשיות", date: "01/02/2024", due: "15/03/2024", status: "sent", value: "₪ 45,000" },
+            { id: "PO-2024-002", vendor: "מערכות תעופה", date: "05/02/2024", due: "10/02/2024", status: "delayed", value: "₪ 12,500" },
+            { id: "PO-2024-003", vendor: "אלביט", date: "10/02/2024", due: "20/03/2024", status: "partial", value: "₪ 180,000" }
+        ];
 
-    renderOrders(allOrders);
+        renderOrders(allOrders);
+    }, {
+        onImportStart: showImportSpinner,
+        onImportEnd: hideImportSpinner
+    });
 };
 
 function renderOrders(data) {

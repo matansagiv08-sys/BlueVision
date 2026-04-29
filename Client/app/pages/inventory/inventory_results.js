@@ -1,11 +1,16 @@
 let currentResultsData = [];
 
 window.initInventoryResults = function () {
+    setInventoryResultsLoading(true);
+    setInventoryResultsInlineError("");
+    hideImportSpinner();
+
     const payloadText = sessionStorage.getItem("inventoryCheckPayload");
     if (!payloadText) {
         renderResultsTable([]);
         updateSummaryCards([]);
         populatePlatformFilter([]);
+        setInventoryResultsLoading(false);
         return;
     }
 
@@ -20,41 +25,68 @@ window.initInventoryResults = function () {
         renderResultsTable([]);
         updateSummaryCards([]);
         populatePlatformFilter([]);
+        setInventoryResultsLoading(false);
         return;
     }
 
-    ajaxCall(
-        "POST",
-        "https://localhost:7296/api/InventoryCheck/calculate",
-        JSON.stringify(payload),
-        //success callback
-        function (data) {
-            currentResultsData = Array.isArray(data?.items)
-                ? data.items
-                : (Array.isArray(data?.Items) ? data.Items : []);
+    if (window.isInventoryImportRunning === true) {
+        showImportSpinner();
+    }
 
-            const totalShortageItems = data?.totalShortageItems ?? data?.TotalShortageItems ?? currentResultsData.length;
-            const totalShortageUnits = data?.totalShortageUnits ?? data?.TotalShortageUnits ?? currentResultsData.reduce((sum, item) => sum + Number(item.shortageQty ?? item.ShortageQty ?? 0), 0);
-            const totalEstimatedCost = data?.totalEstimatedCost ?? data?.TotalEstimatedCost ?? currentResultsData.reduce((sum, item) => {
-                const shortage = Number(item.shortageQty ?? item.ShortageQty ?? 0);
-                const price = Number(item.price ?? item.Price ?? 0);
-                return sum + (shortage * price);
-            }, 0);
+    waitForInventoryImportToFinish(function () {
+        hideImportSpinner();
 
-            populatePlatformFilter(currentResultsData);
-            const sortSelect = document.getElementById("shortageSortFilter");
-            if (sortSelect) sortSelect.value = "default";
-            applyResultsView(totalShortageItems, totalShortageUnits, totalEstimatedCost);
-        },
-        function (xhr) {
-            console.error("Failed to calculate inventory shortages", xhr);
-            currentResultsData = [];
-            renderResultsTable([]);
-            updateSummaryCards([]);
-            populatePlatformFilter([]);
-        }
-    );
+        ajaxCall(
+            "POST",
+            "https://localhost:7296/api/InventoryCheck/calculate",
+            JSON.stringify(payload),
+            function (data) {
+                currentResultsData = Array.isArray(data?.items)
+                    ? data.items
+                    : (Array.isArray(data?.Items) ? data.Items : []);
+
+                const totalShortageItems = data?.totalShortageItems ?? data?.TotalShortageItems ?? currentResultsData.length;
+                const totalShortageUnits = data?.totalShortageUnits ?? data?.TotalShortageUnits ?? currentResultsData.reduce((sum, item) => sum + Number(item.shortageQty ?? item.ShortageQty ?? 0), 0);
+                const totalEstimatedCost = data?.totalEstimatedCost ?? data?.TotalEstimatedCost ?? currentResultsData.reduce((sum, item) => {
+                    const shortage = Number(item.shortageQty ?? item.ShortageQty ?? 0);
+                    const price = Number(item.price ?? item.Price ?? 0);
+                    return sum + (shortage * price);
+                }, 0);
+
+                populatePlatformFilter(currentResultsData);
+                const sortSelect = document.getElementById("shortageSortFilter");
+                if (sortSelect) sortSelect.value = "default";
+                applyResultsView(totalShortageItems, totalShortageUnits, totalEstimatedCost);
+                hideImportSpinner();
+                setInventoryResultsLoading(false);
+            },
+            function (xhr) {
+                console.error("Failed to calculate inventory shortages", xhr);
+                currentResultsData = [];
+                renderResultsTable([]);
+                updateSummaryCards([]);
+                populatePlatformFilter([]);
+                setInventoryResultsInlineError("חישוב המלאי נכשל, נסה שוב.");
+                hideImportSpinner();
+                setInventoryResultsLoading(false);
+            }
+        );
+    });
 };
+
+function setInventoryResultsLoading(isLoading) {
+    const content = document.getElementById("stockChildContent");
+    const loadingText = document.getElementById("inventoryResultsLoadingText");
+    if (content) content.hidden = isLoading;
+    if (loadingText) loadingText.hidden = !isLoading;
+}
+
+function setInventoryResultsInlineError(message) {
+    const errorEl = document.getElementById("inventoryResultsInlineError");
+    if (!errorEl) return;
+    errorEl.textContent = message || "";
+    errorEl.hidden = !message;
+}
 
 function renderResultsTable(data) {
     const tbody = document.getElementById("results-table-body");

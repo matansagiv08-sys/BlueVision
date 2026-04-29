@@ -18,13 +18,18 @@ let advancedBodyPlane = "all";
 let advancedLastPODate = "";
 
 window.initAllInventory = function () {
-    loadInventoryFilterOptions();
-    updateAdvancedFiltersBadge();
-    loadInventoryPage(1);
+    checkAndRunInventoryImport(function () {
+        loadInventoryFilterOptions();
+        updateAdvancedFiltersBadge();
+        loadInventoryPage(1);
+    }, {
+        onImportStart: showImportSpinner,
+        onImportEnd: hideImportSpinner
+    });
 };
 
 //renders the inventory table based on the current page and filters
-function loadInventoryPage(page) {
+function loadInventoryPage(page, done) {
     if (page < 1) return;
     if (knownLastInventoryPage !== null && page > knownLastInventoryPage) return;
 
@@ -64,6 +69,7 @@ function loadInventoryPage(page) {
             }
             renderInventoryTable(fullInventoryData);
             updateInventoryPager();
+            if (typeof done === "function") done();
         },
         function (xhr) {
             console.error("Failed to load inventory items", xhr);
@@ -71,6 +77,7 @@ function loadInventoryPage(page) {
             lastLoadedCount = 0;
             renderInventoryTable([]);
             updateInventoryPager();
+            if (typeof done === "function") done();
         }
     );
 }

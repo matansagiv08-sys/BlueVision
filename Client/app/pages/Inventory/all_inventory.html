@@ -1,4 +1,9 @@
 ﻿<div class="all-inventory-page">
+    <div id="stockImportOverlay" class="stock-import-overlay" style="display:none;">
+        <div class="stock-child-spinner" aria-hidden="true"></div>
+    </div>
+
+    <div id="stockChildContent" class="all-inventory-content">
     <div class="global-toolbar">
         <div class="search-container">
             <input type="text" id="inventorySearch" class="standard-input" placeholder="חפש מק״ט או תיאור..." oninput="window.filterInventory()">
@@ -109,5 +114,6 @@
                 <button class="inventory-modal-btn inventory-modal-btn-apply" onclick="window.applyAdvancedInventoryFilters()">החל</button>
             </div>
         </div>
+    </div>
     </div>
 </div>

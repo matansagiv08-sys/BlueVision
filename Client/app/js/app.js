@@ -25,6 +25,10 @@ const mockData = [
 ];
 
 const USER_STORAGE_KEY = "bluevisionUser";
+let inventoryImportCheckInProgress = false;
+let inventoryImportWaiters = [];
+let inventoryImportRunningWaiters = [];
+window.isInventoryImportRunning = false;
 
 /* =========================
    ROUTES
@@ -161,6 +165,243 @@ function updateTopMenuVisibility(path) {
     if (!topMenu) return;
 
     topMenu.style.display = path === "/admin/users" ? "none" : "flex";
+}
+
+function setInventoryImportStatus(message, state) {
+    const wrap = document.getElementById("inventoryImportStatusWrap");
+    if (wrap) {
+        wrap.hidden = true;
+    }
+}
+
+function parseApiDate(dateValue) {
+    if (!dateValue) {
+        return null;
+    }
+
+    const dt = new Date(dateValue);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function finishInventoryImportCheck(result) {
+    inventoryImportCheckInProgress = false;
+    const waiters = inventoryImportWaiters.slice();
+    inventoryImportWaiters = [];
+    waiters.forEach(waiter => {
+        if (typeof waiter?.callback === "function") {
+            waiter.callback(result);
+        }
+    });
+}
+
+function notifyImportWaiters(hookName) {
+    inventoryImportWaiters.forEach(waiter => {
+        const hook = waiter?.options?.[hookName];
+        if (typeof hook === "function") {
+            hook();
+        }
+    });
+}
+
+function setInventoryImportRunning(isRunning) {
+    window.isInventoryImportRunning = isRunning === true;
+    if (!window.isInventoryImportRunning && inventoryImportRunningWaiters.length > 0) {
+        const waiters = inventoryImportRunningWaiters.slice();
+        inventoryImportRunningWaiters = [];
+        waiters.forEach(cb => {
+            if (typeof cb === "function") {
+                cb();
+            }
+        });
+    }
+}
+
+function waitForInventoryImportToFinish(callback) {
+    if (window.isInventoryImportRunning !== true) {
+        if (typeof callback === "function") {
+            callback();
+        }
+        return;
+    }
+
+    inventoryImportRunningWaiters.push(callback);
+}
+
+function notifyInventoryImportState(detail) {
+    document.dispatchEvent(new CustomEvent("inventory-import-state", { detail }));
+}
+
+function showImportSpinner() {
+    const overlay = document.getElementById("stockImportOverlay");
+    const content = document.getElementById("stockChildContent");
+    if (overlay) {
+        overlay.style.display = "flex";
+    }
+    if (content) {
+        content.hidden = true;
+    }
+}
+
+function hideImportSpinner() {
+    const overlay = document.getElementById("stockImportOverlay");
+    const content = document.getElementById("stockChildContent");
+    if (overlay) {
+        overlay.style.display = "none";
+    }
+    if (content) {
+        content.hidden = false;
+    }
+}
+
+function checkAndRunInventoryImport(callback, options) {
+    const user = getCurrentUser();
+    if (!user?.canViewStock) {
+        if (typeof callback === "function") {
+            callback({ imported: false, shouldImport: false, error: null });
+        }
+        return;
+    }
+
+    inventoryImportWaiters.push({ callback, options: options || {} });
+
+    if (inventoryImportCheckInProgress) {
+        return;
+    }
+
+    inventoryImportCheckInProgress = true;
+
+    ajaxCall(
+        "GET",
+        server + "api/Inventory/excel-last-modified",
+        "",
+        function (excelRes) {
+            const fileExists = (excelRes?.fileExists ?? excelRes?.FileExists) === true;
+            const excelDate = parseApiDate(excelRes?.excelLastModifiedAt ?? excelRes?.ExcelLastModifiedAt);
+
+            if (!fileExists || !excelDate) {
+                setInventoryImportStatus("", "");
+                notifyImportWaiters("onImportEnd");
+                notifyInventoryImportState({ phase: "skipped" });
+                finishInventoryImportCheck({ imported: false, shouldImport: false, error: null });
+                return;
+            }
+
+            ajaxCall(
+                "GET",
+                server + "api/Inventory/last-import-timestamp",
+                "",
+                function (importRes) {
+                    const importDate = parseApiDate(importRes?.lastImportTimestamp ?? importRes?.LastImportTimestamp);
+                    const shouldImport = !importDate || excelDate.getTime() > importDate.getTime();
+
+                    if (!shouldImport) {
+                        setInventoryImportStatus("", "");
+                        notifyImportWaiters("onImportEnd");
+                        notifyInventoryImportState({ phase: "skipped" });
+                        finishInventoryImportCheck({ imported: false, shouldImport: false, error: null });
+                        return;
+                    }
+
+                    setInventoryImportStatus("מעדכן נתוני מלאי...", "loading");
+                    setInventoryImportRunning(true);
+                    notifyImportWaiters("onImportStart");
+                    notifyInventoryImportState({ phase: "importing" });
+
+                    ajaxCall(
+                        "POST",
+                        server + "api/Inventory/import",
+                        "",
+                        function () {
+                            setInventoryImportRunning(false);
+                            setInventoryImportStatus("", "");
+                            notifyImportWaiters("onImportEnd");
+                            notifyInventoryImportState({ phase: "imported" });
+                            finishInventoryImportCheck({ imported: true, shouldImport: true, error: null });
+                        },
+                        function () {
+                            setInventoryImportRunning(false);
+                            setInventoryImportStatus("עדכון נתוני מלאי נכשל", "error");
+                            notifyImportWaiters("onImportEnd");
+                            notifyInventoryImportState({ phase: "error" });
+                            finishInventoryImportCheck({ imported: false, shouldImport: true, error: "import_failed" });
+                        }
+                    );
+                },
+                function () {
+                    notifyImportWaiters("onImportEnd");
+                    notifyInventoryImportState({ phase: "error" });
+                    finishInventoryImportCheck({ imported: false, shouldImport: false, error: "last_import_timestamp_failed" });
+                }
+            );
+        },
+        function () {
+            notifyImportWaiters("onImportEnd");
+            notifyInventoryImportState({ phase: "error" });
+            finishInventoryImportCheck({ imported: false, shouldImport: false, error: "excel_timestamp_failed" });
+        }
+    );
+}
+
+function formatExcelLastModified(dateValue) {
+    if (!dateValue) {
+        return null;
+    }
+
+    const dt = new Date(dateValue);
+    if (Number.isNaN(dt.getTime())) {
+        return null;
+    }
+
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const yyyy = dt.getFullYear();
+    const hh = String(dt.getHours()).padStart(2, "0");
+    const min = String(dt.getMinutes()).padStart(2, "0");
+
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+function updateInventoryExcelLastModified(path) {
+    const wrap = document.getElementById("excelLastModifiedWrap");
+    const textEl = document.getElementById("excelLastModifiedText");
+    if (!wrap || !textEl) {
+        return;
+    }
+
+    if (!path.startsWith("/inventory/")) {
+        wrap.hidden = true;
+        textEl.classList.remove("warning");
+        textEl.textContent = "";
+        return;
+    }
+
+    wrap.hidden = false;
+    textEl.classList.remove("warning");
+    textEl.textContent = "טוען עדכון אחרון מקובץ האקסל...";
+
+    ajaxCall(
+        "GET",
+        server + "api/Inventory/excel-last-modified",
+        "",
+        function (res) {
+            const fileExists = (res?.fileExists ?? res?.FileExists) === true;
+            const rawDate = res?.excelLastModifiedAt ?? res?.ExcelLastModifiedAt;
+            const formatted = formatExcelLastModified(rawDate);
+
+            if (fileExists && formatted) {
+                textEl.classList.remove("warning");
+                textEl.textContent = `עדכון אחרון מקובץ האקסל: ${formatted}`;
+                return;
+            }
+
+            textEl.classList.remove("warning");
+            textEl.textContent = "לא נמצא קובץ אקסל לעדכון מלאי";
+        },
+        function () {
+            textEl.classList.add("warning");
+            textEl.textContent = "לא ניתן למשוך כרגע את זמן עדכון קובץ האקסל";
+        }
+    );
 }
 
 function getCurrentUser() {
@@ -479,7 +720,8 @@ async function loadRoute() {
     const route = routes[path];
     if (!route) return;
 
-    try {
+    const continueLoadRoute = async function () {
+        try {
         // 1) Load HTML
         const bust = `v=${Date.now()}`;
         const fileUrl = route.file.includes("?") ? `${route.file}&${bust}` : `${route.file}?${bust}`;
@@ -519,10 +761,14 @@ async function loadRoute() {
         // 7) Highlight top menu active tab
         setActiveMenu(path);
         updateTopMenuVisibility(path);
+        updateInventoryExcelLastModified(path);
 
-    } catch (err) {
-        console.error("שגיאה בטעינת הדף:", err);
-    }
+        } catch (err) {
+            console.error("שגיאה בטעינת הדף:", err);
+        }
+    };
+
+    continueLoadRoute();
 }
 
 /* =========================

@@ -16,7 +16,12 @@ let currentBomBuyMethod = "";
 let currentBomBodyPlane = "";
 
 window.initUavBOM = function () {
-    loadBomPlaneOptions();
+    checkAndRunInventoryImport(function () {
+        loadBomPlaneOptions();
+    }, {
+        onImportStart: showImportSpinner,
+        onImportEnd: hideImportSpinner
+    });
 };
 
 function loadBomPlaneOptions() {
@@ -77,7 +82,7 @@ function loadBomFilterOptions(onDone) {
     );
 }
 
-function loadBomPage(page) {
+function loadBomPage(page, done) {
     if (!currentBomPlaneTypeId || page < 1) return;
     if (knownLastBomPage !== null && page > knownLastBomPage) return;
 
@@ -113,6 +118,7 @@ function loadBomPage(page) {
 
             renderBomTable(currentBomRows);
             updateBomPager();
+            if (typeof done === "function") done(false);
         },
         function (xhr) {
             console.error("Failed to load BOM rows", xhr);
@@ -120,6 +126,7 @@ function loadBomPage(page) {
             lastLoadedBomCount = 0;
             renderBomTable([]);
             updateBomPager();
+            if (typeof done === "function") done(true);
         }
     );
 }

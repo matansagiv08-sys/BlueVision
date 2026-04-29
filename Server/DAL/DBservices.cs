@@ -944,6 +944,65 @@ public class DBservices
         };
     }
 
+    public void SetLastInventoryImportTimestamp(DateTime timestamp)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            using SqlCommand cmd = new SqlCommand("dbo.SP_SetLastInventoryImportTimestamp", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.AddWithValue("@Timestamp", timestamp);
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
+    }
+
+    public DateTime? GetLastInventoryImportTimestamp()
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            using SqlCommand cmd = new SqlCommand("dbo.SP_GetLastInventoryImportTimestamp", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            object? result = cmd.ExecuteScalar();
+            if (result == null || result == DBNull.Value)
+            {
+                return null;
+            }
+
+            if (result is DateTime dt)
+            {
+                return dt;
+            }
+
+            string raw = result.ToString() ?? string.Empty;
+            if (DateTime.TryParse(raw, out DateTime parsed))
+            {
+                return parsed;
+            }
+
+            return null;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            if (con != null) con.Close();
+        }
+    }
+
     //ייצור
 
     //שליפת כל הנתונים של פרטי הייצור עבור עמודי לוח משימות וניהול לוז

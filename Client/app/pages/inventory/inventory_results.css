@@ -2,6 +2,18 @@
     padding: 20px;
 }
 
+.inventory-results-page .inventory-results-inline-error {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: #b91c1c;
+}
+
+.inventory-results-page .inventory-results-loading-text {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #475569;
+}
+
 .inventory-results-page .top-action-bar {
     margin-bottom: 16px;
 }

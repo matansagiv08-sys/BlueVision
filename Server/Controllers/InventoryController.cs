@@ -68,4 +68,12 @@ public class InventoryController : ControllerBase
         ExcelLastModifiedInfo info = inventoryItem.GetExcelLastModifiedInfo();
         return Ok(info);
     }
+
+    [HttpGet("last-import-timestamp")]
+    public ActionResult<LastInventoryImportTimestampInfo> GetLastImportTimestamp()
+    {
+        InventoryItem inventoryItem = new InventoryItem();
+        LastInventoryImportTimestampInfo info = inventoryItem.GetLastInventoryImportTimestampInfo();
+        return Ok(info);
+    }
 }

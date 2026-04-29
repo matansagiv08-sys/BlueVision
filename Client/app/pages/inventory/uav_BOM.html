@@ -1,4 +1,9 @@
 <div class="uav-bom-page">
+    <div id="stockImportOverlay" class="stock-import-overlay" style="display:none;">
+        <div class="stock-child-spinner" aria-hidden="true"></div>
+    </div>
+
+    <div id="stockChildContent">
     <div class="bom-selection-header">
         <div id="bomPlaneToggle" class="custom-slider-toggle model-selection-toggle">
         </div>
@@ -71,5 +76,6 @@
         <button id="prevBomPageBtn" class="inventory-page-btn" onclick="window.prevBomPage()" aria-label="Previous page" title="Previous page">&#8249;</button>
         <div id="bomPageNumbers" class="inventory-page-numbers"></div>
         <button id="nextBomPageBtn" class="inventory-page-btn" onclick="window.nextBomPage()" aria-label="Next page" title="Next page">&#8250;</button>
+    </div>
     </div>
 </div>

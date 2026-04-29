@@ -1,4 +1,12 @@
 ﻿<div class="inventory-results-page">
+    <div id="stockImportOverlay" class="stock-import-overlay" style="display:none;">
+        <div class="stock-child-spinner" aria-hidden="true"></div>
+    </div>
+
+    <p id="inventoryResultsInlineError" class="inventory-results-inline-error" hidden></p>
+    <p id="inventoryResultsLoadingText" class="inventory-results-loading-text" hidden>מחשב תוצאות...</p>
+
+    <div id="stockChildContent" hidden>
     <div class="top-action-bar">
         <button class="btn-secondary" onclick="window.backToCheck()">
             <span>←</span> חזור לעריכת בדיקה
@@ -70,5 +78,6 @@
             <tbody id="results-table-body">
             </tbody>
         </table>
+    </div>
     </div>
 </div>

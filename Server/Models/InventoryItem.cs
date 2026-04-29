@@ -78,7 +78,9 @@ public class InventoryItem
         };
 
         DBservices dbs = new DBservices();
-        return dbs.ImportInventoryDataToDatabase(importData);
+        InventoryImportResult result = dbs.ImportInventoryDataToDatabase(importData);
+        dbs.SetLastInventoryImportTimestamp(DateTime.Now);
+        return result;
     }
 
     public List<InventoryItem> GetInventoryItems(
@@ -123,6 +125,15 @@ public class InventoryItem
             ExcelLastModifiedAt = File.GetLastWriteTime(resolution.ResolvedPath),
             ResolvedPath = resolution.ResolvedPath,
             Message = "Excel file found"
+        };
+    }
+
+    public LastInventoryImportTimestampInfo GetLastInventoryImportTimestampInfo()
+    {
+        DBservices dbs = new DBservices();
+        return new LastInventoryImportTimestampInfo
+        {
+            LastImportTimestamp = dbs.GetLastInventoryImportTimestamp()
         };
     }
 
@@ -574,4 +585,9 @@ public class ExcelLastModifiedInfo
     public DateTime? ExcelLastModifiedAt { get; set; }
     public string ResolvedPath { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
+}
+
+public class LastInventoryImportTimestampInfo
+{
+    public DateTime? LastImportTimestamp { get; set; }
 }
