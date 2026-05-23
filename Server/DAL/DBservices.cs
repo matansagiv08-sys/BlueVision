@@ -2083,4 +2083,98 @@ public class DBservices
         }
         finally { if (con != null) con.Close(); }
     }
+
+    // ==========================================
+    // פונקציות עבור רכיב הדשבורד הדינמי וה-AI
+    // ==========================================
+
+    // 1. שליפת הגרפים הפעילים של המשתמש באמצעות ה-Stored Procedure
+    public DataTable GetUserDashboards(int userID, string dashboardType)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@UserID", userID },
+            { "@DashboardType", dashboardType }
+        };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUserDashboards_GetActive", con, paramDic);
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            DataTable dt = new DataTable();
+            da.Fill(dt);
+            return dt;
+        }
+        catch (Exception) { throw; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    // 2. שמירת גרף חדש באמצעות ה-Stored Procedure
+    public int SaveUserDashboardChart(string chartTitle, string dashboardType, int userID, string chartType, string sqlLogic)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@ChartTitle", chartTitle },
+            { "@DashboardType", dashboardType },
+            { "@UserID", userID },
+            { "@ChartType", chartType },
+            { "@SqlLogic", sqlLogic }
+        };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUserDashboards_Insert", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception) { throw; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    // 3. מחיקת גרף קבוע באמצעות ה-Stored Procedure
+    public int DeleteUserDashboardChart(int chartID)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+        {
+            { "@ChartID", chartID }
+        };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spUserDashboards_Delete", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception) { throw; }
+        finally { if (con != null) con.Close(); }
+    }
+
+    // 4. הרצת השאילתה הדינמית שה-AI ייצר (כאן חובה טקסט חופשי מבוקר ולא SP)
+    public DataTable ExecuteDynamicQuery(string sqlQuery)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            // הגנה בסיסית מפני פקודות מחיקה/עדכון זדוניות (SQL Injection)
+            string lowerSql = sqlQuery.ToLower();
+            if (lowerSql.Contains("drop") || lowerSql.Contains("delete") || lowerSql.Contains("update") || lowerSql.Contains("insert"))
+            {
+                throw new Exception("רק שאילתות שליפה (SELECT) מותרות בדשבורד זה.");
+            }
+
+            SqlCommand cmd = new SqlCommand(sqlQuery, con);
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            DataTable dt = new DataTable();
+            da.Fill(dt);
+            return dt;
+        }
+        catch (Exception) { throw; }
+        finally { if (con != null) con.Close(); }
+    }
 }

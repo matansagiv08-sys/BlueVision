@@ -404,8 +404,7 @@ function renderFilteredPlanes() {
     const selectedProjectID = $('#project-select').find(':selected').data('id');
     const selectedTypeID = $('#plane-type-select').val();
     const existingSinglePlane = String($('#single-unit-plane-input').val() || '').trim();
-
-    (allData.planes || [])
+    const filteredPlanes = (allData.planes || [])
         .filter(p => {
             const matchType = !selectedTypeID || p.typeID == selectedTypeID;
             const matchProject = !selectedProjectID || p.projectID == selectedProjectID;

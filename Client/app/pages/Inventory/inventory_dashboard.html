@@ -1,5 +1,61 @@
-﻿<div class="inventory-dashboard-page">
-    <div>
-        <div class="generic-card" style="padding:16px;">דוח מלאי בטעינה</div>
+﻿<div class="dashboard-container">
+    <div class="global-toolbar" style="margin-bottom: 20px; display: flex; justify-content: flex-end;">
+        <div class="filter-actions">
+            <button class="standard-button btn-primary-action" onclick="openEditDashboardModal()" style="background-color: #0c2340; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600;">
+                <span></span> עריכת דוחות וגרפים
+            </button>
+        </div>
+    </div>
+
+    <div class="dashboard-grid" id="chartsGrid">
+    </div>
+</div>
+
+<div id="dashboardEditModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div class="modal-content large-modal" style="background: white; border-radius: 8px; width: 90%; max-width: 950px; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+
+        <div class="modal-header-blue" style="background: #0c2340; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0; font-size: 18px;">ניהול ועריכת גרפים באמצעות AI</h2>
+            <button class="close-btn" onclick="closeEditDashboardModal()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+
+        <div class="modal-body dashboard-modal-layout" style="padding: 20px; display: flex; gap: 20px; overflow-y: auto; direction: rtl;">
+
+            <div class="modal-section ai-generator-section" style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+                <h3 style="margin-top: 0; color: #0c2340; font-size: 16px; margin-bottom: 15px;">🪄 יצירת גרף חדש בשפה חופשית</h3>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px;">מה ברצונך לבדוק במערכת המלאי?</label>
+                    <textarea id="aiPromptInput" class="standard-input" rows="3" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: none;" placeholder="לדוגמה: כמה פריטים יש מכל דגם של כטב''ם במלאי?"></textarea>
+                </div>
+
+                <button class="standard-button" style="width: 100%; background-color: #0c2340; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;" onclick="generateAiChart()">
+                    ייצר גרף בהתאמה אישית
+                </button>
+
+                <div id="previewChartContainer" class="preview-chart-box" style="display: none; margin-top: 20px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px;">
+                    <h4 style="margin-top: 0; color: #0c2340; font-size: 14px; margin-bottom: 10px;">תצוגה מקדימה של הגרף:</h4>
+                    <div class="chart-wrapper" style="position: relative; height: 200px; width: 100%;">
+                        <canvas id="previewChartCanvas"></canvas>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 15px; margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px;">תן שם לגרף החדש שלך:</label>
+                        <input type="text" id="newChartTitleInput" class="standard-input" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" placeholder="לדוגמה: כמות פריטים לפי דגם">
+                    </div>
+
+                    <button class="standard-button" style="width: 100%; background-color: #10b981; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;" onclick="saveGeneratedChart()">
+                        💾 שמור גרף והוסף לדשבורד
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-section existing-charts-section" style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+                <h3 style="margin-top: 0; color: #0c2340; font-size: 16px; margin-bottom: 15px;">📊 הגרפים הקיימים בדשבורד שלך</h3>
+                <div class="manage-charts-list" id="manageChartsList" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;">
+                </div>
+            </div>
+
+        </div>
     </div>
 </div>
