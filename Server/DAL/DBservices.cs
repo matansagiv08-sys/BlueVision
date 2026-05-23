@@ -2177,4 +2177,27 @@ public class DBservices
         catch (Exception) { throw; }
         finally { if (con != null) con.Close(); }
     }
+
+    // פונקציה חדשה: שליפת גרפים לפי סוג דשבורד בלבד (בלי סינון משתמש)
+    public DataTable GetChartsByDashboardType(string dashboardType)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+
+            // שאילתה ישירה שמתעלמת מה-UserID ומביאה רק לפי סוג הדף
+            string query = "SELECT ChartID, ChartTitle, ChartType, SqlLogic, UserID FROM UserDashboards WHERE DashboardType = @DashboardType";
+
+            SqlCommand cmd = new SqlCommand(query, con);
+            cmd.Parameters.AddWithValue("@DashboardType", dashboardType);
+
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            DataTable dt = new DataTable();
+            da.Fill(dt);
+            return dt;
+        }
+        catch (Exception) { throw; }
+        finally { if (con != null) con.Close(); }
+    }
 }
