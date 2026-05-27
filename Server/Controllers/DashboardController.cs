@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Data;
 using System.Threading.Tasks;
-using Server.DAL;
 using Server.Models;
 
 namespace Server.Controllers
@@ -11,7 +9,6 @@ namespace Server.Controllers
     [ApiController]
     public class DashboardController : ControllerBase
     {
-        private readonly DBservices _dbs = new DBservices();
         private readonly DashboardManager _manager = new DashboardManager();
 
         // 1. שליפת כל הגרפים הפעילים של המשתמש לפי סוג דשבורד
@@ -22,22 +19,7 @@ namespace Server.Controllers
             try
             {
                 // שינוי קריטי: קריאה לפונקציה החדשה שמביאה את הגרפים ללא סינון משתמש
-                DataTable dt = _dbs.GetChartsByDashboardType(dashboardType);
-
-                // הפיכת ה-DataTable לרשימה דינמית שנוח להעביר ב-JSON
-                var chartsList = new System.Collections.Generic.List<object>();
-                foreach (DataRow row in dt.Rows)
-                {
-                    chartsList.Add(new
-                    {
-                        ChartID = row["ChartID"],
-                        ChartTitle = row["ChartTitle"],
-                        ChartType = row["ChartType"],
-                        SqlLogic = row["SqlLogic"],
-                        UserID = row["UserID"] // שומרים את המידע של מי שיצר, אך מציגים לכולם
-                    });
-                }
-
+                var chartsList = _manager.GetChartsByDashboardType(dashboardType);
                 return Ok(chartsList);
             }
             catch (Exception ex)
@@ -52,59 +34,32 @@ namespace Server.Controllers
         {
             try
             {
-                // 1. אם ה-Client שלח שאילתת SQL קיימת (מתוך גרף שמור)
-                if (request.Prompt.Trim().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+                DashboardGenerateResult result = await _manager.GenerateChartAsync(
+                    request.Prompt,
+                    request.VisualizationType,
+                    request.ResultType
+                );
+
+                if (!result.IsValid)
                 {
-                    DataTable dt = _dbs.ExecuteDynamicQuery(request.Prompt);
-
-                    var labels = new System.Collections.Generic.List<string>();
-                    var values = new System.Collections.Generic.List<double>();
-
-                    // בדיקה אילו עמודות קיימות בתוצאה כדי למנוע קריסה
-                    bool hasLabelColumn = dt.Columns.Contains("Label");
-                    bool hasValueColumn = dt.Columns.Contains("Value");
-
-                    foreach (DataRow row in dt.Rows)
+                    return BadRequest(new
                     {
-                        // אם קיימת עמודה בשם Label משתמשים בה, אחרת לוקחים את העמודה הראשונה (אינדקס 0)
-                        string labelText = hasLabelColumn ? row["Label"].ToString() : row[0].ToString();
-                        labels.Add(labelText);
-
-                        // אם קיימת עמודה בשם Value משתמשים בה, אחרת לוקחים את העמודה השנייה (אינדקס 1)
-                        double valueNum = hasValueColumn ? Convert.ToDouble(row["Value"]) : Convert.ToDouble(row[1]);
-                        values.Add(valueNum);
-                    }
-
-                    return Ok(new { labels, values });
-                }
-
-                // 2. אם המשתמש שלח פרומפט חופשי בעברית - ה-AI מייצר שאילתה חדשה
-                AiChartResponse aiResponse = await _manager.GenerateChartFromPrompt(request.Prompt);
-
-                // 3. מריצים את ה-SQL שה-AI ג'נרט
-                DataTable dtAi = _dbs.ExecuteDynamicQuery(aiResponse.SqlQuery);
-
-                var aiLabels = new System.Collections.Generic.List<string>();
-                var aiValues = new System.Collections.Generic.List<double>();
-
-                bool hasAiLabel = dtAi.Columns.Contains("Label");
-                bool hasAiValue = dtAi.Columns.Contains("Value");
-
-                foreach (DataRow row in dtAi.Rows)
-                {
-                    string labelText = hasAiLabel ? row["Label"].ToString() : row[0].ToString();
-                    aiLabels.Add(labelText);
-
-                    double valueNum = hasAiValue ? Convert.ToDouble(row["Value"]) : Convert.ToDouble(row[1]);
-                    aiValues.Add(valueNum);
+                        error = result.ErrorMessage,
+                        errorCode = result.ErrorCode
+                    });
                 }
 
                 return Ok(new
                 {
-                    labels = aiLabels,
-                    values = aiValues,
-                    sqlQuery = aiResponse.SqlQuery,
-                    chartType = aiResponse.ChartType
+                    labels = result.Data?.Labels,
+                    values = result.Data?.Values,
+                    rows = result.Data?.Rows,
+                    sqlQuery = result.Data?.SqlQuery,
+                    chartType = result.Data?.VisualizationType,
+                    visualizationType = result.Data?.VisualizationType,
+                    resultType = result.Data?.ResultType,
+                    explanation = result.Data?.Explanation,
+                    assumptions = result.Data?.Assumptions
                 });
             }
             catch (Exception ex)
@@ -119,12 +74,22 @@ namespace Server.Controllers
         {
             try
             {
-                int rowsAffected = _dbs.SaveUserDashboardChart(
+                SqlValidationResult validation = _manager.ValidateSqlForSave(request.SqlLogic, request.ChartType);
+                if (!validation.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        error = validation.ErrorMessage,
+                        errorCode = validation.ErrorCode
+                    });
+                }
+
+                int rowsAffected = _manager.SaveChart(
                     request.ChartTitle,
                     request.DashboardType,
                     request.UserID,
                     request.ChartType,
-                    request.SqlLogic
+                    validation.NormalizedSql
                 );
 
                 if (rowsAffected > 0 || rowsAffected == -1)
@@ -144,7 +109,7 @@ namespace Server.Controllers
         {
             try
             {
-                int rowsAffected = _dbs.DeleteUserDashboardChart(id);
+                int rowsAffected = _manager.DeleteChart(id);
                 if (rowsAffected > 0 || rowsAffected == -1)
                     return Ok(new { success = true, message = "הגרף נמחק בהצלחה!" });
 
@@ -161,48 +126,8 @@ namespace Server.Controllers
         {
             try
             {
-                // 1. שליפת כל הגרפים מטבחת הדשבורד ששייכים למסך המלאי (בלי לסנן לפי UserID ברמת השליפה למסך)
-                // הערה: נניח שיש לך פונקציה שמביאה את הגרפים לפי סוג דשבורד
-                DataTable dtCharts = _dbs.GetChartsByDashboardType("Inventory");
-
-                List<AiChartDataResponse> responseList = new List<AiChartDataResponse>();
-
-                foreach (DataRow row in dtCharts.Rows)
-                {
-                    var chart = new AiChartDataResponse
-                    {
-                        ChartTitle = row["ChartTitle"].ToString(),
-                        ChartType = row["ChartType"].ToString().ToLower(), // 'bar', 'pie', 'line'
-                        DataPoints = new List<ChartDataPoint>()
-                    };
-
-                    string sqlToExecute = row["SqlLogic"].ToString();
-
-                    try
-                    {
-                        // 2. הרצת השאילתה הדינמית של הגרף כדי להביא את הנתונים האמיתיים שלו ברגע זה!
-                        DataTable dtData = _dbs.ExecuteDynamicQuery(sqlToExecute);
-
-                        foreach (DataRow dataRow in dtData.Rows)
-                        {
-                            chart.DataPoints.Add(new ChartDataPoint
-                            {
-                                // השדות שג'מיני מייצר תמיד נקראים Label ו-Value
-                                Label = dataRow["Label"].ToString(),
-                                Value = Convert.ToDouble(dataRow["Value"])
-                            });
-                        }
-                    }
-                    catch (Exception sqlEx)
-                    {
-                        // אם שאילתה ספציפית נכשלת, נוסיף נקודת שגיאה כדי שהגרף לא יפיל את כל הדף
-                        chart.DataPoints.Add(new ChartDataPoint { Label = "שגיאה בטעינת נתונים", Value = 0 });
-                    }
-
-                    responseList.Add(chart);
-                }
-
-                return Ok(responseList);
+                var charts = _manager.GetChartsByDashboardType("Inventory");
+                return Ok(charts);
             }
             catch (Exception ex)
             {
@@ -215,6 +140,8 @@ namespace Server.Controllers
     public class GenerateChartRequest
     {
         public string Prompt { get; set; } = string.Empty;
+        public string? VisualizationType { get; set; }
+        public string? ResultType { get; set; }
     }
 
     public class SaveChartRequest
