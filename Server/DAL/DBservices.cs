@@ -13,15 +13,19 @@ public class DBservices
 {
     private SqlConnection connect(string conString)
     {
+        string environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json")
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile($"appsettings.{environmentName}.json", optional: true, reloadOnChange: true)
+            .AddEnvironmentVariables()
             .Build();
 
         string? connectionString = configuration.GetConnectionString(conString);
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new Exception($"Connection string '{conString}' was not found in appsettings.json");
+            throw new Exception($"Connection string '{conString}' was not found in configuration");
         }
 
         SqlConnection con = new SqlConnection(connectionString);

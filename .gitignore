@@ -7,3 +7,4 @@
 *.cache
 *.vsidx
 /Server/bin_temp
+Server/appsettings.Development.json
