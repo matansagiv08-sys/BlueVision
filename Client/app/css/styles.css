@@ -275,6 +275,8 @@ body {
     flex: 1;
     margin-right: var(--sidebar-open-width);
     padding: 30px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .sidebar.collapsed + .main {

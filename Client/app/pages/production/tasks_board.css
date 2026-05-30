@@ -3,6 +3,60 @@
     direction: rtl;
 }
 
+#tbStatusModal {
+    align-items: center;
+    justify-content: center;
+    padding: 20px 16px;
+    overflow: hidden;
+}
+
+#tbStatusModal .tb-status-modal {
+    width: min(620px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+#tbStatusModal .tb-status-modal-body {
+    overflow-y: auto;
+    min-height: 0;
+    padding: 16px;
+}
+
+#tbStatusModal .tb-status-info-card {
+    padding: 12px;
+    margin-bottom: 14px;
+}
+
+#tbStatusModal #statusButtonsContainer {
+    gap: 8px 10px;
+    margin-top: 8px;
+    margin-bottom: 14px;
+}
+
+#tbStatusModal .btn-choice {
+    min-height: 40px;
+    padding: 8px 10px;
+}
+
+#tbStatusModal #statusCommentInput {
+    min-height: 80px;
+    max-height: 120px;
+}
+
+#tbStatusModal #timeInputContainer {
+    margin-top: 10px;
+}
+
+#tbStatusModal .tb-status-modal-footer {
+    position: sticky;
+    bottom: 0;
+    background: #f8fafc;
+    z-index: 2;
+}
+
 #tasks-board-container {
     margin-top: 10px;
 }
@@ -37,6 +91,30 @@
     vertical-align: middle;
 }
 
+.tasks-board-page .tasks-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.tasks-board-page .table-container.tasks-table-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.tasks-board-page .tb-table th,
+.tasks-board-page .tb-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-inline: clamp(4px, 0.55vw, 12px);
+    font-size: clamp(11px, 0.72vw, 14px);
+}
+
+.tasks-board-page .tb-table th {
+    font-size: clamp(11px, 0.75vw, 14px);
+}
+
 /* רוחב עמודות */
 .tasks-board-page .tb-col-qty {
     width: 80px;
@@ -44,17 +122,48 @@
 }
 
 .tasks-board-page .tb-col-item-name {
-    width: 200px;
+    width: 18%;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+.tasks-board-page .tb-col-wo,
+.tasks-board-page .tb-col-tail,
+.tasks-board-page .tb-col-sn,
+.tasks-board-page .tb-col-qty {
+    width: 6%;
+}
+
+.tasks-board-page .tb-col-project {
+    width: 10%;
+}
+
+.tasks-board-page .tb-col-item-id {
+    width: 8%;
+}
+
+.tasks-board-page .tb-col-progress {
+    width: 8%;
+    min-width: 88px;
+}
+
+.tasks-board-page .tb-col-stage {
+    width: 6%;
+}
+
 .tasks-board-page .status-cell,
 .tasks-board-page .progress-cell {
     text-align: center;
     vertical-align: middle;
+}
+
+.tasks-board-page .tb-table th.status-col,
+.tasks-board-page .tb-table td.status-col {
+    min-width: clamp(56px, 5vw, 92px);
+    width: clamp(56px, 5vw, 92px);
+    text-align: center;
 }
 
 .status-wrapper {
@@ -64,14 +173,21 @@
 }
 
 /* --- ה-Pills בתוך הטבלה --- */
-.status-pill {
+.tasks-board-page .status-pill {
     cursor: pointer;
     transition: all 0.2s;
-    padding: 5px 10px;
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: clamp(50px, 4.6vw, 82px);
+    height: clamp(22px, 1.8vw, 30px);
+    padding: 0 clamp(5px, 0.6vw, 12px);
+    font-size: clamp(10px, 0.7vw, 13px);
+    white-space: nowrap;
+    box-sizing: border-box;
 }
 
-    .status-pill:hover {
+    .tasks-board-page .status-pill:hover {
         transform: scale(1.05);
         filter: brightness(0.95);
     }
@@ -175,44 +291,46 @@
         border-color: #0c2340;
     }
 
-.progress-wrapper {
-    width: 70%;
-    margin: 0 auto;
-    display: flex;
-    justify-content: center;
-}
-
-.pb-progress-wrapper {
-    display: flex;
+.progress-compact {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    background: #f1f5f9;
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
-    width: 100%;
-    min-width: 90px;
-    max-width: 130px;
-    margin: 0 auto;
-}
-
-.pb-progress-bar {
-    flex: 1;
-    height: 6px;
-    background: #cbd5e1;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.pb-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #0ea5e9, #2563eb);
-    border-radius: 10px;
-}
-
-.pb-progress-text {
-    font-size: 11px;
+    gap: 4px;
+    white-space: nowrap;
+    min-width: 0;
+    font-size: clamp(10px, 0.7vw, 13px);
     font-weight: 700;
     color: #1e293b;
+}
+
+.progress-circle {
+    width: clamp(18px, 1.2vw, 22px);
+    height: clamp(18px, 1.2vw, 22px);
+    border-radius: 50%;
+    background: conic-gradient(#2563eb calc(var(--progress) * 1%), #dbe4ef 0);
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.progress-circle::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: #ffffff;
+}
+
+.progress-text {
+    line-height: 1;
+}
+
+@media (max-width: 1280px) {
+    .tasks-board-page .tb-table th,
+    .tasks-board-page .tb-table td {
+        padding-inline: clamp(3px, 0.45vw, 8px);
+    }
+
+    .tasks-board-page .tb-col-stage {
+        width: 5.5%;
+    }
 }

@@ -308,7 +308,8 @@ window.generateAiChart = function () {
         type: "POST",
         contentType: "application/json",
         data: JSON.stringify({
-            Prompt: promptInput.value.trim()
+            Prompt: promptInput.value.trim(),
+            DashboardType: "Inventory"
         }),
         success: function (data) {
             console.log("נתונים חזרו מה-AI בהצלחה!", data);
@@ -496,7 +497,8 @@ function fetchAndRenderChartData(chart) {
         data: JSON.stringify({
             Prompt: sqlLogic,
             VisualizationType: chartType,
-            ResultType: resultType
+            ResultType: resultType,
+            DashboardType: "Inventory"
         }),
         success: function (data) {
             const rawLabels = data.labels || data.Labels || [];

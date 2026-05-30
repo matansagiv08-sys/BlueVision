@@ -88,7 +88,7 @@ namespace Server.Models
             return _dbs.DeleteUserDashboardChart(chartId);
         }
 
-        public async Task<DashboardGenerateResult> GenerateChartAsync(string prompt, string? visualizationType = null, string? resultType = null)
+        public async Task<DashboardGenerateResult> GenerateChartAsync(string prompt, string? visualizationType = null, string? resultType = null, string? dashboardType = null)
         {
             string safePrompt = (prompt ?? string.Empty).Trim();
             if (safePrompt.Length == 0)
@@ -115,7 +115,7 @@ namespace Server.Models
             }
             else
             {
-                aiResponse = await GenerateChartFromPrompt(safePrompt);
+                aiResponse = await GenerateChartFromPrompt(safePrompt, dashboardType);
                 if (aiResponse.IsAllowed == false)
                 {
                     return DashboardGenerateResult.Fail(
@@ -133,7 +133,43 @@ namespace Server.Models
                 return DashboardGenerateResult.Fail(validation.ErrorCode, validation.ErrorMessage);
             }
 
-            DataTable dt = _dbs.ExecuteDynamicQuery(validation.NormalizedSql);
+            DataTable dt;
+            try
+            {
+                dt = _dbs.ExecuteDynamicQuery(validation.NormalizedSql);
+            }
+            catch (Exception ex)
+            {
+                if (!LooksLikeSqlIdentifierBindingError(ex.Message) || LooksLikeSql(safePrompt))
+                {
+                    throw;
+                }
+
+                AiChartResponse repairedResponse = await GenerateChartFromPrompt(
+                    BuildSqlRepairPrompt(safePrompt, validation.NormalizedSql, ex.Message),
+                    dashboardType
+                );
+
+                if (repairedResponse.IsAllowed == false)
+                {
+                    return DashboardGenerateResult.Fail(
+                        string.IsNullOrWhiteSpace(repairedResponse.ErrorCode) ? "BLOCKED_TOPIC" : repairedResponse.ErrorCode,
+                        string.IsNullOrWhiteSpace(repairedResponse.Message)
+                            ? "הבקשה נחסמה כי היא מתייחסת למידע שאינו מורשה להצגה בדשבורד."
+                            : repairedResponse.Message
+                    );
+                }
+
+                SqlValidationResult repairedValidation = ValidateSql(repairedResponse.Sql, repairedResponse.VisualizationType, repairedResponse.ResultType);
+                if (!repairedValidation.IsValid)
+                {
+                    return DashboardGenerateResult.Fail(repairedValidation.ErrorCode, repairedValidation.ErrorMessage);
+                }
+
+                dt = _dbs.ExecuteDynamicQuery(repairedValidation.NormalizedSql);
+                aiResponse = repairedResponse;
+                validation = repairedValidation;
+            }
 
             SqlValidationResult shapeValidation = ValidateResultShape(dt, aiResponse.VisualizationType, aiResponse.ResultType);
             if (!shapeValidation.IsValid)
@@ -220,9 +256,10 @@ namespace Server.Models
             return ValidateSql(sqlLogic, viz, resultType);
         }
 
-        public async Task<AiChartResponse> GenerateChartFromPrompt(string userPrompt)
+        public async Task<AiChartResponse> GenerateChartFromPrompt(string userPrompt, string? dashboardType = null)
         {
             string dbSchema = GetDatabaseSchema();
+            string dashboardScopeInstruction = BuildDashboardScopeInstruction(dashboardType);
 
             string systemInstruction = $@"
     You are an expert SQL Server analyst for the 'BlueVision' drone company.
@@ -249,8 +286,12 @@ namespace Server.Models
        SystemSettings, ExcelImportMetadata, UserDashboards and any unrelated tables.
     9. For bar/pie/line with single_series: return exactly two columns named Label and Value (Value numeric).
     10. For table: return explicit named columns and keep width practical.
-    11. If the request is blocked, sensitive, admin/auth/user data, or unrelated to production/inventory domain,
-        DO NOT invent a substitute chart. Return isAllowed=false with errorCode BLOCKED_TOPIC.
+     11. If the request is blocked, sensitive, admin/auth/user data, or unrelated to production/inventory domain,
+         DO NOT invent a substitute chart. Return isAllowed=false with errorCode BLOCKED_TOPIC.
+     12. SQL aliases must be valid and bound. Never reference an alias or column that is not defined in the current SELECT scope.
+
+    Dashboard focus:
+    {dashboardScopeInstruction}
 
     Allowed format:
     {{
@@ -375,6 +416,45 @@ namespace Server.Models
         {
             string normalized = (input ?? string.Empty).TrimStart();
             return normalized.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool LooksLikeSqlIdentifierBindingError(string message)
+        {
+            string msg = (message ?? string.Empty).ToLowerInvariant();
+            return msg.Contains("could not be bound")
+                || msg.Contains("invalid column name")
+                || msg.Contains("multi-part identifier");
+        }
+
+        private static string BuildSqlRepairPrompt(string originalPrompt, string failedSql, string sqlError)
+        {
+            return $@"User asked: {originalPrompt}
+
+Previous SQL failed with SQL Server error:
+{sqlError}
+
+Failed SQL:
+{failedSql}
+
+Generate a corrected SQL query for the same intent.
+Fix alias binding/scope issues and invalid column references.
+Return JSON only as specified.";
+        }
+
+        private static string BuildDashboardScopeInstruction(string? dashboardType)
+        {
+            string scope = (dashboardType ?? string.Empty).Trim();
+            if (scope.Equals("Monthly", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Monthly dashboard: prioritize production and monthly operational insights (ItemsInProduction, ProductionItemStage, ProductionStatuses, WorkOrders, Projects, Planes).";
+            }
+
+            if (scope.Equals("Inventory", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Inventory dashboard: prioritize inventory and procurement insights (InventoryItems, Suppliers, Groups, BOM, ItemPlatforms, PlaneTypes).";
+            }
+
+            return "General dashboard scope: production and inventory analytics only.";
         }
 
         public SqlValidationResult ValidateSql(string sql, string? visualizationType, string? resultType)

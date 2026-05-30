@@ -1,5 +1,7 @@
 ﻿.tasks-workorder-page {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 20px;
 }
 
@@ -26,11 +28,13 @@
     gap: 10px;
     flex-wrap: wrap;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .tasks-workorder-page .workorder-search-wrap {
-    flex: 0 1 320px;
-    min-width: 260px;
+    flex: 2 1 280px;
+    min-width: 180px;
     margin: 0;
 }
 
@@ -39,9 +43,64 @@
 }
 
 .tasks-workorder-page .workorder-filter-select {
-    flex: 0 0 170px;
-    min-width: 150px;
+    flex: 1 1 150px;
+    min-width: 120px;
     max-width: 190px;
+}
+
+.tasks-workorder-page .workorder-filter-row .btn-save,
+.tasks-workorder-page .workorder-filter-row .btn-cancel,
+.tasks-workorder-page .workorder-filter-row .clear-filters-btn {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.tasks-workorder-page .workorder-filter-row > * {
+    min-width: 0;
+}
+
+.tasks-workorder-page .workorder-table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.tasks-workorder-page .workorder-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+}
+
+.tasks-workorder-page .workorder-table th,
+.tasks-workorder-page .workorder-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-inline: clamp(8px, 0.7vw, 14px);
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(1),
+.tasks-workorder-page .workorder-table td:nth-child(1) {
+    width: 44px;
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(4),
+.tasks-workorder-page .workorder-table td:nth-child(4),
+.tasks-workorder-page .workorder-table th:nth-child(7),
+.tasks-workorder-page .workorder-table td:nth-child(7) {
+    width: 13%;
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(11),
+.tasks-workorder-page .workorder-table td:nth-child(11) {
+    width: 9%;
+    text-align: center;
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(12),
+.tasks-workorder-page .workorder-table td:nth-child(12) {
+    width: 8%;
 }
 
 /* Urgency dropdown styling (workorder page) */

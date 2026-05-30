@@ -118,15 +118,6 @@ const routes = {
         subtitle: "",
         mode: "inventory"
     },
-    "/inventory/orders_tracking": {
-        file: "./pages/inventory/orders_tracking.html",
-        js: "./pages/inventory/orders_tracking.js",
-        css: "./pages/inventory/orders_tracking.css",
-        init: "initOrdersTracking",
-        title: "מעקב הזמנות רכש",
-        subtitle: "",
-        mode: "inventory"
-    },
     "/inventory/uav_BOM": {
         file: "./pages/inventory/uav_BOM.html",
         js: "./pages/inventory/uav_BOM.js",

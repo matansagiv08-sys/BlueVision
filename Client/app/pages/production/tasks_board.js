@@ -121,18 +121,18 @@ function renderTasksBoard(boardData, allStages) {
         html += `
             <section class="aircraft-section">
                 <h2 class="tb-aircraft-title">${typeName}</h2>
-                <div class="table-container">
+                <div class="table-container tasks-table-wrapper">
                     <table class="generic-data-table tb-table">
                         <thead>
                             <tr>
                                 <th class="tb-col-wo">פק"ע</th>
                                 <th class="tb-col-project">שם פרויקט</th>
                                 <th class="tb-col-tail">מספר זנב</th>
-                                <th style="width: 120px;">מק"ט</th>
+                                <th class="tb-col-item-id">מק"ט</th>
                                 <th class="tb-col-item-name">שם פריט</th>
                                 <th class="tb-col-sn">סיריאלי</th>
                                 <th class="tb-col-qty">כמות</th>
-                                ${allStages.map(s => `<th class="tb-col-stage">${s.productionStageName}</th>`).join('')}
+                                ${allStages.map(s => `<th class="tb-col-stage status-col">${s.productionStageName}</th>`).join('')}
                                 <th class="tb-col-progress">התקדמות</th> </tr>
                         </thead>
                         <tbody>
@@ -181,7 +181,7 @@ function renderRow(row, allStages) {
         const titleText = isBlocked ? "חסום: בצע תחנה קודמת תחילה" : (itemStage?.comment || "");
 
         return `
-            <td class="status-cell">
+            <td class="status-cell status-col">
                 <div class="status-wrapper">
                     <div class="status-pill status-${sID} ${blockedClass}" 
                          title="${titleText}" 
@@ -198,19 +198,15 @@ function renderRow(row, allStages) {
             <td>${workOrder}</td>
             <td>${projectName}</td>
             <td>${tailNumber}</td>
-            <td>${itemID}</td>
+            <td class="tb-col-item-id" title="${itemID}">${itemID}</td>
             <td class="tb-col-item-name" title="${itemName}">${itemName}</td>
             <td>${serial}</td>
             <td class="tb-col-qty">${qty}</td>
             ${stagesHtml}
             <td class="progress-cell">
-                <div class="progress-wrapper">
-                    <div class="pb-progress-wrapper">
-                        <div class="pb-progress-bar">
-                            <div class="pb-progress-fill" style="width: ${progressValue}%"></div>
-                        </div>
-                        <span class="pb-progress-text">${progressValue}%</span>
-                    </div>
+                <div class="progress-compact" style="--progress:${progressValue};" title="${progressValue}%">
+                    <span class="progress-circle" aria-hidden="true"></span>
+                    <span class="progress-text">${progressValue}%</span>
                 </div>
             </td>
         </tr>`;

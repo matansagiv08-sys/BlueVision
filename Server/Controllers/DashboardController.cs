@@ -37,7 +37,8 @@ namespace Server.Controllers
                 DashboardGenerateResult result = await _manager.GenerateChartAsync(
                     request.Prompt,
                     request.VisualizationType,
-                    request.ResultType
+                    request.ResultType,
+                    request.DashboardType
                 );
 
                 if (!result.IsValid)
@@ -142,6 +143,7 @@ namespace Server.Controllers
         public string Prompt { get; set; } = string.Empty;
         public string? VisualizationType { get; set; }
         public string? ResultType { get; set; }
+        public string? DashboardType { get; set; }
     }
 
     public class SaveChartRequest

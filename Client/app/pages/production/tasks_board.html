@@ -29,35 +29,35 @@
 </div>
 
 <div id="tbStatusModal" class="modal-overlay" onclick="window.closeTaskStatusModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="modal-header-blue" style="background: #0c2340; padding: 15px 20px;">
+    <div class="modal-content tb-status-modal" onclick="event.stopPropagation()">
+        <div class="modal-header-blue" style="background: #0c2340; padding: 12px 16px;">
             <h2 id="tbModalTitle" style="margin:0; font-size:1.2rem;">עדכון סטטוס תחנה</h2>
             <button class="close-btn" onclick="window.closeTaskStatusModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
         </div>
 
-        <div id="modalBody" class="modal-body" style="padding: 20px;">
-            <div id="modalTaskInfo" style="background: #f8fafc; border-radius: 8px; padding: 15px; margin-bottom: 20px; font-size: 0.9rem; color: #1e293b;">
+        <div id="modalBody" class="modal-body tb-status-modal-body" style="padding: 16px;">
+            <div id="modalTaskInfo" class="tb-status-info-card" style="background: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 0.9rem; color: #1e293b;">
             </div>
 
-            <label class="tb-label" style="display:block; margin-bottom:10px;">בחר סטטוס חדש</label>
+            <label class="tb-label" style="display:block; margin-bottom:8px;">בחר סטטוס חדש</label>
 
-            <div id="statusButtonsContainer" class="status-grid-new" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+            <div id="statusButtonsContainer" class="status-grid-new" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
             </div>
 
-            <hr style="border:0; border-top:1px solid #e2e8f0; margin: 20px 0;" />
+            <hr style="border:0; border-top:1px solid #e2e8f0; margin: 14px 0;" />
 
             <div class="modal-inputs-section">
-                <label class="tb-label" style="display:block; margin-bottom:10px;">הערות (אופציונלי)</label>
-                <textarea id="statusCommentInput" class="generic-input" rows="4" placeholder="הוסף הערות או פרטים נוספים..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; resize:none;"></textarea>
+                <label class="tb-label" style="display:block; margin-bottom:8px;">הערות (אופציונלי)</label>
+                <textarea id="statusCommentInput" class="generic-input" rows="3" placeholder="הוסף הערות או פרטים נוספים..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; resize:vertical;"></textarea>
 
-                <div id="timeInputContainer" style="display:none; margin-top:15px;">
+                <div id="timeInputContainer" style="display:none; margin-top:10px;">
                     <label id="timeLabel" class="tb-label" style="display:block; margin-bottom:5px;"></label>
                     <input type="datetime-local" id="userTimeInput" class="generic-input" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
                 </div>
             </div>
         </div>
 
-        <div class="modal-footer" style="padding: 15px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+        <div class="modal-footer tb-status-modal-footer" style="padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px;">
             <button type="button" class="btn-modal btn-save" id="tbModalSubmitBtn" disabled style="background:#0c2340; color:white; padding:10px 20px; border-radius:8px; border:none; font-weight:600; cursor:pointer;">שמור</button>
             <button type="button" class="btn-modal btn-cancel" onclick="window.closeTaskStatusModal()" style="background:white; color:#64748b; padding:10px 20px; border-radius:8px; border:1px solid #e2e8f0; font-weight:600; cursor:pointer;">ביטול</button>
         </div>
