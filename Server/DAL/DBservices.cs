@@ -214,6 +214,7 @@ public class DBservices
     public List<BomRow> GetBomRows(
         int page = 1,
         int pageSize = 100,
+        bool treeMode = false,
         int? planeTypeId = null,
         string? search = null,
         string? measureUnit = null,
@@ -227,6 +228,13 @@ public class DBservices
 
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 100;
+        if (treeMode)
+        {
+            // Tree mode needs the full filtered sequence so parent/child branches are not split by pagination.
+            // We reuse the same SP and request a very high page size while keeping RowOrder from the backend.
+            page = 1;
+            pageSize = 50000;
+        }
 
         SqlConnection con = null;
         try

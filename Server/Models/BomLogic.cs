@@ -7,6 +7,7 @@ public class BomLogic
     public List<BomRow> GetBomRows(
         int page = 1,
         int pageSize = 100,
+        bool treeMode = false,
         int? planeTypeId = null,
         string? search = null,
         string? measureUnit = null,
@@ -17,7 +18,7 @@ public class BomLogic
         string? bodyPlane = null)
     {
         DBservices dbs = new DBservices();
-        return dbs.GetBomRows(page, pageSize, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
+        return dbs.GetBomRows(page, pageSize, treeMode, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
     }
 
     public List<object> GetBomPlaneOptions()

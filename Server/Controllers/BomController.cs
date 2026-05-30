@@ -11,6 +11,7 @@ public class BomController : ControllerBase
     public IEnumerable<BomRow> Get(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100,
+        [FromQuery] bool treeMode = false,
         [FromQuery] int? planeTypeId = null,
         [FromQuery] string? search = null,
         [FromQuery] string? measureUnit = null,
@@ -21,7 +22,7 @@ public class BomController : ControllerBase
         [FromQuery] string? bodyPlane = null)
     {
         BomLogic bom = new BomLogic();
-        return bom.GetBomRows(page, pageSize, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
+        return bom.GetBomRows(page, pageSize, treeMode, planeTypeId, search, measureUnit, warehouse, bomLevel, hasChild, buyMethod, bodyPlane);
     }
 
     [HttpGet("planes")]

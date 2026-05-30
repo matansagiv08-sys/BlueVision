@@ -52,8 +52,20 @@
         </div>
     </div>
 
+    <div class="bom-view-toggle-wrap">
+        <div class="bom-view-toggle" role="tablist" aria-label="תצוגת BOM">
+            <button id="bomTableViewBtn" class="bom-view-btn active" onclick="window.setBomViewMode('table')">תצוגת טבלה</button>
+            <button id="bomTreeViewBtn" class="bom-view-btn" onclick="window.setBomViewMode('tree')">תצוגת עץ</button>
+        </div>
+
+        <div id="bomTreeActions" class="bom-tree-actions" style="display:none;">
+            <button class="btn-secondary-action" onclick="window.expandAllBomTree()">פתח הכל</button>
+            <button class="btn-secondary-action" onclick="window.collapseAllBomTree()">כווץ הכל</button>
+        </div>
+    </div>
+
     <div class="table-container">
-        <table class="generic-data-table">
+        <table id="bomDataTable" class="generic-data-table bom-data-table">
             <thead>
                 <tr>
                     <th>InventoryItemID</th>
@@ -72,7 +84,7 @@
         </table>
     </div>
 
-    <div class="inventory-pager bom-pager">
+    <div id="bomPagerWrap" class="inventory-pager bom-pager">
         <button id="prevBomPageBtn" class="inventory-page-btn" onclick="window.prevBomPage()" aria-label="Previous page" title="Previous page">&#8249;</button>
         <div id="bomPageNumbers" class="inventory-page-numbers"></div>
         <button id="nextBomPageBtn" class="inventory-page-btn" onclick="window.nextBomPage()" aria-label="Next page" title="Next page">&#8250;</button>

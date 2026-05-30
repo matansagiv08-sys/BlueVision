@@ -126,3 +126,202 @@
     font-weight: 700;
     user-select: none;
 }
+
+.bom-view-toggle-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.bom-view-toggle {
+    display: inline-flex;
+    background: #eef2f6;
+    border-radius: 999px;
+    padding: 3px;
+    gap: 4px;
+}
+
+.bom-view-btn {
+    border: none;
+    background: transparent;
+    color: #334155;
+    border-radius: 999px;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.bom-view-btn.active {
+    background: #0c2340;
+    color: #ffffff;
+}
+
+.bom-tree-actions {
+    display: inline-flex;
+    gap: 8px;
+}
+
+.bom-tree-item-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bom-tree-arrow,
+.bom-tree-arrow-spacer {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bom-tree-arrow {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #0c2340;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.bom-tree-child-count {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.bom-tree-parent-row td {
+    background: #fcfdff;
+}
+
+.bom-data-table.tree-mode th,
+.bom-data-table.tree-mode td {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    vertical-align: middle;
+}
+
+.bom-data-table.tree-mode th:nth-child(2),
+.bom-data-table.tree-mode td:nth-child(2) {
+    width: 34%;
+}
+
+.bom-data-table.tree-mode .bom-tree-item-cell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+    padding-right: var(--tree-indent, 0px);
+}
+
+.bom-data-table.tree-mode .bom-tree-branch-line {
+    position: absolute;
+    right: calc(var(--tree-indent, 0px) - 10px);
+    top: -8px;
+    bottom: -8px;
+    width: 1px;
+    background: #dbe4ef;
+    opacity: 0.9;
+}
+
+.bom-data-table.tree-mode tr[data-depth="1"] .bom-tree-branch-line {
+    display: none;
+}
+
+.bom-data-table.tree-mode .bom-tree-item-cell::after {
+    content: "";
+    position: absolute;
+    right: calc(var(--tree-indent, 0px) - 10px);
+    top: 50%;
+    width: 10px;
+    border-top: 1px solid #dbe4ef;
+}
+
+.bom-data-table.tree-mode tr[data-depth="1"] .bom-tree-item-cell::after {
+    display: none;
+}
+
+.bom-data-table.tree-mode .bom-tree-node-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+
+.bom-data-table.tree-mode .bom-tree-node-icon-parent {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    background: #eef5fb;
+    border: 1px solid #d8e5f1;
+    color: #0b2d4d;
+}
+
+.bom-data-table.tree-mode .bom-tree-node-icon-parent svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+}
+
+.bom-data-table.tree-mode .bom-tree-node-icon-leaf {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #8aa0b8;
+    margin-inline: 6px;
+}
+
+.bom-data-table.tree-mode .bom-tree-name {
+    display: inline-block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bom-data-table.tree-mode .bom-tree-parent-row .bom-tree-name {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.bom-data-table.tree-mode .bom-tree-leaf-row .bom-tree-name {
+    color: #334155;
+}
+
+.bom-data-table.tree-mode .bom-tree-child-count {
+    background: #e2e8f0;
+    color: #334155;
+    border-radius: 999px;
+    padding: 0 7px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.bom-data-table.tree-mode .bom-tree-chip-cell {
+    white-space: nowrap;
+}
+
+.bom-data-table.tree-mode .bom-tree-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.bom-data-table.tree-mode .col-sku {
+    color: #0c2340;
+    font-weight: 600;
+}

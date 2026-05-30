@@ -1,11 +1,15 @@
 let bomPlaneOptions = [];
 let currentBomRows = [];
+let currentBomTreeRows = [];
+let currentBomTreeRoots = [];
+let bomExpandedNodeKeys = new Set();
 
 let currentBomPlaneTypeId = null;
 let currentBomPage = 1;
 const bomPageSize = 100;
 let lastLoadedBomCount = 0;
 let knownLastBomPage = null;
+let currentBomViewMode = "table";
 
 let currentBomSearch = "";
 let currentBomMeasureUnit = "";
@@ -25,17 +29,14 @@ window.initUavBOM = function () {
 };
 
 function loadBomPlaneOptions() {
-    ajaxCall(
-        "GET",
-        "https://localhost:7296/api/Bom/planes",
-        null,
+    ajaxCall("GET", "https://localhost:7296/api/Bom/planes", null,
         function (data) {
-            bomPlaneOptions = Array.isArray(data)
-                ? data
-                : (Array.isArray(data?.$values) ? data.$values : []);
+            bomPlaneOptions = Array.isArray(data) ? data : (Array.isArray(data?.$values) ? data.$values : []);
 
             if (bomPlaneOptions.length === 0) {
                 currentBomRows = [];
+                currentBomTreeRows = [];
+                currentBomTreeRoots = [];
                 renderBomPlaneButtons();
                 renderBomTable([]);
                 updateBomPager();
@@ -49,13 +50,15 @@ function loadBomPlaneOptions() {
             renderBomPlaneButtons();
             loadBomFilterOptions(function () {
                 resetBomPaging();
-                loadBomPage(1);
+                refreshBomViewData();
             });
         },
         function (xhr) {
             console.error("Failed to load BOM plane options", xhr);
             bomPlaneOptions = [];
             currentBomRows = [];
+            currentBomTreeRows = [];
+            currentBomTreeRoots = [];
             renderBomPlaneButtons();
             renderBomTable([]);
             updateBomPager();
@@ -63,14 +66,19 @@ function loadBomPlaneOptions() {
     );
 }
 
+function refreshBomViewData() {
+    if (currentBomViewMode === "tree") {
+        loadBomTreeData();
+    } else {
+        loadBomPage(1);
+    }
+}
+
 function loadBomFilterOptions(onDone) {
     const params = new URLSearchParams();
     if (currentBomPlaneTypeId) params.set("planeTypeId", currentBomPlaneTypeId);
 
-    ajaxCall(
-        "GET",
-        `https://localhost:7296/api/Bom/filter-options?${params.toString()}`,
-        null,
+    ajaxCall("GET", `https://localhost:7296/api/Bom/filter-options?${params.toString()}`, null,
         function (data) {
             populateBomFilterOptions(data || {});
             if (typeof onDone === "function") onDone();
@@ -86,28 +94,11 @@ function loadBomPage(page, done) {
     if (!currentBomPlaneTypeId || page < 1) return;
     if (knownLastBomPage !== null && page > knownLastBomPage) return;
 
-    const params = new URLSearchParams();
-    params.set("page", page);
-    params.set("pageSize", bomPageSize);
-    params.set("planeTypeId", currentBomPlaneTypeId);
+    const params = buildBomQueryParams({ page, pageSize: bomPageSize, includeSearch: true, treeMode: false });
 
-    if (currentBomSearch) params.set("search", currentBomSearch);
-    if (currentBomMeasureUnit) params.set("measureUnit", currentBomMeasureUnit);
-    if (currentBomWarehouse) params.set("warehouse", currentBomWarehouse);
-    if (currentBomLevel) params.set("bomLevel", currentBomLevel);
-    if (currentBomHasChild) params.set("hasChild", currentBomHasChild);
-    if (currentBomBuyMethod) params.set("buyMethod", currentBomBuyMethod);
-    if (currentBomBodyPlane) params.set("bodyPlane", currentBomBodyPlane);
-
-    ajaxCall(
-        "GET",
-        `https://localhost:7296/api/Bom?${params.toString()}`,
-        null,
+    ajaxCall("GET", `https://localhost:7296/api/Bom?${params.toString()}`, null,
         function (data) {
-            currentBomRows = Array.isArray(data)
-                ? data
-                : (Array.isArray(data?.$values) ? data.$values : []);
-
+            currentBomRows = Array.isArray(data) ? data : (Array.isArray(data?.$values) ? data.$values : []);
             currentBomPage = page;
             lastLoadedBomCount = currentBomRows.length;
             if (lastLoadedBomCount < bomPageSize) {
@@ -131,33 +122,74 @@ function loadBomPage(page, done) {
     );
 }
 
-function renderBomPlaneButtons() {
-    const container = document.getElementById("bomPlaneToggle");
-    if (!container) return;
+function loadBomTreeData() {
+    if (!currentBomPlaneTypeId) return;
+    bomExpandedNodeKeys = new Set();
 
-    if (bomPlaneOptions.length === 0) {
-        container.innerHTML = "";
-        return;
-    }
+    // In tree mode we fetch full filtered sequence (without text search) to preserve ancestry context.
+    const params = buildBomQueryParams({ page: 1, pageSize: 100, includeSearch: false, treeMode: true });
 
-    container.innerHTML = bomPlaneOptions.map(option => {
-        const planeTypeId = String(option.planeTypeID ?? option.PlaneTypeID);
-        const planeTypeName = (option.planeTypeName ?? option.PlaneTypeName ?? planeTypeId).toString();
-        const activeClass = planeTypeId === String(currentBomPlaneTypeId) ? " active" : "";
-        return `<button class="slider-btn${activeClass}" onclick="window.selectBomPlane('${escapeHtml(planeTypeId)}', this)">${escapeHtml(planeTypeName)}</button>`;
-    }).join("");
+    ajaxCall("GET", `https://localhost:7296/api/Bom?${params.toString()}`, null,
+        function (data) {
+            const rows = Array.isArray(data) ? data : (Array.isArray(data?.$values) ? data.$values : []);
+            currentBomTreeRows = rows.slice().sort((a, b) => getNumeric(a, "RowOrder") - getNumeric(b, "RowOrder"));
+            currentBomTreeRoots = buildBomTreeByRowOrderAndLevel(currentBomTreeRows);
+            renderBomTreeTable();
+            updateBomPager();
+        },
+        function (xhr) {
+            console.error("Failed to load BOM tree rows", xhr);
+            currentBomTreeRows = [];
+            currentBomTreeRoots = [];
+            renderBomTreeTable();
+            updateBomPager();
+        }
+    );
 }
+
+function buildBomQueryParams({ page, pageSize, includeSearch, treeMode }) {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+    params.set("treeMode", treeMode ? "true" : "false");
+    params.set("planeTypeId", currentBomPlaneTypeId);
+
+    if (includeSearch && currentBomSearch) params.set("search", currentBomSearch);
+    if (currentBomMeasureUnit) params.set("measureUnit", currentBomMeasureUnit);
+    if (currentBomWarehouse) params.set("warehouse", currentBomWarehouse);
+    if (currentBomLevel) params.set("bomLevel", currentBomLevel);
+    if (currentBomHasChild) params.set("hasChild", currentBomHasChild);
+    if (currentBomBuyMethod) params.set("buyMethod", currentBomBuyMethod);
+    if (currentBomBodyPlane) params.set("bodyPlane", currentBomBodyPlane);
+    return params;
+}
+
+window.setBomViewMode = function (mode) {
+    currentBomViewMode = mode === "tree" ? "tree" : "table";
+
+    document.getElementById("bomTableViewBtn")?.classList.toggle("active", currentBomViewMode === "table");
+    document.getElementById("bomTreeViewBtn")?.classList.toggle("active", currentBomViewMode === "tree");
+
+    const treeActions = document.getElementById("bomTreeActions");
+    const pagerWrap = document.getElementById("bomPagerWrap");
+    const table = document.getElementById("bomDataTable");
+    if (treeActions) treeActions.style.display = currentBomViewMode === "tree" ? "flex" : "none";
+    if (pagerWrap) pagerWrap.style.display = currentBomViewMode === "tree" ? "none" : "flex";
+    table?.classList.toggle("tree-mode", currentBomViewMode === "tree");
+
+    resetBomPaging();
+    refreshBomViewData();
+};
 
 window.selectBomPlane = function (planeTypeId, btn) {
     currentBomPlaneTypeId = String(planeTypeId);
-
     const container = btn?.closest(".model-selection-toggle") || document.getElementById("bomPlaneToggle");
     container?.querySelectorAll(".slider-btn").forEach(button => button.classList.remove("active"));
     btn?.classList.add("active");
 
     resetBomPaging();
     loadBomFilterOptions(function () {
-        loadBomPage(1);
+        refreshBomViewData();
     });
 };
 
@@ -171,46 +203,225 @@ window.filterBomTable = function () {
     currentBomBodyPlane = readFilterValue("bomBodyPlaneFilter");
 
     resetBomPaging();
-    loadBomPage(1);
+    refreshBomViewData();
 };
 
 window.clearBomFilters = function () {
-    const searchEl = document.getElementById("bomSearch");
-    const measureUnitEl = document.getElementById("bomMeasureUnitFilter");
-    const warehouseEl = document.getElementById("bomWarehouseFilter");
-    const levelEl = document.getElementById("bomLevelFilter");
-    const hasChildEl = document.getElementById("bomHasChildFilter");
-    const buyMethodEl = document.getElementById("bomBuyMethodFilter");
-    const bodyPlaneEl = document.getElementById("bomBodyPlaneFilter");
-
-    if (searchEl) searchEl.value = "";
-    if (measureUnitEl) measureUnitEl.value = "";
-    if (warehouseEl) warehouseEl.value = "";
-    if (levelEl) levelEl.value = "";
-    if (hasChildEl) hasChildEl.value = "";
-    if (buyMethodEl) buyMethodEl.value = "";
-    if (bodyPlaneEl) bodyPlaneEl.value = "";
-
+    const ids = ["bomSearch", "bomMeasureUnitFilter", "bomWarehouseFilter", "bomLevelFilter", "bomHasChildFilter", "bomBuyMethodFilter", "bomBodyPlaneFilter"];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = "";
+    });
     window.filterBomTable();
 };
 
-window.prevBomPage = function () {
-    if (currentBomPage > 1) {
-        loadBomPage(currentBomPage - 1);
-    }
-};
-
-window.nextBomPage = function () {
-    if (lastLoadedBomCount === bomPageSize) {
-        loadBomPage(currentBomPage + 1);
-    }
-};
-
+window.prevBomPage = function () { if (currentBomPage > 1) loadBomPage(currentBomPage - 1); };
+window.nextBomPage = function () { if (lastLoadedBomCount === bomPageSize) loadBomPage(currentBomPage + 1); };
 window.goToBomPage = function (page) {
     if (page < 1 || page === currentBomPage) return;
     if (knownLastBomPage !== null && page > knownLastBomPage) return;
     loadBomPage(page);
 };
+
+window.toggleBomTreeNode = function (nodeKey) {
+    if (bomExpandedNodeKeys.has(nodeKey)) bomExpandedNodeKeys.delete(nodeKey);
+    else bomExpandedNodeKeys.add(nodeKey);
+    renderBomTreeTable();
+};
+
+window.expandAllBomTree = function () {
+    const allKeys = [];
+    walkTree(currentBomTreeRoots, node => {
+        if (node.children.length > 0) allKeys.push(node.key);
+    });
+    bomExpandedNodeKeys = new Set(allKeys);
+    renderBomTreeTable();
+};
+
+window.collapseAllBomTree = function () {
+    bomExpandedNodeKeys = new Set();
+    renderBomTreeTable();
+};
+
+function buildBomTreeByRowOrderAndLevel(rows) {
+    const roots = [];
+    const stack = [];
+
+    rows.forEach((row, idx) => {
+        const level = normalizeBomLevel(getNumeric(row, "BomLevel"));
+        const node = {
+            key: getNodeKey(row, idx),
+            row,
+            level,
+            depth: level,
+            originalIndex: idx,
+            children: [],
+            parentKey: null
+        };
+
+        while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+            stack.pop();
+        }
+
+        if (stack.length === 0) {
+            roots.push(node);
+        } else {
+            const parent = stack[stack.length - 1];
+            parent.children.push(node);
+            node.parentKey = parent.key;
+        }
+
+        stack.push(node);
+    });
+
+    return roots;
+}
+
+function renderBomTreeTable() {
+    const tbody = document.getElementById("bom-table-body");
+    if (!tbody) return;
+
+    const searchText = currentBomSearch.trim().toLowerCase();
+    const includeKeys = collectIncludedTreeKeys(currentBomTreeRoots, searchText);
+    const autoExpandedKeys = collectAncestorKeys(currentBomTreeRoots, includeKeys);
+
+    const lines = [];
+    flattenVisibleTreeRows(currentBomTreeRoots, lines, includeKeys, autoExpandedKeys);
+
+    tbody.innerHTML = lines.map(({ node }) => {
+        const item = node.row;
+        const nodeHasChildren = node.children.length > 0;
+        const nodeExpanded = bomExpandedNodeKeys.has(node.key) || autoExpandedKeys.has(node.key);
+        const indent = Math.max(0, node.level - 1) * 18;
+        const arrow = nodeHasChildren ? (nodeExpanded ? "▾" : "▸") : "";
+        const childCount = nodeHasChildren ? `<span class="bom-tree-child-count">${node.children.length}</span>` : "";
+        const itemId = displayOrDash(readValue(item, "InventoryItemID"));
+        const qty = displayOrDash(readValue(item, "Quantity"));
+        const unit = displayOrDash(readValue(item, "MeasureUnit"));
+        const buyMethod = displayOrDash(readValue(item, "BuyMethod"));
+        const warehouse = displayOrDash(readValue(item, "Warehouse"));
+        const level = displayOrDash(readValue(item, "BomLevel"));
+        const hasChild = (readValue(item, "HasChild") === true) ? "כן" : "לא";
+
+        return `
+            <tr class="${nodeHasChildren ? "bom-tree-parent-row" : "bom-tree-leaf-row"}" data-depth="${node.level}">
+                <td class="col-sku bom-tree-chip-cell"><span class="bom-tree-chip">${itemId}</span></td>
+                <td>
+                    <div class="bom-tree-item-cell" style="--tree-indent:${indent}px;">
+                        <span class="bom-tree-branch-line"></span>
+                        ${nodeHasChildren
+                            ? `<button class="bom-tree-arrow" onclick="window.toggleBomTreeNode('${escapeHtml(node.key)}')">${arrow}</button>`
+                            : '<span class="bom-tree-arrow-spacer"></span>'}
+                        ${nodeHasChildren
+                            ? `<span class="bom-tree-node-icon bom-tree-node-icon-parent" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 6.5H10L12 9H20V17.5H4V6.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                                        <path d="M8 13H16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                        <path d="M12 10V16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    </svg>
+                               </span>`
+                            : '<span class="bom-tree-node-icon bom-tree-node-icon-leaf" aria-hidden="true"></span>'}
+                        <span class="bom-tree-name" title="${escapeHtml(displayOrDash(readValue(item, "ItemName")))}">${displayOrDash(readValue(item, "ItemName"))}</span>
+                        ${childCount}
+                    </div>
+                </td>
+                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">כמות ${qty}</span></td>
+                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${unit}</span></td>
+                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${warehouse}</span></td>
+                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">רמה ${level}</span></td>
+                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">ילדים ${hasChild}</span></td>
+                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${buyMethod}</span></td>
+                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${displayOrDash(readValue(item, "BodyPlane"))}</span></td>
+            </tr>`;
+    }).join("");
+}
+
+function flattenVisibleTreeRows(nodes, out, includeKeys, autoExpandedKeys) {
+    nodes.forEach(node => {
+        if (includeKeys && !includeKeys.has(node.key)) return;
+        out.push({ node });
+        const isExpanded = bomExpandedNodeKeys.has(node.key) || autoExpandedKeys.has(node.key);
+        if (isExpanded && node.children.length > 0) {
+            flattenVisibleTreeRows(node.children, out, includeKeys, autoExpandedKeys);
+        }
+    });
+}
+
+function collectIncludedTreeKeys(roots, searchText) {
+    if (!searchText) return null;
+    const include = new Set();
+
+    const dfs = (node, ancestors) => {
+        const row = node.row;
+        const searchable = `${readValue(row, "InventoryItemID") || ""} ${readValue(row, "ItemName") || ""}`.toLowerCase();
+        const selfMatch = searchable.includes(searchText);
+        let childMatch = false;
+        node.children.forEach(ch => { if (dfs(ch, [...ancestors, node])) childMatch = true; });
+
+        if (selfMatch || childMatch) {
+            include.add(node.key);
+            ancestors.forEach(a => include.add(a.key));
+            return true;
+        }
+        return false;
+    };
+
+    roots.forEach(root => dfs(root, []));
+    return include;
+}
+
+function collectAncestorKeys(roots, includeKeys) {
+    const autoExpanded = new Set();
+    if (!includeKeys) return autoExpanded;
+    const dfs = (node) => {
+        let hasIncludedDescendant = false;
+        node.children.forEach(child => {
+            if (dfs(child)) hasIncludedDescendant = true;
+        });
+        if (hasIncludedDescendant && includeKeys.has(node.key)) autoExpanded.add(node.key);
+        return includeKeys.has(node.key);
+    };
+    roots.forEach(root => dfs(root));
+    return autoExpanded;
+}
+
+function walkTree(nodes, visitor) {
+    nodes.forEach(node => {
+        visitor(node);
+        if (node.children.length > 0) walkTree(node.children, visitor);
+    });
+}
+
+function getNodeKey(row, idx) {
+    const id = readValue(row, "BomSerialID");
+    if (id !== null && id !== undefined && String(id).trim() !== "") return `bom-${String(id)}`;
+    return `row-${readValue(row, "InventoryItemID") || ""}-${getNumeric(row, "RowOrder")}-${idx}`;
+}
+
+function normalizeBomLevel(level) { return level > 0 ? level : 1; }
+function getNumeric(obj, key) {
+    const value = readValue(obj, key);
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+}
+
+function readValue(obj, key) { return obj?.[key.charAt(0).toLowerCase() + key.slice(1)] ?? obj?.[key]; }
+
+function renderBomPlaneButtons() {
+    const container = document.getElementById("bomPlaneToggle");
+    if (!container) return;
+    if (bomPlaneOptions.length === 0) {
+        container.innerHTML = "";
+        return;
+    }
+    container.innerHTML = bomPlaneOptions.map(option => {
+        const planeTypeId = String(option.planeTypeID ?? option.PlaneTypeID);
+        const planeTypeName = (option.planeTypeName ?? option.PlaneTypeName ?? planeTypeId).toString();
+        const activeClass = planeTypeId === String(currentBomPlaneTypeId) ? " active" : "";
+        return `<button class="slider-btn${activeClass}" onclick="window.selectBomPlane('${escapeHtml(planeTypeId)}', this)">${escapeHtml(planeTypeName)}</button>`;
+    }).join("");
+}
 
 function updateBomPager() {
     const prevBtn = document.getElementById("prevBomPageBtn");
@@ -221,64 +432,47 @@ function updateBomPager() {
 
     if (prevBtn) prevBtn.disabled = currentBomPage <= 1;
     if (nextBtn) nextBtn.disabled = knownLastBomPage !== null ? currentBomPage >= knownLastBomPage : !hasNext;
-
     if (!numbersWrap) return;
-
-    const pages = new Set();
-    pages.add(1);
-    for (let page = currentBomPage - 2; page <= currentBomPage + 2; page++) {
-        if (page >= 1 && page <= lastPageForUi) {
-            pages.add(page);
-        }
+    if (currentBomViewMode === "tree") {
+        numbersWrap.innerHTML = "";
+        return;
     }
-    pages.add(lastPageForUi);
 
+    const pages = new Set([1, lastPageForUi]);
+    for (let page = currentBomPage - 2; page <= currentBomPage + 2; page++) {
+        if (page >= 1 && page <= lastPageForUi) pages.add(page);
+    }
     const sortedPages = [...pages].sort((a, b) => a - b);
+
     let html = "";
     let previous = 0;
-
     sortedPages.forEach(page => {
-        if (page - previous > 1) {
-            html += '<span class="inventory-page-ellipsis">...</span>';
-        }
-        const isCurrent = page === currentBomPage;
-        const activeClass = isCurrent ? " is-active" : "";
+        if (page - previous > 1) html += '<span class="inventory-page-ellipsis">...</span>';
+        const activeClass = page === currentBomPage ? " is-active" : "";
         html += `<button class="inventory-page-number${activeClass}" onclick="window.goToBomPage(${page})">${page}</button>`;
         previous = page;
     });
-
     numbersWrap.innerHTML = html;
 }
 
 function renderBomTable(data) {
     const tbody = document.getElementById("bom-table-body");
     if (!tbody) return;
-
+    document.getElementById("bomDataTable")?.classList.remove("tree-mode");
     tbody.innerHTML = data.map(item => {
-        const inventoryItemId = item.inventoryItemID ?? item.InventoryItemID ?? "";
-        const itemName = item.itemName ?? item.ItemName ?? "";
-        const quantity = item.quantity ?? item.Quantity;
-        const measureUnit = item.measureUnit ?? item.MeasureUnit ?? "";
-        const warehouse = item.warehouse ?? item.Warehouse ?? "";
-        const bomLevel = item.bomLevel ?? item.BomLevel;
-        const hasChildRaw = item.hasChild ?? item.HasChild;
-        const hasChild = hasChildRaw === true ? "כן" : "לא";
-        const buyMethod = item.buyMethod ?? item.BuyMethod ?? "";
-        const bodyPlane = item.bodyPlane ?? item.BodyPlane ?? "";
-
+        const hasChild = (readValue(item, "HasChild") === true) ? "כן" : "לא";
         return `
             <tr>
-                <td class="col-sku">${displayOrDash(inventoryItemId)}</td>
-                <td>${displayOrDash(itemName)}</td>
-                <td>${displayOrDash(quantity)}</td>
-                <td>${displayOrDash(measureUnit)}</td>
-                <td>${displayOrDash(warehouse)}</td>
-                <td>${displayOrDash(bomLevel)}</td>
+                <td class="col-sku">${displayOrDash(readValue(item, "InventoryItemID"))}</td>
+                <td>${displayOrDash(readValue(item, "ItemName"))}</td>
+                <td>${displayOrDash(readValue(item, "Quantity"))}</td>
+                <td>${displayOrDash(readValue(item, "MeasureUnit"))}</td>
+                <td>${displayOrDash(readValue(item, "Warehouse"))}</td>
+                <td>${displayOrDash(readValue(item, "BomLevel"))}</td>
                 <td>${displayOrDash(hasChild)}</td>
-                <td>${displayOrDash(buyMethod)}</td>
-                <td>${displayOrDash(bodyPlane)}</td>
-            </tr>
-        `;
+                <td>${displayOrDash(readValue(item, "BuyMethod"))}</td>
+                <td>${displayOrDash(readValue(item, "BodyPlane"))}</td>
+            </tr>`;
     }).join("");
 }
 
@@ -301,15 +495,9 @@ function populateBomFilterOptions(options) {
 function populateSelectFromList(selectId, values, selectedValue, placeholderText) {
     const select = document.getElementById(selectId);
     if (!select) return;
-
     select.innerHTML = `<option value="" disabled>${escapeHtml(placeholderText)}</option><option value="all">הכל</option>`;
-    values
-        .map(v => String(v ?? "").trim())
-        .filter(v => v !== "")
-        .forEach(value => {
-            select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`);
-        });
-
+    values.map(v => String(v ?? "").trim()).filter(v => v !== "")
+        .forEach(value => select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
     const normalizedValues = values.map(v => String(v ?? "").trim());
     select.value = normalizedValues.includes(selectedValue) ? selectedValue : "";
 }
@@ -317,18 +505,13 @@ function populateSelectFromList(selectId, values, selectedValue, placeholderText
 function populateHasChildSelect(values, placeholderText) {
     const select = document.getElementById("bomHasChildFilter");
     if (!select) return;
-
     select.innerHTML = `<option value="" disabled>${escapeHtml(placeholderText)}</option><option value="all">הכל</option>`;
-
-    const normalized = values
-        .map(v => String(v).toLowerCase())
+    const normalized = values.map(v => String(v).toLowerCase())
         .map(v => (v === "true" || v === "1") ? "true" : ((v === "false" || v === "0") ? "false" : ""))
         .filter(v => v !== "");
-
     const unique = [...new Set(normalized)];
     if (unique.includes("true")) select.insertAdjacentHTML("beforeend", '<option value="true">כן</option>');
     if (unique.includes("false")) select.insertAdjacentHTML("beforeend", '<option value="false">לא</option>');
-
     select.value = unique.includes(currentBomHasChild) ? currentBomHasChild : "";
     currentBomHasChild = select.value;
 }
@@ -336,13 +519,11 @@ function populateHasChildSelect(values, placeholderText) {
 function readFilterValue(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return "";
-
     const value = (select.value || "").trim();
     if (value === "" || value.toLowerCase() === "all") {
         select.value = "";
         return "";
     }
-
     return value;
 }
 
