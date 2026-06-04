@@ -18,6 +18,7 @@ let advancedBodyPlane = "all";
 let advancedLastPODate = "";
 
 window.initAllInventory = function () {
+    bindInventoryCellTooltips();
     checkAndRunInventoryImport(function () {
         loadInventoryFilterOptions();
         updateAdvancedFiltersBadge();
@@ -27,6 +28,34 @@ window.initAllInventory = function () {
         onImportEnd: hideImportSpinner
     });
 };
+
+function bindInventoryCellTooltips() {
+    const tbody = document.getElementById("inventory-table-body");
+    if (!tbody || tbody.dataset.tooltipBound === "true") return;
+    tbody.dataset.tooltipBound = "true";
+
+    tbody.addEventListener("mouseover", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".table-cell-tooltip") : null;
+        if (target) showInventoryCellTooltip(target);
+    });
+
+    tbody.addEventListener("mouseout", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".table-cell-tooltip") : null;
+        if (!target) return;
+        const related = e.relatedTarget instanceof Element ? e.relatedTarget.closest(".table-cell-tooltip") : null;
+        if (related !== target) hideInventoryCellTooltip();
+    });
+
+    tbody.addEventListener("focusin", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".table-cell-tooltip") : null;
+        if (target) showInventoryCellTooltip(target);
+    });
+
+    tbody.addEventListener("focusout", hideInventoryCellTooltip);
+    tbody.addEventListener("scroll", hideInventoryCellTooltip);
+    window.addEventListener("scroll", hideInventoryCellTooltip, true);
+    window.addEventListener("resize", hideInventoryCellTooltip);
+}
 
 //renders the inventory table based on the current page and filters
 function loadInventoryPage(page, done) {
@@ -95,9 +124,10 @@ function renderInventoryTable(data) {
         const buyMethod = item.buyMethod ?? item.BuyMethod ?? "";
         const price = item.price ?? item.Price;
         const supplierName = item.supplierName ?? item.SupplierName ?? "";
-        const whse01 = item.whse01_QTY ?? item.Whse01_QTY ?? "";
-        const whse03 = item.whse03_QTY ?? item.Whse03_QTY ?? "";
-        const whse90 = item.whse90_QTY ?? item.Whse90_QTY ?? "";
+        const whse01 = parseQuantity(item.whse01_QTY ?? item.Whse01_QTY);
+        const whse03 = parseQuantity(item.whse03_QTY ?? item.Whse03_QTY);
+        const whse90 = parseQuantity(item.whse90_QTY ?? item.Whse90_QTY);
+        const totalStock = whse01 + whse03 + whse90;
         const openPurchaseRequestQty = item.openPurchaseRequestQty ?? item.OpenPurchaseRequestQty ?? "";
         const openPurchaseOrderQty = item.openPurchaseOrderQty ?? item.OpenPurchaseOrderQty ?? "";
         const approvedOrderQty = item.approvedOrderQty ?? item.ApprovedOrderQty ?? "";
@@ -108,23 +138,104 @@ function renderInventoryTable(data) {
 
         return `
         <tr>
-            <td class="col-inventory-id" title="${escapeHtml(displayOrDash(inventoryItemID))}">${displayOrDash(inventoryItemID)}</td>
-            <td class="col-item-name" title="${escapeHtml(displayOrDash(itemName))}">${displayOrDash(itemName)}</td>
-            <td>${displayOrDash(itemGrpName)}</td>
-            <td>${displayOrDash(buyMethod)}</td>
-            <td>${displayOrDash(price)}</td>
-            <td>${displayOrDash(supplierName)}</td>
-            <td>${displayOrDash(whse01)}</td>
-            <td>${displayOrDash(whse03)}</td>
-            <td>${displayOrDash(whse90)}</td>
-            <td>${displayOrDash(openPurchaseRequestQty)}</td>
-            <td>${displayOrDash(openPurchaseOrderQty)}</td>
-            <td>${displayOrDash(approvedOrderQty)}</td>
-            <td>${displayOrDash(unapprovedOrderQty)}</td>
-            <td>${displayOrDash(bodyPlane)}</td>
-            <td>${displayOrDash(lastPODate)}</td>
+            <td class="col-inventory-id">${renderCellWithTooltip(inventoryItemID)}</td>
+            <td class="col-item-name">${renderCellWithTooltip(itemName)}</td>
+            <td>${renderCellWithTooltip(itemGrpName)}</td>
+            <td>${renderCellWithTooltip(buyMethod)}</td>
+            <td>${renderCellWithTooltip(price)}</td>
+            <td class="col-supplier">${renderCellWithTooltip(supplierName)}</td>
+            <td class="col-total-stock">
+                <span class="stock-total-tooltip" tabindex="0" aria-label="פירוט מלאי לפי מחסן">
+                    ${displayOrDash(totalStock)}
+                    <span class="stock-breakdown-popover" role="tooltip">
+                        <span class="stock-breakdown-row stock-breakdown-head">
+                            <span>מחסן</span>
+                            <span>כמות</span>
+                        </span>
+                        <span class="stock-breakdown-row">
+                            <span>01</span>
+                            <span>${whse01}</span>
+                        </span>
+                        <span class="stock-breakdown-row">
+                            <span>03</span>
+                            <span>${whse03}</span>
+                        </span>
+                        <span class="stock-breakdown-row">
+                            <span>90</span>
+                            <span>${whse90}</span>
+                        </span>
+                    </span>
+                </span>
+            </td>
+            <td>${renderCellWithTooltip(openPurchaseRequestQty)}</td>
+            <td>${renderCellWithTooltip(openPurchaseOrderQty)}</td>
+            <td>${renderCellWithTooltip(approvedOrderQty)}</td>
+            <td>${renderCellWithTooltip(unapprovedOrderQty)}</td>
+            <td>${renderCellWithTooltip(bodyPlane)}</td>
+            <td>${renderCellWithTooltip(lastPODate)}</td>
         </tr>`;
     }).join("");
+}
+
+function renderCellWithTooltip(value) {
+    const displayValue = displayOrDash(value);
+    const safeValue = escapeHtml(displayValue);
+    if (displayValue === "-") return safeValue;
+    return `<span class="table-cell-tooltip" tabindex="0" data-tooltip="${safeValue}">${safeValue}</span>`;
+}
+
+function getInventoryCellTooltip() {
+    let tooltip = document.getElementById("inventoryCellTooltip");
+    if (tooltip) return tooltip;
+
+    tooltip = document.createElement("div");
+    tooltip.id = "inventoryCellTooltip";
+    tooltip.className = "inventory-cell-tooltip-popover";
+    tooltip.setAttribute("role", "tooltip");
+    document.body.appendChild(tooltip);
+    return tooltip;
+}
+
+function showInventoryCellTooltip(target) {
+    const text = target?.dataset?.tooltip;
+    if (!text || !isInventoryCellTextTruncated(target)) {
+        hideInventoryCellTooltip();
+        return;
+    }
+
+    const tooltip = getInventoryCellTooltip();
+    tooltip.textContent = text;
+    tooltip.style.display = "block";
+
+    const targetRect = target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportPadding = 12;
+    let top = targetRect.top - tooltipRect.height - 8;
+    let left = targetRect.right - tooltipRect.width;
+
+    if (top < viewportPadding) {
+        top = targetRect.bottom + 8;
+    }
+
+    left = Math.max(viewportPadding, Math.min(left, window.innerWidth - tooltipRect.width - viewportPadding));
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+}
+
+function hideInventoryCellTooltip() {
+    const tooltip = document.getElementById("inventoryCellTooltip");
+    if (tooltip) tooltip.style.display = "none";
+}
+
+function isInventoryCellTextTruncated(target) {
+    if (!target) return false;
+    return target.scrollWidth > target.clientWidth + 1;
+}
+
+function parseQuantity(value) {
+    if (value === null || value === undefined || value === "") return 0;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
 }
 
 //displays the value or a dash if the value is null, undefined, or an empty string after trimming.
