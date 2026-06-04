@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Server.Models;
 
@@ -135,6 +136,20 @@ namespace Server.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+        [HttpPost("layout")]
+        public IActionResult SaveDashboardLayout([FromBody] SaveDashboardLayoutRequest request)
+        {
+            try
+            {
+                int rowsAffected = _manager.UpdateDashboardLayout(request.DashboardType, request.Items);
+                return Ok(new { success = true, rowsAffected });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 
     // מחלקות עזר לקבלת הנתונים מה-Client ב-Request
@@ -154,4 +169,11 @@ namespace Server.Controllers
         public string ChartType { get; set; } = string.Empty;
         public string SqlLogic { get; set; } = string.Empty;
     }
+
+    public class SaveDashboardLayoutRequest
+    {
+        public string DashboardType { get; set; } = string.Empty;
+        public List<DashboardLayoutItem> Items { get; set; } = new List<DashboardLayoutItem>();
+    }
+
 }

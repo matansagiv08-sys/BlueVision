@@ -1,13 +1,241 @@
 ﻿body {
 }
 
+.dashboard-container {
+    direction: rtl;
+}
+
+.global-toolbar.dashboard-toolbar {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 0 14px !important;
+    min-height: 0;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: space-between !important;
+}
+
+.dashboard-view-actions,
+.arrange-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dashboard-view-actions {
+    justify-content: flex-start;
+}
+
+.arrange-actions {
+    justify-content: flex-end;
+    margin-inline-start: auto;
+}
+
+.dashboard-action-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.dashboard-action-primary {
+    background: #0c2340;
+    border-color: #0c2340;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(12, 35, 64, 0.18);
+}
+
+.dashboard-action-primary:hover {
+    background: #132f55;
+    border-color: #132f55;
+}
+
+.dashboard-action-secondary {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0c2340;
+}
+
+.dashboard-action-secondary:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.dashboard-action-secondary.active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #0c2340;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.dashboard-action-muted {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
+.dashboard-action-muted:hover {
+    background: #ffedd5;
+    border-color: #fdba74;
+}
+
+.dashboard-arrange-banner {
+    display: inline-block;
+    margin: 0 0 12px;
+    padding: 7px 11px;
+    border: 1px solid #dbeafe;
+    border-radius: 999px;
+    background: #f0f7ff;
+    color: #0c2340;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.dashboard-grid-shell {
+    border-radius: 14px;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, padding 0.15s ease;
+}
+
+.dashboard-grid-shell.arrange-mode-shell {
+    background: #f8fbff;
+    box-shadow: none;
+    padding: 8px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 320px;
+    grid-auto-flow: row dense;
+    gap: 18px;
+    margin-top: 0;
+    align-items: stretch;
+}
+
+.chart-card.dashboard-grid-card {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    border: 1px solid transparent;
+}
+
+.chart-card-header {
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #0c2340;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+}
+
+.chart-card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.chart-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.dashboard-grid-card.size-large,
+.dashboard-grid-card.size-extraLarge {
+    min-height: 0;
+}
+
+.dashboard-empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: #64748b;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+}
+
+.dashboard-empty-state h3 {
+    margin: 0 0 8px;
+    color: #0c2340;
+}
+
+.drag-handle {
+    display: none;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #0c2340;
+    border-radius: 6px;
+    width: 28px;
+    height: 26px;
+    cursor: grab;
+    font-weight: 700;
+}
+
+.arrange-mode .drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.arrange-mode .dashboard-grid-card {
+    border-color: #bfdbfe;
+    border-style: dashed;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    cursor: grab;
+}
+
+.arrange-mode .dashboard-grid-card .chart-wrapper,
+.arrange-mode .dashboard-grid-card .dashboard-table-wrap {
+    pointer-events: none;
+}
+
+.dashboard-grid-card.dragging {
+    opacity: 0.45;
+}
+
+.dashboard-grid-card.dashboard-drop-target {
+    outline: 2px dashed #1d4ed8;
+    outline-offset: -8px;
+    background: #f8fafc;
+}
+
 .dashboard-table-wrap {
     margin-top: 8px;
     width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .dashboard-table-scroll {
-    max-height: 240px;
+    height: 100%;
+    max-height: 100%;
     overflow: auto;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
@@ -60,13 +288,14 @@
     position: absolute;
     top: 26px;
     left: 0;
-    z-index: 5;
+    z-index: 100;
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
-    min-width: 130px;
-    overflow: hidden;
+    min-width: 170px;
+    overflow: visible;
+    direction: rtl;
 }
 
 .card-menu-panel button {
@@ -81,4 +310,147 @@
 
 .card-menu-panel button:hover {
     background: #f8fafc;
+}
+
+.card-menu-wrap {
+    margin-inline-start: auto;
+    position: relative;
+    z-index: 110;
+}
+
+.card-size-menu {
+    position: relative;
+}
+
+.card-size-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.submenu-arrow {
+    color: #64748b;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.card-size-submenu {
+    position: absolute;
+    top: -1px;
+    inset-inline-end: 100%;
+    display: none;
+    min-width: 180px;
+    margin-inline-end: -1px;
+    padding: 6px 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    z-index: 30;
+}
+
+.card-size-menu::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    inset-inline-end: 100%;
+    width: 10px;
+    z-index: 29;
+}
+
+.card-menu-panel.submenu-flip .card-size-submenu {
+    inset-inline-end: auto;
+    inset-inline-start: 100%;
+    margin-inline-end: 0;
+    margin-inline-start: -1px;
+}
+
+.card-menu-panel.submenu-flip .card-size-menu::before {
+    inset-inline-end: auto;
+    inset-inline-start: 100%;
+}
+
+.card-size-menu:hover .card-size-submenu,
+.card-size-menu.open .card-size-submenu {
+    display: block;
+}
+
+.card-menu-panel .card-size-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.card-size-option.active {
+    background: #eff6ff;
+    color: #0c2340;
+    font-weight: 700;
+}
+
+.size-grid-icon {
+    display: grid;
+    grid-template-columns: repeat(3, 7px);
+    grid-template-rows: repeat(2, 7px);
+    gap: 2px;
+    direction: ltr;
+}
+
+.size-grid-icon span {
+    border: 1px solid #cbd5e1;
+    border-radius: 2px;
+    background: #ffffff;
+}
+
+.size-grid-icon span.filled {
+    background: #0c2340;
+    border-color: #0c2340;
+}
+
+@media (max-width: 760px) {
+    .global-toolbar.dashboard-toolbar {
+        justify-content: flex-start !important;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        grid-auto-rows: 320px;
+    }
+
+    .dashboard-grid-card {
+        grid-column: 1 / -1 !important;
+    }
+
+    .dashboard-grid-card.size-large,
+    .dashboard-grid-card.size-extraLarge {
+        grid-row: span 2 !important;
+    }
+
+    .dashboard-toolbar,
+    .filter-actions,
+    .arrange-actions {
+        width: 100%;
+    }
+
+    .filter-actions,
+    .arrange-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-inline-start: 0;
+        justify-content: flex-start;
+    }
+
+    .dashboard-action-btn {
+        flex: 1 1 160px;
+    }
+
+    .card-size-submenu,
+    .card-menu-panel.submenu-flip .card-size-submenu {
+        position: static;
+        margin: 4px 8px 8px;
+        box-shadow: none;
+    }
 }

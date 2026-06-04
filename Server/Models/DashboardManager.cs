@@ -72,10 +72,19 @@ namespace Server.Models
                     ChartTitle = row["ChartTitle"],
                     ChartType = row["ChartType"],
                     SqlLogic = row["SqlLogic"],
-                    UserID = row["UserID"]
+                    UserID = row["UserID"],
+                    LayoutSize = row.Table.Columns.Contains("LayoutSize") ? row["LayoutSize"] : "small",
+                    DisplayOrder = row.Table.Columns.Contains("DisplayOrder") ? row["DisplayOrder"] : DBNull.Value,
+                    GridX = row.Table.Columns.Contains("GridX") ? row["GridX"] : DBNull.Value,
+                    GridY = row.Table.Columns.Contains("GridY") ? row["GridY"] : DBNull.Value
                 });
             }
             return chartsList;
+        }
+
+        public int UpdateDashboardLayout(string dashboardType, List<DashboardLayoutItem> items)
+        {
+            return _dbs.UpdateDashboardLayout(dashboardType, items ?? new List<DashboardLayoutItem>());
         }
 
         public int SaveChart(string chartTitle, string dashboardType, int userId, string chartType, string sqlLogic)
@@ -738,6 +747,15 @@ Return JSON only as specified.";
                 ErrorMessage = errorMessage
             };
         }
+    }
+
+    public class DashboardLayoutItem
+    {
+        public int ChartID { get; set; }
+        public int DisplayOrder { get; set; }
+        public string LayoutSize { get; set; } = "small";
+        public int GridX { get; set; }
+        public int GridY { get; set; }
     }
 
 }

@@ -2197,9 +2197,15 @@ public class DBservices
         try
         {
             con = connect("myProjDB");
+            EnsureDashboardLayoutColumns(con);
 
             // שאילתה ישירה שמתעלמת מה-UserID ומביאה רק לפי סוג הדף
-            string query = "SELECT ChartID, ChartTitle, ChartType, SqlLogic, UserID FROM UserDashboards WHERE DashboardType = @DashboardType";
+            string query = @"SELECT ChartID, ChartTitle, ChartType, SqlLogic, UserID,
+                                   ISNULL(LayoutSize, 'small') AS LayoutSize,
+                                   DisplayOrder, GridX, GridY
+                            FROM UserDashboards
+                            WHERE DashboardType = @DashboardType
+                            ORDER BY COALESCE(DisplayOrder, ChartID), ChartID";
 
             SqlCommand cmd = new SqlCommand(query, con);
             cmd.Parameters.AddWithValue("@DashboardType", dashboardType);
@@ -2211,5 +2217,75 @@ public class DBservices
         }
         catch (Exception) { throw; }
         finally { if (con != null) con.Close(); }
+    }
+
+    public int UpdateDashboardLayout(string dashboardType, List<DashboardLayoutItem> items)
+    {
+        SqlConnection con = null;
+        SqlTransaction transaction = null;
+        try
+        {
+            con = connect("myProjDB");
+            EnsureDashboardLayoutColumns(con);
+            transaction = con.BeginTransaction();
+
+            int rowsAffected = 0;
+            const string query = @"UPDATE UserDashboards
+                                   SET DisplayOrder = @DisplayOrder,
+                                       LayoutSize = @LayoutSize,
+                                       GridX = @GridX,
+                                       GridY = @GridY
+                                   WHERE ChartID = @ChartID
+                                     AND DashboardType = @DashboardType";
+
+            foreach (DashboardLayoutItem item in items ?? new List<DashboardLayoutItem>())
+            {
+                using SqlCommand cmd = new SqlCommand(query, con, transaction);
+                cmd.Parameters.AddWithValue("@ChartID", item.ChartID);
+                cmd.Parameters.AddWithValue("@DashboardType", dashboardType);
+                cmd.Parameters.AddWithValue("@DisplayOrder", item.DisplayOrder);
+                cmd.Parameters.AddWithValue("@LayoutSize", NormalizeDashboardLayoutSize(item.LayoutSize));
+                cmd.Parameters.AddWithValue("@GridX", item.GridX);
+                cmd.Parameters.AddWithValue("@GridY", item.GridY);
+                rowsAffected += cmd.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+            return rowsAffected;
+        }
+        catch (Exception)
+        {
+            transaction?.Rollback();
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    private static string NormalizeDashboardLayoutSize(string layoutSize)
+    {
+        return layoutSize switch
+        {
+            "wide" => "wide",
+            "fullWidth" => "fullWidth",
+            "large" => "large",
+            "extraLarge" => "extraLarge",
+            _ => "small"
+        };
+    }
+
+    private static void EnsureDashboardLayoutColumns(SqlConnection con)
+    {
+        const string query = @"
+            IF COL_LENGTH('dbo.UserDashboards', 'DisplayOrder') IS NULL
+                ALTER TABLE dbo.UserDashboards ADD DisplayOrder INT NULL;
+            IF COL_LENGTH('dbo.UserDashboards', 'LayoutSize') IS NULL
+                ALTER TABLE dbo.UserDashboards ADD LayoutSize NVARCHAR(20) NOT NULL CONSTRAINT DF_UserDashboards_LayoutSize DEFAULT ('small');
+            IF COL_LENGTH('dbo.UserDashboards', 'GridX') IS NULL
+                ALTER TABLE dbo.UserDashboards ADD GridX INT NULL;
+            IF COL_LENGTH('dbo.UserDashboards', 'GridY') IS NULL
+                ALTER TABLE dbo.UserDashboards ADD GridY INT NULL;";
+
+        using SqlCommand cmd = new SqlCommand(query, con);
+        cmd.ExecuteNonQuery();
     }
 }

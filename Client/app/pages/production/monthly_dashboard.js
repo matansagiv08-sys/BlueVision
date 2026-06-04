@@ -5,9 +5,22 @@
         savedChartInstances: {},
         modalChartInstance: null,
         savedVisualizationsState: {},
+        savedChartsState: [],
+        layoutSnapshot: [],
+        isArrangeMode: false,
+        draggedChartId: null,
         lastGeneratedSql: "",
         lastGeneratedChartType: "bar",
         canSaveGeneratedResult: false
+    };
+
+    const DASHBOARD_COLUMNS = 3;
+    const DASHBOARD_SIZE_OPTIONS = {
+        small: { label: "קטן", columns: 1, rows: 1 },
+        wide: { label: "רחב", columns: 2, rows: 1 },
+        fullWidth: { label: "רוחב מלא", columns: 3, rows: 1 },
+        large: { label: "גדול", columns: 2, rows: 2 },
+        extraLarge: { label: "גדול מאוד", columns: 3, rows: 2 }
     };
 
     window.initMonthlyDashboard = function () {
@@ -131,7 +144,17 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: chartType !== 'pie' ? { y: { beginAtZero: true } } : {}
+                layout: { padding: 4 },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 10 }
+                    }
+                },
+                scales: chartType !== 'pie' ? {
+                    x: { ticks: { autoSkip: true, maxRotation: 35 } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                } : {}
             }
         });
 
@@ -145,7 +168,195 @@
     function closeAllCardMenus() {
         document.querySelectorAll('.card-menu-panel').forEach(panel => {
             panel.style.display = 'none';
+            panel.classList.remove('submenu-flip');
         });
+        document.querySelectorAll('.card-size-menu.open').forEach(menu => menu.classList.remove('open'));
+    }
+
+    function normalizeLayoutSize(size) {
+        return DASHBOARD_SIZE_OPTIONS[size] ? size : "small";
+    }
+
+    function getChartId(chart) {
+        return chart.chartID || chart.ChartID;
+    }
+
+    function getLayoutSize(chart) {
+        return normalizeLayoutSize(chart.LayoutSize || chart.layoutSize || "small");
+    }
+
+    function getLayoutDimensions(size) {
+        return DASHBOARD_SIZE_OPTIONS[normalizeLayoutSize(size)] || DASHBOARD_SIZE_OPTIONS.small;
+    }
+
+    function cloneLayout(charts) {
+        return (charts || []).map((chart, index) => ({
+            ChartID: getChartId(chart),
+            LayoutSize: getLayoutSize(chart),
+            DisplayOrder: index,
+            GridX: Number(chart.gridX ?? chart.GridX ?? 0) || 0,
+            GridY: Number(chart.gridY ?? chart.GridY ?? 0) || 0
+        }));
+    }
+
+    function createDefaultLayout(charts) {
+        return (charts || []).map((chart, index) => ({
+            ChartID: getChartId(chart),
+            LayoutSize: "small",
+            DisplayOrder: index,
+            GridX: index % DASHBOARD_COLUMNS,
+            GridY: Math.floor(index / DASHBOARD_COLUMNS)
+        }));
+    }
+
+    function applyLayoutToCharts(layout) {
+        const layoutById = new Map((layout || []).map(item => [String(item.ChartID), item]));
+        state.savedChartsState.forEach((chart, index) => {
+            const item = layoutById.get(String(getChartId(chart)));
+            chart.LayoutSize = normalizeLayoutSize(item?.LayoutSize || item?.layoutSize || chart.LayoutSize || chart.layoutSize || "small");
+            chart.layoutSize = chart.LayoutSize;
+            chart.DisplayOrder = Number(item?.DisplayOrder ?? item?.displayOrder ?? index) || 0;
+            chart.GridX = Number(item?.GridX ?? item?.gridX ?? 0) || 0;
+            chart.GridY = Number(item?.GridY ?? item?.gridY ?? 0) || 0;
+        });
+        state.savedChartsState.sort((a, b) => (Number(a.DisplayOrder ?? 0) - Number(b.DisplayOrder ?? 0)) || (getChartId(a) - getChartId(b)));
+    }
+
+    function calculatePackedLayout(charts) {
+        const occupied = [];
+        const layout = [];
+
+        function isFree(x, y, w, h) {
+            if (x + w > DASHBOARD_COLUMNS) return false;
+            for (let yy = y; yy < y + h; yy++) {
+                for (let xx = x; xx < x + w; xx++) {
+                    if (occupied[yy]?.[xx]) return false;
+                }
+            }
+            return true;
+        }
+
+        function occupy(x, y, w, h) {
+            for (let yy = y; yy < y + h; yy++) {
+                occupied[yy] = occupied[yy] || [];
+                for (let xx = x; xx < x + w; xx++) occupied[yy][xx] = true;
+            }
+        }
+
+        (charts || []).forEach((chart, index) => {
+            const size = getLayoutSize(chart);
+            const dimensions = getLayoutDimensions(size);
+            let y = 0;
+            let placed = false;
+            while (!placed) {
+                for (let x = 0; x < DASHBOARD_COLUMNS; x++) {
+                    if (isFree(x, y, dimensions.columns, dimensions.rows)) {
+                        occupy(x, y, dimensions.columns, dimensions.rows);
+                        layout.push({ chart, index, size, x, y, columns: dimensions.columns, rows: dimensions.rows });
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) y++;
+            }
+        });
+
+        return layout;
+    }
+
+    function buildSizeMenu(chartID, currentSize) {
+        return Object.entries(DASHBOARD_SIZE_OPTIONS).map(([size, option]) => `
+            <button class="card-size-option ${currentSize === size ? 'active' : ''}" type="button" data-chart-id="${chartID}" data-size="${size}">
+                <span class="size-grid-icon size-${size}" aria-hidden="true">
+                    ${Array.from({ length: 6 }).map((_, index) => `<span class="${index % DASHBOARD_COLUMNS < option.columns && Math.floor(index / DASHBOARD_COLUMNS) < option.rows ? 'filled' : ''}"></span>`).join("")}
+                </span>
+                <span>${option.label}</span>
+            </button>`).join("");
+    }
+
+    function adjustCardMenuDirection(panel) {
+        if (!panel) return;
+        panel.classList.remove('submenu-flip');
+        const submenu = panel.querySelector('.card-size-submenu');
+        if (!submenu) return;
+
+        submenu.style.visibility = 'hidden';
+        submenu.style.display = 'block';
+        const rect = submenu.getBoundingClientRect();
+        submenu.style.display = '';
+        submenu.style.visibility = '';
+
+        if (rect.right > window.innerWidth - 12 || rect.left < 12) {
+            panel.classList.add('submenu-flip');
+        }
+    }
+
+    function updateArrangeControls() {
+        const grid = document.getElementById("chartsGrid");
+        const gridShell = document.getElementById("dashboardGridShell");
+        const arrangeBanner = document.getElementById("dashboardArrangeBanner");
+        const arrangeActions = document.getElementById("arrangeActions");
+        const arrangeBtn = document.getElementById("arrangeDashboardBtn");
+        if (grid) grid.classList.toggle("arrange-mode", state.isArrangeMode);
+        if (gridShell) gridShell.classList.toggle("arrange-mode-shell", state.isArrangeMode);
+        if (arrangeBanner) arrangeBanner.style.display = state.isArrangeMode ? "block" : "none";
+        if (arrangeActions) arrangeActions.style.display = state.isArrangeMode ? "flex" : "none";
+        if (arrangeBtn) arrangeBtn.classList.toggle("active", state.isArrangeMode);
+    }
+
+    function resizeDashboardCharts() {
+        requestAnimationFrame(() => {
+            Object.values(state.savedChartInstances).forEach(instance => {
+                if (instance && typeof instance.resize === "function") instance.resize();
+            });
+        });
+    }
+
+    function renderVisualizationFromStateOrFetch(chart) {
+        const chartID = getChartId(chart);
+        const cardState = state.savedVisualizationsState[chartID];
+        if (!cardState) {
+            fetchAndRenderChartData(chart);
+            return;
+        }
+
+        const canvas = document.getElementById(`canvas_${chartID}`);
+        const canvasWrap = canvas?.parentElement;
+        const tableWrap = document.getElementById(`table_${chartID}`);
+        const msgEl = document.getElementById(`msg_${chartID}`);
+
+        if (msgEl) {
+            msgEl.style.display = "none";
+            msgEl.textContent = "";
+        }
+
+        if (state.savedChartInstances[`chart_${chartID}`]) {
+            state.savedChartInstances[`chart_${chartID}`].destroy();
+            delete state.savedChartInstances[`chart_${chartID}`];
+        }
+
+        if (tableWrap) {
+            tableWrap.style.display = "none";
+            tableWrap.innerHTML = "";
+        }
+
+        if (cardState.type === "table") {
+            if (canvasWrap) canvasWrap.style.display = "none";
+            renderHtmlTable(`table_${chartID}`, cardState.rows || []);
+            return;
+        }
+
+        if (!cardState.labels?.length || !cardState.values?.length) {
+            if (canvasWrap) canvasWrap.style.display = "none";
+            if (msgEl) {
+                msgEl.style.display = "block";
+                msgEl.textContent = "לא נמצאו נתונים להצגה";
+            }
+            return;
+        }
+
+        if (canvasWrap) canvasWrap.style.display = "block";
+        renderChartInCanvas(`canvas_${chartID}`, cardState.type, cardState.labels, cardState.values, `chart_${chartID}`);
     }
 
     window.toggleCardMenu = function (chartID) {
@@ -154,6 +365,140 @@
         const next = panel.style.display !== 'block';
         closeAllCardMenus();
         panel.style.display = next ? 'block' : 'none';
+        if (next) requestAnimationFrame(() => adjustCardMenuDirection(panel));
+    };
+
+    window.changeVisualizationSize = function (chartID, size) {
+        const chart = state.savedChartsState.find(item => String(getChartId(item)) === String(chartID));
+        if (!chart) return;
+        const normalizedSize = normalizeLayoutSize(size);
+        chart.LayoutSize = normalizedSize;
+        chart.layoutSize = normalizedSize;
+        closeAllCardMenus();
+        renderDashboardCards(state.savedChartsState, false);
+        if (!state.isArrangeMode) persistDashboardLayout(false);
+    };
+
+    window.enterArrangeDashboard = function () {
+        if (state.isArrangeMode) {
+            cancelArrangeDashboard();
+            return;
+        }
+        if (window.matchMedia && window.matchMedia("(max-width: 760px)").matches) {
+            alert("סידור בגרירה זמין במסך רחב. ניתן עדיין לשנות גדלים מתפריט הכרטיסים.");
+            return;
+        }
+        state.layoutSnapshot = cloneLayout(state.savedChartsState);
+        state.isArrangeMode = true;
+        renderDashboardCards(state.savedChartsState, false);
+    };
+
+    window.cancelArrangeDashboard = function () {
+        applyLayoutToCharts(state.layoutSnapshot);
+        state.isArrangeMode = false;
+        renderDashboardCards(state.savedChartsState, false);
+    };
+
+    window.resetDashboardLayout = function () {
+        applyLayoutToCharts(createDefaultLayout(state.savedChartsState));
+        renderDashboardCards(state.savedChartsState, false);
+    };
+
+    window.saveDashboardLayout = function () {
+        persistDashboardLayout(true);
+    };
+
+    function buildLayoutPayload() {
+        const packedLayout = calculatePackedLayout(state.savedChartsState);
+        return {
+            DashboardType: DASHBOARD_TYPE,
+            Items: packedLayout.map(item => ({
+                ChartID: getChartId(item.chart),
+                DisplayOrder: item.index,
+                LayoutSize: item.size,
+                GridX: item.x,
+                GridY: item.y
+            }))
+        };
+    }
+
+    function persistDashboardLayout(exitArrangeMode) {
+        const payload = buildLayoutPayload();
+
+        $.ajax({
+            url: server + "api/dashboard/layout",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(payload),
+            success: function () {
+                payload.Items.forEach(item => {
+                    const chart = state.savedChartsState.find(existing => String(getChartId(existing)) === String(item.ChartID));
+                    if (!chart) return;
+                    chart.LayoutSize = item.LayoutSize;
+                    chart.layoutSize = item.LayoutSize;
+                    chart.DisplayOrder = item.DisplayOrder;
+                    chart.GridX = item.GridX;
+                    chart.GridY = item.GridY;
+                });
+                state.layoutSnapshot = cloneLayout(state.savedChartsState);
+                if (exitArrangeMode) {
+                    state.isArrangeMode = false;
+                    renderDashboardCards(state.savedChartsState, false);
+                }
+            },
+            error: function (xhr) {
+                alert("שמירת סידור הדשבורד נכשלה: " + (xhr.responseJSON?.error || xhr.statusText));
+            }
+        });
+    }
+
+    function bindArrangeDragEvents() {
+        document.querySelectorAll('.dashboard-grid-card').forEach(card => {
+            card.addEventListener('dragstart', function (e) {
+                if (!state.isArrangeMode) {
+                    e.preventDefault();
+                    return;
+                }
+                state.draggedChartId = this.dataset.chartId;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', state.draggedChartId);
+            });
+
+            card.addEventListener('dragend', function () {
+                this.classList.remove('dragging');
+                state.draggedChartId = null;
+                document.querySelectorAll('.dashboard-drop-target').forEach(el => el.classList.remove('dashboard-drop-target'));
+                resizeDashboardCharts();
+            });
+
+            card.addEventListener('dragover', function (e) {
+                if (!state.isArrangeMode || !state.draggedChartId || this.dataset.chartId === state.draggedChartId) return;
+                e.preventDefault();
+                this.classList.add('dashboard-drop-target');
+            });
+
+            card.addEventListener('dragleave', function () {
+                this.classList.remove('dashboard-drop-target');
+            });
+
+            card.addEventListener('drop', function (e) {
+                if (!state.isArrangeMode || !state.draggedChartId || this.dataset.chartId === state.draggedChartId) return;
+                e.preventDefault();
+                this.classList.remove('dashboard-drop-target');
+                reorderCharts(state.draggedChartId, this.dataset.chartId);
+            });
+        });
+    }
+
+    function reorderCharts(sourceId, targetId) {
+        const sourceIndex = state.savedChartsState.findIndex(chart => String(getChartId(chart)) === String(sourceId));
+        const targetIndex = state.savedChartsState.findIndex(chart => String(getChartId(chart)) === String(targetId));
+        if (sourceIndex < 0 || targetIndex < 0) return;
+        const [moved] = state.savedChartsState.splice(sourceIndex, 1);
+        state.savedChartsState.splice(targetIndex, 0, moved);
+        state.savedChartsState.forEach((chart, index) => chart.DisplayOrder = index);
+        renderDashboardCards(state.savedChartsState, false);
     };
 
     window.openVisualizationModal = function (chartID) {
@@ -387,54 +732,80 @@
             url: server + `api/dashboard/get-charts?dashboardType=${DASHBOARD_TYPE}`,
             type: "GET",
             success: function (charts) {
-                renderDashboardCards(Array.isArray(charts) ? charts : []);
+                state.savedChartsState = Array.isArray(charts) ? charts : [];
+                state.savedChartsState.forEach((chart, index) => {
+                    chart.LayoutSize = getLayoutSize(chart);
+                    chart.layoutSize = chart.LayoutSize;
+                    chart.DisplayOrder = Number(chart.displayOrder ?? chart.DisplayOrder ?? index) || index;
+                    chart.GridX = Number(chart.gridX ?? chart.GridX ?? 0) || 0;
+                    chart.GridY = Number(chart.gridY ?? chart.GridY ?? 0) || 0;
+                });
+                state.savedChartsState.sort((a, b) => (Number(a.DisplayOrder ?? 0) - Number(b.DisplayOrder ?? 0)) || (getChartId(a) - getChartId(b)));
+                state.layoutSnapshot = cloneLayout(state.savedChartsState);
+                renderDashboardCards(state.savedChartsState, true);
             },
             error: function () {
-                renderDashboardCards([]);
+                state.savedChartsState = [];
+                renderDashboardCards([], true);
             }
         });
     }
 
-    function renderDashboardCards(charts) {
+    function renderDashboardCards(charts, resetVisualizationState = false) {
         const grid = document.getElementById("chartsGrid");
         const manageList = document.getElementById("manageChartsList");
         if (!grid) return;
 
         grid.innerHTML = "";
         if (manageList) manageList.innerHTML = "";
-        state.savedVisualizationsState = {};
+        if (resetVisualizationState) state.savedVisualizationsState = {};
 
         if (!Array.isArray(charts) || charts.length === 0) {
             grid.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 12px;">
+                <div class="dashboard-empty-state">
                     <h3 style="margin-bottom: 8px; color: #0c2340;">לא נוספו עדיין דוחות או גרפים לדוח החודשי</h3>
                     <p style="margin-bottom: 14px;">לחצו על עריכת דוחות וגרפים כדי להוסיף את הוויזואליזציה הראשונה.</p>
                     <button class="standard-button btn-primary-action" onclick="openEditDashboardModal()" style="background-color: #0c2340; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600;">
                         הוסף דוח או גרף
                     </button>
                 </div>`;
+            updateArrangeControls();
             return;
         }
 
-        charts.forEach(chart => {
-            const chartID = chart.chartID || chart.ChartID;
-            const chartTitle = chart.chartTitle || chart.ChartTitle;
+        calculatePackedLayout(charts).forEach(item => {
+            const chart = item.chart;
+            const chartID = getChartId(chart);
+            const chartTitle = chart.chartTitle || chart.ChartTitle || "תצוגה";
             const chartType = (chart.chartType || chart.ChartType || "bar").toLowerCase();
+            chart.DisplayOrder = item.index;
+            chart.GridX = item.x;
+            chart.GridY = item.y;
 
             const cardHtml = `
-                <div class="chart-card" id="chartCard_${chartID}" style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div class="chart-card-header" style="margin-bottom: 10px; font-weight: bold; color: #0c2340; position:relative; display:flex; align-items:center; gap:6px;">
-                        <span class="chart-card-title">${chartTitle}</span>
-                        <div class="card-menu-wrap" style="margin-inline-start:auto; position:relative;">
+                <div class="chart-card dashboard-grid-card size-${item.size}" id="chartCard_${chartID}" draggable="${state.isArrangeMode}" data-chart-id="${chartID}" data-size="${item.size}" style="grid-column: span ${item.columns}; grid-row: span ${item.rows};">
+                    <div class="chart-card-header">
+                        <button class="drag-handle" title="גרירה לסידור" aria-label="גרירה לסידור">✥</button>
+                        <span class="chart-card-title">${escapeHtml(chartTitle)}</span>
+                        <div class="card-menu-wrap">
                             <button class="card-menu-btn" onclick="toggleCardMenu(${chartID})" title="פעולות">⋯</button>
                             <div class="card-menu-panel" id="menu_${chartID}" style="display:none;">
                                 <button onclick="openVisualizationModal(${chartID})">הגדל תצוגה</button>
                                 <button onclick="showVisualizationQuery(${chartID})">הצג שאילתה</button>
+                                <div class="card-size-menu">
+                                    <button class="card-size-trigger" type="button" data-size-menu-trigger>
+                                        <span>שינוי גודל</span>
+                                        <span class="submenu-arrow" aria-hidden="true">‹</span>
+                                    </button>
+                                    <div class="card-size-submenu" role="menu">
+                                        ${buildSizeMenu(chartID, item.size)}
+                                    </div>
+                                </div>
                                 <button onclick="deleteChart(${chartID})">מחק</button>
                             </div>
                         </div>
                     </div>
-                    <div class="chart-wrapper" style="position: relative; height: 250px; width: 100%;">
+                    <div class="chart-wrapper">
                         <canvas id="canvas_${chartID}"></canvas>
                     </div>
                     <div id="table_${chartID}" class="dashboard-table-wrap" style="display:none;"></div>
@@ -445,14 +816,18 @@
             if (manageList) {
                 const itemHtml = `
                     <div class="manage-chart-item" id="manageItem_${chartID}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border: 1px solid #e2e8f0; border-radius: 6px;">
-                        <span>📊 ${chartTitle} (${chartType})</span>
+                        <span>📊 ${escapeHtml(chartTitle)} (${escapeHtml(chartType)})</span>
                         <button class="btn-delete-chart" onclick="deleteChart(${chartID})" style="background: none; border: none; cursor: pointer; font-size: 16px;">🗑️</button>
                     </div>`;
                 manageList.insertAdjacentHTML('beforeend', itemHtml);
             }
 
-            fetchAndRenderChartData(chart);
+            renderVisualizationFromStateOrFetch(chart);
         });
+
+        bindArrangeDragEvents();
+        updateArrangeControls();
+        resizeDashboardCharts();
     }
 
     function fetchAndRenderChartData(chart) {
@@ -557,10 +932,32 @@
     document.addEventListener('click', function (e) {
         const target = e.target;
         if (!(target instanceof Element)) return;
+        const sizeOption = target.closest('.card-size-option');
+        if (sizeOption) {
+            e.preventDefault();
+            e.stopPropagation();
+            changeVisualizationSize(sizeOption.dataset.chartId, sizeOption.dataset.size);
+            return;
+        }
+        const sizeTrigger = target.closest('[data-size-menu-trigger]');
+        if (sizeTrigger) {
+            e.preventDefault();
+            e.stopPropagation();
+            const sizeMenu = sizeTrigger.closest('.card-size-menu');
+            const panel = sizeTrigger.closest('.card-menu-panel');
+            document.querySelectorAll('.card-size-menu.open').forEach(menu => {
+                if (menu !== sizeMenu) menu.classList.remove('open');
+            });
+            sizeMenu?.classList.toggle('open');
+            adjustCardMenuDirection(panel);
+            return;
+        }
         if (!target.closest('.card-menu-wrap')) {
             closeAllCardMenus();
         }
     });
+
+    window.addEventListener('resize', resizeDashboardCharts);
 
     function escapeHtml(value) {
         return String(value)
