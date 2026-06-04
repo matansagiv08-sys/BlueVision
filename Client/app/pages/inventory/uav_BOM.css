@@ -1,5 +1,8 @@
 ﻿.uav-bom-page {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
     padding: 20px;
     margin: 0;
 }
@@ -62,7 +65,15 @@
 /* מתיחת הטבלה לכל הרוחב */
 .uav-bom-page .table-container {
     width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
     margin-top: 0;
+}
+
+.uav-bom-page .bom-data-table {
+    width: 100%;
+    min-width: 980px;
+    table-layout: fixed;
 }
 
 .uav-bom-page .inventory-pager {
@@ -127,35 +138,12 @@
     user-select: none;
 }
 
-.bom-view-toggle-wrap {
+.bom-tree-actions-wrap {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 12px;
     margin-bottom: 12px;
-}
-
-.bom-view-toggle {
-    display: inline-flex;
-    background: #eef2f6;
-    border-radius: 999px;
-    padding: 3px;
-    gap: 4px;
-}
-
-.bom-view-btn {
-    border: none;
-    background: transparent;
-    color: #334155;
-    border-radius: 999px;
-    padding: 7px 14px;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.bom-view-btn.active {
-    background: #0c2340;
-    color: #ffffff;
 }
 
 .bom-tree-actions {
@@ -206,22 +194,53 @@
 
 .bom-data-table.tree-mode th:nth-child(2),
 .bom-data-table.tree-mode td:nth-child(2) {
-    width: 34%;
+    width: 32%;
+}
+
+.bom-data-table.tree-mode th:nth-child(1),
+.bom-data-table.tree-mode td:nth-child(1) {
+    width: 14%;
+}
+
+.bom-data-table.tree-mode th:nth-child(3),
+.bom-data-table.tree-mode td:nth-child(3),
+.bom-data-table.tree-mode th:nth-child(6),
+.bom-data-table.tree-mode td:nth-child(6),
+.bom-data-table.tree-mode th:nth-child(7),
+.bom-data-table.tree-mode td:nth-child(7),
+.bom-data-table.tree-mode th:nth-child(8),
+.bom-data-table.tree-mode td:nth-child(8) {
+    width: 9%;
+}
+
+.bom-data-table.tree-mode th:nth-child(4),
+.bom-data-table.tree-mode td:nth-child(4),
+.bom-data-table.tree-mode th:nth-child(5),
+.bom-data-table.tree-mode td:nth-child(5) {
+    width: 10%;
+}
+
+.bom-data-table.tree-mode tbody td:nth-child(n+3) {
+    text-align: center;
 }
 
 .bom-data-table.tree-mode .bom-tree-item-cell {
+    --tree-offset: min(var(--tree-indent, 0px), 108px);
     position: relative;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 6px;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
-    padding-right: var(--tree-indent, 0px);
+    box-sizing: border-box;
+    overflow: hidden;
+    padding-right: var(--tree-offset);
 }
 
 .bom-data-table.tree-mode .bom-tree-branch-line {
     position: absolute;
-    right: calc(var(--tree-indent, 0px) - 10px);
+    right: calc(var(--tree-offset) - 10px);
     top: -8px;
     bottom: -8px;
     width: 1px;
@@ -236,7 +255,7 @@
 .bom-data-table.tree-mode .bom-tree-item-cell::after {
     content: "";
     position: absolute;
-    right: calc(var(--tree-indent, 0px) - 10px);
+    right: calc(var(--tree-offset) - 10px);
     top: 50%;
     width: 10px;
     border-top: 1px solid #dbe4ef;
@@ -278,6 +297,7 @@
 
 .bom-data-table.tree-mode .bom-tree-name {
     display: inline-block;
+    flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
@@ -304,6 +324,8 @@
 }
 
 .bom-data-table.tree-mode .bom-tree-chip-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -311,7 +333,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 0;
     max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     padding: 3px 8px;
     border-radius: 999px;
     background: #f1f5f9;

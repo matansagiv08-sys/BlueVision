@@ -1,6 +1,55 @@
 ﻿/* --- הגדרות כלליות לעמוד --- */
 .tasks-board-page {
     direction: rtl;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+body:has(.tasks-board-page) .main {
+    flex: 0 1 calc(100% - var(--sidebar-open-width));
+    width: calc(100% - var(--sidebar-open-width));
+    max-width: calc(100% - var(--sidebar-open-width));
+    box-sizing: border-box;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+body:has(.tasks-board-page) .sidebar.collapsed + .main {
+    flex-basis: calc(100% - var(--sidebar-collapsed-width));
+    width: calc(100% - var(--sidebar-collapsed-width));
+    max-width: calc(100% - var(--sidebar-collapsed-width));
+}
+
+body:has(.tasks-board-page) #app,
+body:has(.tasks-board-page) .tasks-board-page,
+body:has(.tasks-board-page) #tasks-board-container,
+body:has(.tasks-board-page) .aircraft-section {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.tasks-board-page .global-toolbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    overflow: hidden;
+}
+
+.tasks-board-page .search-container {
+    flex: 1 1 240px;
+    min-width: 180px;
+    max-width: 300px;
+}
+
+.tasks-board-page .filter-actions {
+    flex: 1 1 520px;
+    min-width: 0;
+    max-width: 100%;
+    flex-shrink: 1;
+    flex-wrap: wrap;
 }
 
 #tbStatusModal {
@@ -78,8 +127,10 @@
 }
 
 .tasks-board-page .tb-table {
+    direction: rtl;
     table-layout: fixed;
     width: 100%;
+    min-width: 1540px;
 }
 
 .tasks-board-page .tb-table th {
@@ -93,18 +144,28 @@
 
 .tasks-board-page .tasks-table-wrapper {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    display: block;
+    direction: ltr;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
+    box-sizing: border-box;
 }
 
 .tasks-board-page .table-container.tasks-table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    display: block;
+    direction: ltr;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
+    box-sizing: border-box;
 }
 
 .tasks-board-page .tb-table th,
 .tasks-board-page .tb-table td {
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     padding-inline: clamp(4px, 0.55vw, 12px);
@@ -112,17 +173,27 @@
 }
 
 .tasks-board-page .tb-table th {
-    font-size: clamp(11px, 0.75vw, 14px);
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 700;
+}
+
+.tasks-board-page .tb-table td {
+    white-space: nowrap;
+    text-align: center;
 }
 
 /* רוחב עמודות */
 .tasks-board-page .tb-col-qty {
-    width: 80px;
+    width: 70px;
     text-align: center;
 }
 
 .tasks-board-page .tb-col-item-name {
-    width: 18%;
+    width: 220px;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
@@ -133,24 +204,25 @@
 .tasks-board-page .tb-col-tail,
 .tasks-board-page .tb-col-sn,
 .tasks-board-page .tb-col-qty {
-    width: 6%;
+    width: 90px;
 }
 
 .tasks-board-page .tb-col-project {
-    width: 10%;
+    width: 100px;
+    text-align: center;
 }
 
 .tasks-board-page .tb-col-item-id {
-    width: 8%;
+    width: 125px;
+    text-align: right;
 }
 
 .tasks-board-page .tb-col-progress {
-    width: 8%;
-    min-width: 88px;
+    width: 105px;
 }
 
 .tasks-board-page .tb-col-stage {
-    width: 6%;
+    width: 100px;
 }
 
 .tasks-board-page .status-cell,
@@ -161,9 +233,42 @@
 
 .tasks-board-page .tb-table th.status-col,
 .tasks-board-page .tb-table td.status-col {
-    min-width: clamp(56px, 5vw, 92px);
-    width: clamp(56px, 5vw, 92px);
+    width: 100px;
     text-align: center;
+}
+
+.tasks-board-page .task-cell-tooltip {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    outline: none;
+}
+
+.tasks-board-page .tb-col-item-id .task-cell-tooltip,
+.tasks-board-page .tb-col-item-name .task-cell-tooltip {
+    text-align: right;
+}
+
+.task-board-cell-tooltip-popover {
+    position: fixed;
+    z-index: 5000;
+    display: none;
+    max-width: 360px;
+    padding: 8px 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.35;
+    direction: rtl;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    pointer-events: none;
 }
 
 .status-wrapper {
@@ -330,7 +435,4 @@
         padding-inline: clamp(3px, 0.45vw, 8px);
     }
 
-    .tasks-board-page .tb-col-stage {
-        width: 5.5%;
-    }
 }

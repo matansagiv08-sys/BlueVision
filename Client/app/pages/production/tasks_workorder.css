@@ -2,7 +2,27 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
     padding: 20px;
+}
+
+body:has(.tasks-workorder-page) .main {
+    max-width: calc(100% - var(--sidebar-open-width));
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+body:has(.tasks-workorder-page) .sidebar.collapsed + .main {
+    max-width: calc(100% - var(--sidebar-collapsed-width));
+}
+
+body:has(.tasks-workorder-page) #app,
+body:has(.tasks-workorder-page) .tasks-workorder-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* קונטיינר לסליידר כדי לאפשר גלילה אם יש הרבה תחנות */
@@ -62,13 +82,16 @@
 .tasks-workorder-page .workorder-table-wrapper {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
+    display: block;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
+    box-sizing: border-box;
 }
 
 .tasks-workorder-page .workorder-table {
     width: 100%;
-    max-width: 100%;
+    min-width: 1420px;
     table-layout: fixed;
 }
 
@@ -76,8 +99,21 @@
 .tasks-workorder-page .workorder-table td {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
     padding-inline: clamp(8px, 0.7vw, 14px);
+    vertical-align: middle;
+}
+
+.tasks-workorder-page .workorder-table th {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.tasks-workorder-page .workorder-table td {
+    white-space: nowrap;
+    text-align: center;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(1),
@@ -85,22 +121,53 @@
     width: 44px;
 }
 
+.tasks-workorder-page .workorder-table th:nth-child(2),
+.tasks-workorder-page .workorder-table td:nth-child(2) {
+    width: 110px;
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(3),
+.tasks-workorder-page .workorder-table td:nth-child(3) {
+    width: 165px;
+    text-align: right;
+}
+
 .tasks-workorder-page .workorder-table th:nth-child(4),
-.tasks-workorder-page .workorder-table td:nth-child(4),
+.tasks-workorder-page .workorder-table td:nth-child(4) {
+    width: 230px;
+    text-align: right;
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(5),
+.tasks-workorder-page .workorder-table td:nth-child(5),
+.tasks-workorder-page .workorder-table th:nth-child(6),
+.tasks-workorder-page .workorder-table td:nth-child(6),
+.tasks-workorder-page .workorder-table th:nth-child(10),
+.tasks-workorder-page .workorder-table td:nth-child(10) {
+    width: 105px;
+}
+
 .tasks-workorder-page .workorder-table th:nth-child(7),
 .tasks-workorder-page .workorder-table td:nth-child(7) {
-    width: 13%;
+    width: 120px;
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(8),
+.tasks-workorder-page .workorder-table td:nth-child(8),
+.tasks-workorder-page .workorder-table th:nth-child(9),
+.tasks-workorder-page .workorder-table td:nth-child(9) {
+    width: 125px;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(11),
 .tasks-workorder-page .workorder-table td:nth-child(11) {
-    width: 9%;
+    width: 135px;
     text-align: center;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(12),
 .tasks-workorder-page .workorder-table td:nth-child(12) {
-    width: 8%;
+    width: 115px;
 }
 
 /* Urgency dropdown styling (workorder page) */
@@ -210,18 +277,43 @@
 }
 
 .tasks-workorder-page .truncate-cell {
-    max-width: 220px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.tasks-workorder-page .item-name-cell {
-    max-width: 250px;
+.tasks-workorder-page .workorder-cell-tooltip {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    outline: none;
 }
 
-.tasks-workorder-page .project-name-cell {
-    max-width: 210px;
+.tasks-workorder-page .workorder-table td:nth-child(3) .workorder-cell-tooltip,
+.tasks-workorder-page .item-name-cell .workorder-cell-tooltip {
+    text-align: right;
+}
+
+.workorder-cell-tooltip-popover {
+    position: fixed;
+    z-index: 5000;
+    display: none;
+    max-width: 360px;
+    padding: 8px 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.35;
+    direction: rtl;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    pointer-events: none;
 }
 
 .tasks-workorder-page .workorder-expired-row td {

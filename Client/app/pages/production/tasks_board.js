@@ -7,6 +7,7 @@
 //};
 
 window.initTasksBoard = function () {
+    bindTaskBoardCellTooltips();
     initBoard();
 };
 
@@ -31,6 +32,34 @@ function getStageStatusById(stagesList, stageId) {
         parseInt(s.stage?.productionStageID || s.Stage?.ProductionStageID || 0) === parseInt(stageId)
     );
     return currentStageObj?.status?.productionStatusID || currentStageObj?.Status?.ProductionStatusID || 1;
+}
+
+function bindTaskBoardCellTooltips() {
+    const container = document.getElementById("tasks-board-container");
+    if (!container || container.dataset.tooltipBound === "true") return;
+    container.dataset.tooltipBound = "true";
+
+    container.addEventListener("mouseover", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".task-cell-tooltip") : null;
+        if (target) showTaskBoardCellTooltip(target);
+    });
+
+    container.addEventListener("mouseout", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".task-cell-tooltip") : null;
+        if (!target) return;
+        const related = e.relatedTarget instanceof Element ? e.relatedTarget.closest(".task-cell-tooltip") : null;
+        if (related !== target) hideTaskBoardCellTooltip();
+    });
+
+    container.addEventListener("focusin", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".task-cell-tooltip") : null;
+        if (target) showTaskBoardCellTooltip(target);
+    });
+
+    container.addEventListener("focusout", hideTaskBoardCellTooltip);
+    container.addEventListener("scroll", hideTaskBoardCellTooltip, true);
+    window.addEventListener("scroll", hideTaskBoardCellTooltip, true);
+    window.addEventListener("resize", hideTaskBoardCellTooltip);
 }
 
 function initBoard() {
@@ -105,6 +134,7 @@ function loadBoardData(successCallback) {
 function renderTasksBoard(boardData, allStages) {
     const container = document.getElementById("tasks-board-container");
     if (!container) return;
+    hideTaskBoardCellTooltip();
 
 
     const grouped = boardData.reduce((acc, row) => {
@@ -125,14 +155,14 @@ function renderTasksBoard(boardData, allStages) {
                     <table class="generic-data-table tb-table">
                         <thead>
                             <tr>
-                                <th class="tb-col-wo">פק"ע</th>
+                                <th class="tb-col-wo">פק&quot;ע</th>
                                 <th class="tb-col-project">שם פרויקט</th>
                                 <th class="tb-col-tail">מספר זנב</th>
-                                <th class="tb-col-item-id">מק"ט</th>
+                                <th class="tb-col-item-id">מק&quot;ט</th>
                                 <th class="tb-col-item-name">שם פריט</th>
                                 <th class="tb-col-sn">סיריאלי</th>
                                 <th class="tb-col-qty">כמות</th>
-                                ${allStages.map(s => `<th class="tb-col-stage status-col">${s.productionStageName}</th>`).join('')}
+                                ${allStages.map(s => `<th class="tb-col-stage status-col">${escapeHtml(s.productionStageName || s.ProductionStageName || "")}</th>`).join('')}
                                 <th class="tb-col-progress">התקדמות</th> </tr>
                         </thead>
                         <tbody>
@@ -195,12 +225,12 @@ function renderRow(row, allStages) {
     // הצגת השורה בטבלה
     return `
         <tr>
-            <td>${workOrder}</td>
-            <td>${projectName}</td>
-            <td>${tailNumber}</td>
-            <td class="tb-col-item-id" title="${itemID}">${itemID}</td>
-            <td class="tb-col-item-name" title="${itemName}">${itemName}</td>
-            <td>${serial}</td>
+            <td class="tb-col-wo">${renderTaskCellWithTooltip(workOrder)}</td>
+            <td class="tb-col-project">${renderTaskCellWithTooltip(projectName)}</td>
+            <td class="tb-col-tail">${renderTaskCellWithTooltip(tailNumber)}</td>
+            <td class="tb-col-item-id">${renderTaskCellWithTooltip(itemID)}</td>
+            <td class="tb-col-item-name">${renderTaskCellWithTooltip(itemName)}</td>
+            <td class="tb-col-sn">${renderTaskCellWithTooltip(serial)}</td>
             <td class="tb-col-qty">${qty}</td>
             ${stagesHtml}
             <td class="progress-cell">
@@ -210,6 +240,76 @@ function renderRow(row, allStages) {
                 </div>
             </td>
         </tr>`;
+}
+
+function renderTaskCellWithTooltip(value) {
+    const displayValue = displayTaskValue(value);
+    const safeValue = escapeHtml(displayValue);
+    if (displayValue === "---") return safeValue;
+    return `<span class="task-cell-tooltip" tabindex="0" data-tooltip="${safeValue}">${safeValue}</span>`;
+}
+
+function getTaskBoardCellTooltip() {
+    let tooltip = document.getElementById("taskBoardCellTooltip");
+    if (tooltip) return tooltip;
+
+    tooltip = document.createElement("div");
+    tooltip.id = "taskBoardCellTooltip";
+    tooltip.className = "task-board-cell-tooltip-popover";
+    tooltip.setAttribute("role", "tooltip");
+    document.body.appendChild(tooltip);
+    return tooltip;
+}
+
+function showTaskBoardCellTooltip(target) {
+    const text = target?.dataset?.tooltip;
+    if (!text || !isTaskBoardCellTextTruncated(target)) {
+        hideTaskBoardCellTooltip();
+        return;
+    }
+
+    const tooltip = getTaskBoardCellTooltip();
+    tooltip.textContent = text;
+    tooltip.style.display = "block";
+
+    const targetRect = target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportPadding = 12;
+    let top = targetRect.top - tooltipRect.height - 8;
+    let left = targetRect.right - tooltipRect.width;
+
+    if (top < viewportPadding) {
+        top = targetRect.bottom + 8;
+    }
+
+    left = Math.max(viewportPadding, Math.min(left, window.innerWidth - tooltipRect.width - viewportPadding));
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+}
+
+function hideTaskBoardCellTooltip() {
+    const tooltip = document.getElementById("taskBoardCellTooltip");
+    if (tooltip) tooltip.style.display = "none";
+}
+
+function isTaskBoardCellTextTruncated(target) {
+    if (!target) return false;
+    return target.scrollWidth > target.clientWidth + 1;
+}
+
+function displayTaskValue(value) {
+    if (value === null || value === undefined) return "---";
+    const text = String(value).trim();
+    return text === "" ? "---" : text;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, stageID, stageName, currentStatusID, pillEl, currentComment) {
     const modal = document.getElementById("tbStatusModal");

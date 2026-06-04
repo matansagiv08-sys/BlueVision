@@ -7,6 +7,7 @@ let hasPersistedManualOrder = false;
 // פונקציית ה-Init שנקראת מה-app.js
 window.initTasksWorkOrder = async function () {
     try {
+        bindWorkOrderCellTooltips();
         // 1. משיכת כל התחנות הקיימות במערכת (ה-API שמשתמש ב-GetProductionStages)
         ajaxCall("GET", server + "api/ProductionStages", "",
             (allStages) => {
@@ -43,6 +44,7 @@ window.initTasksWorkOrder = async function () {
 function renderTasks(tasks) {
     const tbody = document.getElementById('tasksTableBody');
     if (!tbody) return;
+    hideWorkOrderCellTooltip();
     tbody.innerHTML = '';
 
     // סעיף 2: סינון פריטים שהסתיימו (100% התקדמות)
@@ -91,16 +93,16 @@ function renderTasks(tasks) {
                             onclick="window.resetToAlgo(${sn}, '${safeItemId}', ${currentStageId})" 
                             title="החזר לאלגוריתם">🪄</button>
                 </td>
-                <td>${workOrder}</td>
-                <td>${itemId}</td>
-                <td class="truncate-cell item-name-cell" title="${escapeAttribute(itemName)}">${itemName}</td>
-                <td>${sn}</td>
-                <td>${planeType}</td>
-                <td class="truncate-cell project-name-cell" title="${escapeAttribute(projectName)}">${projectName}</td>
-                <td>${projectDueDate}</td>
-                <td>${itemDueDate}</td>
-                <td>${planeNumber}</td>
-                <td><span class="status-pill">${currentStationName}</span></td>
+                <td>${renderWorkOrderCellWithTooltip(workOrder)}</td>
+                <td>${renderWorkOrderCellWithTooltip(itemId)}</td>
+                <td class="item-name-cell">${renderWorkOrderCellWithTooltip(itemName)}</td>
+                <td>${renderWorkOrderCellWithTooltip(sn)}</td>
+                <td>${renderWorkOrderCellWithTooltip(planeType)}</td>
+                <td class="project-name-cell">${renderWorkOrderCellWithTooltip(projectName)}</td>
+                <td>${renderWorkOrderCellWithTooltip(projectDueDate)}</td>
+                <td>${renderWorkOrderCellWithTooltip(itemDueDate)}</td>
+                <td>${renderWorkOrderCellWithTooltip(planeNumber)}</td>
+                <td><span class="status-pill">${escapeHtml(currentStationName)}</span></td>
                 <td>${score.toFixed(4)}</td>
             </tr>
         `;
@@ -139,8 +141,102 @@ function isExpiredDate(value) {
     return dateOnly < today;
 }
 
-function escapeAttribute(value) {
-    return String(value ?? '').replace(/"/g, '&quot;');
+function bindWorkOrderCellTooltips() {
+    const tbody = document.getElementById('tasksTableBody');
+    if (!tbody || tbody.dataset.tooltipBound === 'true') return;
+    tbody.dataset.tooltipBound = 'true';
+
+    tbody.addEventListener('mouseover', function (e) {
+        const target = e.target instanceof Element ? e.target.closest('.workorder-cell-tooltip') : null;
+        if (target) showWorkOrderCellTooltip(target);
+    });
+
+    tbody.addEventListener('mouseout', function (e) {
+        const target = e.target instanceof Element ? e.target.closest('.workorder-cell-tooltip') : null;
+        if (!target) return;
+        const related = e.relatedTarget instanceof Element ? e.relatedTarget.closest('.workorder-cell-tooltip') : null;
+        if (related !== target) hideWorkOrderCellTooltip();
+    });
+
+    tbody.addEventListener('focusin', function (e) {
+        const target = e.target instanceof Element ? e.target.closest('.workorder-cell-tooltip') : null;
+        if (target) showWorkOrderCellTooltip(target);
+    });
+
+    tbody.addEventListener('focusout', hideWorkOrderCellTooltip);
+    tbody.addEventListener('scroll', hideWorkOrderCellTooltip);
+    window.addEventListener('scroll', hideWorkOrderCellTooltip, true);
+    window.addEventListener('resize', hideWorkOrderCellTooltip);
+}
+
+function renderWorkOrderCellWithTooltip(value) {
+    const displayValue = displayWorkOrderValue(value);
+    const safeValue = escapeHtml(displayValue);
+    if (displayValue === '-') return safeValue;
+    return `<span class="workorder-cell-tooltip" tabindex="0" data-tooltip="${safeValue}">${safeValue}</span>`;
+}
+
+function getWorkOrderCellTooltip() {
+    let tooltip = document.getElementById('workOrderCellTooltip');
+    if (tooltip) return tooltip;
+
+    tooltip = document.createElement('div');
+    tooltip.id = 'workOrderCellTooltip';
+    tooltip.className = 'workorder-cell-tooltip-popover';
+    tooltip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tooltip);
+    return tooltip;
+}
+
+function showWorkOrderCellTooltip(target) {
+    const text = target?.dataset?.tooltip;
+    if (!text || !isWorkOrderCellTextTruncated(target)) {
+        hideWorkOrderCellTooltip();
+        return;
+    }
+
+    const tooltip = getWorkOrderCellTooltip();
+    tooltip.textContent = text;
+    tooltip.style.display = 'block';
+
+    const targetRect = target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportPadding = 12;
+    let top = targetRect.top - tooltipRect.height - 8;
+    let left = targetRect.right - tooltipRect.width;
+
+    if (top < viewportPadding) {
+        top = targetRect.bottom + 8;
+    }
+
+    left = Math.max(viewportPadding, Math.min(left, window.innerWidth - tooltipRect.width - viewportPadding));
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+}
+
+function hideWorkOrderCellTooltip() {
+    const tooltip = document.getElementById('workOrderCellTooltip');
+    if (tooltip) tooltip.style.display = 'none';
+}
+
+function isWorkOrderCellTextTruncated(target) {
+    if (!target) return false;
+    return target.scrollWidth > target.clientWidth + 1;
+}
+
+function displayWorkOrderValue(value) {
+    if (value === null || value === undefined) return '-';
+    const text = String(value).trim();
+    return text === '' ? '-' : text;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function getPlaneTypeValue(task) {

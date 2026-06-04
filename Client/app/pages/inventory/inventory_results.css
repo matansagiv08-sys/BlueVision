@@ -44,6 +44,29 @@
     background: #f8fafc;
 }
 
+.inventory-results-page .table-container {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.inventory-results-page .generic-data-table th,
+.inventory-results-page .generic-data-table td {
+    text-align: center;
+}
+
+.inventory-results-page .generic-data-table th:nth-child(1),
+.inventory-results-page .generic-data-table td:nth-child(1),
+.inventory-results-page .generic-data-table th:nth-child(2),
+.inventory-results-page .generic-data-table td:nth-child(2) {
+    text-align: right;
+}
+
+.inventory-results-page .generic-data-table th:nth-child(1),
+.inventory-results-page .generic-data-table td:nth-child(1) {
+    width: 150px;
+    min-width: 150px;
+}
+
 .inventory-results-page .shared-badge {
     display: inline-block;
     margin-inline-start: 6px;

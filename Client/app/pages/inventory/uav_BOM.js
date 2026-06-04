@@ -9,7 +9,7 @@ let currentBomPage = 1;
 const bomPageSize = 100;
 let lastLoadedBomCount = 0;
 let knownLastBomPage = null;
-let currentBomViewMode = "table";
+let currentBomViewMode = "tree";
 
 let currentBomSearch = "";
 let currentBomMeasureUnit = "";
@@ -38,8 +38,7 @@ function loadBomPlaneOptions() {
                 currentBomTreeRows = [];
                 currentBomTreeRoots = [];
                 renderBomPlaneButtons();
-                renderBomTable([]);
-                updateBomPager();
+                renderBomTreeTable();
                 return;
             }
 
@@ -60,18 +59,13 @@ function loadBomPlaneOptions() {
             currentBomTreeRows = [];
             currentBomTreeRoots = [];
             renderBomPlaneButtons();
-            renderBomTable([]);
-            updateBomPager();
+            renderBomTreeTable();
         }
     );
 }
 
 function refreshBomViewData() {
-    if (currentBomViewMode === "tree") {
-        loadBomTreeData();
-    } else {
-        loadBomPage(1);
-    }
+    loadBomTreeData();
 }
 
 function loadBomFilterOptions(onDone) {
@@ -135,14 +129,12 @@ function loadBomTreeData() {
             currentBomTreeRows = rows.slice().sort((a, b) => getNumeric(a, "RowOrder") - getNumeric(b, "RowOrder"));
             currentBomTreeRoots = buildBomTreeByRowOrderAndLevel(currentBomTreeRows);
             renderBomTreeTable();
-            updateBomPager();
         },
         function (xhr) {
             console.error("Failed to load BOM tree rows", xhr);
             currentBomTreeRows = [];
             currentBomTreeRoots = [];
             renderBomTreeTable();
-            updateBomPager();
         }
     );
 }
@@ -165,17 +157,12 @@ function buildBomQueryParams({ page, pageSize, includeSearch, treeMode }) {
 }
 
 window.setBomViewMode = function (mode) {
-    currentBomViewMode = mode === "tree" ? "tree" : "table";
-
-    document.getElementById("bomTableViewBtn")?.classList.toggle("active", currentBomViewMode === "table");
-    document.getElementById("bomTreeViewBtn")?.classList.toggle("active", currentBomViewMode === "tree");
+    currentBomViewMode = "tree";
 
     const treeActions = document.getElementById("bomTreeActions");
-    const pagerWrap = document.getElementById("bomPagerWrap");
     const table = document.getElementById("bomDataTable");
-    if (treeActions) treeActions.style.display = currentBomViewMode === "tree" ? "flex" : "none";
-    if (pagerWrap) pagerWrap.style.display = currentBomViewMode === "tree" ? "none" : "flex";
-    table?.classList.toggle("tree-mode", currentBomViewMode === "tree");
+    if (treeActions) treeActions.style.display = "flex";
+    table?.classList.add("tree-mode");
 
     resetBomPaging();
     refreshBomViewData();
@@ -281,6 +268,7 @@ function buildBomTreeByRowOrderAndLevel(rows) {
 function renderBomTreeTable() {
     const tbody = document.getElementById("bom-table-body");
     if (!tbody) return;
+    document.getElementById("bomDataTable")?.classList.add("tree-mode");
 
     const searchText = currentBomSearch.trim().toLowerCase();
     const includeKeys = collectIncludedTreeKeys(currentBomTreeRoots, searchText);
@@ -302,7 +290,6 @@ function renderBomTreeTable() {
         const buyMethod = displayOrDash(readValue(item, "BuyMethod"));
         const warehouse = displayOrDash(readValue(item, "Warehouse"));
         const level = displayOrDash(readValue(item, "BomLevel"));
-        const hasChild = (readValue(item, "HasChild") === true) ? "כן" : "לא";
 
         return `
             <tr class="${nodeHasChildren ? "bom-tree-parent-row" : "bom-tree-leaf-row"}" data-depth="${node.level}">
@@ -330,7 +317,6 @@ function renderBomTreeTable() {
                 <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${unit}</span></td>
                 <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${warehouse}</span></td>
                 <td class="bom-tree-chip-cell"><span class="bom-tree-chip">רמה ${level}</span></td>
-                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">ילדים ${hasChild}</span></td>
                 <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${buyMethod}</span></td>
                 <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${displayOrDash(readValue(item, "BodyPlane"))}</span></td>
             </tr>`;
@@ -460,7 +446,6 @@ function renderBomTable(data) {
     if (!tbody) return;
     document.getElementById("bomDataTable")?.classList.remove("tree-mode");
     tbody.innerHTML = data.map(item => {
-        const hasChild = (readValue(item, "HasChild") === true) ? "כן" : "לא";
         return `
             <tr>
                 <td class="col-sku">${displayOrDash(readValue(item, "InventoryItemID"))}</td>
@@ -469,7 +454,6 @@ function renderBomTable(data) {
                 <td>${displayOrDash(readValue(item, "MeasureUnit"))}</td>
                 <td>${displayOrDash(readValue(item, "Warehouse"))}</td>
                 <td>${displayOrDash(readValue(item, "BomLevel"))}</td>
-                <td>${displayOrDash(hasChild)}</td>
                 <td>${displayOrDash(readValue(item, "BuyMethod"))}</td>
                 <td>${displayOrDash(readValue(item, "BodyPlane"))}</td>
             </tr>`;
