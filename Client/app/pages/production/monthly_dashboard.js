@@ -1,5 +1,6 @@
 (() => {
     const DASHBOARD_TYPE = "Monthly";
+    const DASHBOARD_NAME = "דוח חודשי";
     const state = {
         currentPreviewChartInstance: null,
         savedChartInstances: {},
@@ -147,8 +148,7 @@
                 layout: { padding: 4 },
                 plugins: {
                     legend: {
-                        position: 'bottom',
-                        labels: { boxWidth: 12, padding: 10 }
+                        display: false
                     }
                 },
                 scales: chartType !== 'pie' ? {
@@ -551,6 +551,9 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
                         scales: cardState.type !== 'pie' ? { y: { beginAtZero: true } } : {}
                     }
                 });
@@ -586,6 +589,56 @@
         }
 
         modal.style.display = 'flex';
+    };
+
+    window.exportVisualizationToExcel = async function (chartID) {
+        closeAllCardMenus();
+        const cardState = state.savedVisualizationsState[chartID];
+        console.info("[MonthlyDashboard] Export block requested", { chartID, cardState });
+        if (!cardState) {
+            showAppMessage("הנתונים עדיין לא נטענו. נסו שוב בעוד רגע.");
+            return;
+        }
+
+        if (!window.DashboardExcelExport) {
+            console.error("[MonthlyDashboard] DashboardExcelExport helper is not loaded");
+            showAppMessage("רכיב הייצוא לא נטען. רעננו את הדף ונסו שוב.", { title: "שגיאה" });
+            return;
+        }
+
+        try {
+            const result = await window.DashboardExcelExport.exportBlock(cardState);
+            if (!result.ok) showAppMessage(result.message || "לא נמצאו נתונים לייצוא");
+        } catch (error) {
+            console.error("[MonthlyDashboard] Block Excel export failed", { chartID, cardState, error });
+            showAppMessage("ייצוא לאקסל נכשל. נסו שוב מאוחר יותר.", { title: "שגיאה" });
+        }
+    };
+
+    window.exportDashboardToExcel = async function () {
+        const blocks = state.savedChartsState.map(chart => {
+            const chartID = getChartId(chart);
+            return state.savedVisualizationsState[chartID] || {
+                id: chartID,
+                title: chart.chartTitle || chart.ChartTitle || "תצוגה",
+                type: normalizeVisualizationType({ chartType: chart.chartType || chart.ChartType })
+            };
+        });
+        console.info("[MonthlyDashboard] Export full dashboard requested", { dashboardName: DASHBOARD_NAME, blocks });
+
+        if (!window.DashboardExcelExport) {
+            console.error("[MonthlyDashboard] DashboardExcelExport helper is not loaded");
+            showAppMessage("רכיב הייצוא לא נטען. רעננו את הדף ונסו שוב.", { title: "שגיאה" });
+            return;
+        }
+
+        try {
+            const result = await window.DashboardExcelExport.exportDashboard(blocks, DASHBOARD_NAME);
+            if (!result.ok) showAppMessage(result.message || "אין נתונים לייצוא");
+        } catch (error) {
+            console.error("[MonthlyDashboard] Dashboard Excel export failed", { dashboardName: DASHBOARD_NAME, blocks, error });
+            showAppMessage("ייצוא הדוח לאקסל נכשל. נסו שוב מאוחר יותר.", { title: "שגיאה" });
+        }
     };
 
     window.closeDashboardCardModal = function () {
@@ -793,6 +846,7 @@
                             <div class="card-menu-panel" id="menu_${chartID}" style="display:none;">
                                 <button onclick='openVisualizationModal(${chartIDArg})'>הגדל תצוגה</button>
                                 <button onclick='showVisualizationQuery(${chartIDArg})'>הצג שאילתה</button>
+                                <button onclick='exportVisualizationToExcel(${chartIDArg})'>ייצוא לאקסל</button>
                                 <div class="card-size-menu">
                                     <button class="card-size-trigger" type="button" data-size-menu-trigger>
                                         <span>שינוי גודל</span>

@@ -59,6 +59,7 @@ let lastGeneratedChartType = "bar";
 let canSaveGeneratedResult = false;
 
 const DASHBOARD_TYPE = "Inventory";
+const DASHBOARD_NAME = "דוח מלאי";
 const DASHBOARD_COLUMNS = 3;
 const DASHBOARD_SIZE_OPTIONS = {
     small: { label: "קטן", columns: 1, rows: 1 },
@@ -179,8 +180,7 @@ function renderChartInCanvas(canvasId, chartType, labels, values, mapKey) {
             layout: { padding: 4 },
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: { boxWidth: 12, padding: 10 }
+                    display: false
                 }
             },
             scales: chartType !== 'pie' ? {
@@ -380,6 +380,7 @@ function renderSavedCharts() {
                         <div class="card-menu-panel" id="menu_${chartID}" style="display:none;">
                             <button onclick='openVisualizationModal(${chartIDArg})'>הגדל תצוגה</button>
                             <button onclick='showVisualizationQuery(${chartIDArg})'>הצג שאילתה</button>
+                            <button onclick='exportVisualizationToExcel(${chartIDArg})'>ייצוא לאקסל</button>
                             <div class="card-size-menu">
                                 <button class="card-size-trigger" type="button" data-size-menu-trigger>
                                     <span>שינוי גודל</span>
@@ -656,6 +657,9 @@ window.openVisualizationModal = function (chartID) {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
                     scales: state.type !== 'pie' ? { y: { beginAtZero: true } } : {}
                 }
             });
@@ -691,6 +695,56 @@ window.showVisualizationQuery = function (chartID) {
     }
 
     modal.style.display = 'flex';
+};
+
+window.exportVisualizationToExcel = async function (chartID) {
+    closeAllCardMenus();
+    const state = savedVisualizationsState[chartID];
+    console.info("[InventoryDashboard] Export block requested", { chartID, state });
+    if (!state) {
+        showAppMessage("הנתונים עדיין לא נטענו. נסו שוב בעוד רגע.");
+        return;
+    }
+
+    if (!window.DashboardExcelExport) {
+        console.error("[InventoryDashboard] DashboardExcelExport helper is not loaded");
+        showAppMessage("רכיב הייצוא לא נטען. רעננו את הדף ונסו שוב.", { title: "שגיאה" });
+        return;
+    }
+
+    try {
+        const result = await window.DashboardExcelExport.exportBlock(state);
+        if (!result.ok) showAppMessage(result.message || "לא נמצאו נתונים לייצוא");
+    } catch (error) {
+        console.error("[InventoryDashboard] Block Excel export failed", { chartID, state, error });
+        showAppMessage("ייצוא לאקסל נכשל. נסו שוב מאוחר יותר.", { title: "שגיאה" });
+    }
+};
+
+window.exportDashboardToExcel = async function () {
+    const blocks = savedChartsState.map(chart => {
+        const chartID = getChartId(chart);
+        return savedVisualizationsState[chartID] || {
+            id: chartID,
+            title: chart.chartTitle || chart.ChartTitle || "תצוגה",
+            type: normalizeVisualizationType({ chartType: chart.chartType || chart.ChartType })
+        };
+    });
+    console.info("[InventoryDashboard] Export full dashboard requested", { dashboardName: DASHBOARD_NAME, blocks });
+
+    if (!window.DashboardExcelExport) {
+        console.error("[InventoryDashboard] DashboardExcelExport helper is not loaded");
+        showAppMessage("רכיב הייצוא לא נטען. רעננו את הדף ונסו שוב.", { title: "שגיאה" });
+        return;
+    }
+
+    try {
+        const result = await window.DashboardExcelExport.exportDashboard(blocks, DASHBOARD_NAME);
+        if (!result.ok) showAppMessage(result.message || "אין נתונים לייצוא");
+    } catch (error) {
+        console.error("[InventoryDashboard] Dashboard Excel export failed", { dashboardName: DASHBOARD_NAME, blocks, error });
+        showAppMessage("ייצוא הדוח לאקסל נכשל. נסו שוב מאוחר יותר.", { title: "שגיאה" });
+    }
 };
 
 window.closeDashboardCardModal = function () {
