@@ -1021,10 +1021,11 @@ public class DBservices
     public List<ItemInProduction> GetTasksBoard()
     {
         SqlConnection con = null;
-        Dictionary<int, ItemInProduction> itemsMap = new Dictionary<int, ItemInProduction>();
+        Dictionary<string, ItemInProduction> itemsMap = new Dictionary<string, ItemInProduction>();
 
         try
         {
+            Stopwatch sw = Stopwatch.StartNew();
             con = connect("myProjDB");
             SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetProductionBoardData", con, null);
             SqlDataReader reader = cmd.ExecuteReader();
@@ -1032,7 +1033,12 @@ public class DBservices
             while (reader.Read())
             {
                 int sn = Convert.ToInt32(reader["SerialNumber"]);
-                if (!itemsMap.ContainsKey(sn))
+                string productionItemId = ReadNullableString(reader,
+                    "InventoryItemID",
+                    "ProductionItemID") ?? string.Empty;
+
+                string rowKey = $"{sn}|{productionItemId}";
+                if (!itemsMap.ContainsKey(rowKey))
                 {
                     int itemPriorityLevel = ReadNullableInt(reader,
                         "ItemPriorityLevel",
@@ -1059,10 +1065,6 @@ public class DBservices
                         "ProjectDue")
                         ?? ReadNullableDate(reader, "DueDate");
 
-                    string productionItemId = ReadNullableString(reader,
-                        "InventoryItemID",
-                        "ProductionItemID") ?? string.Empty;
-
                     string itemName = ReadNullableString(reader,
                         "ItemName",
                         "ProductionItemDescription") ?? string.Empty;
@@ -1078,6 +1080,10 @@ public class DBservices
                     string planeTypeName = ReadNullableString(reader,
                         "PlaneTypeName") ?? string.Empty;
 
+                    int planeTypeId = ReadNullableInt(reader,
+                        "PlaneTypeID",
+                        "TypeID") ?? 0;
+
                     int workOrderId = ReadNullableInt(reader,
                         "WorkOrderNumber",
                         "WorkOrderID") ?? 0;
@@ -1085,7 +1091,7 @@ public class DBservices
                     int plannedQty = ReadNullableInt(reader,
                         "PlannedQty") ?? 0;
 
-                    itemsMap[sn] = new ItemInProduction
+                    itemsMap[rowKey] = new ItemInProduction
                     {
                         SerialNumber = sn,
                         PriorityLevel = itemPriorityLevel,
@@ -1103,6 +1109,7 @@ public class DBservices
                         {
                             Type = new PlaneType
                             {
+                                PlaneTypeID = planeTypeId,
                                 PlaneTypeName = planeTypeName
                             },
                             Project = new Project
@@ -1130,7 +1137,9 @@ public class DBservices
                 }
 
                 // 3. הוספת השלב הספציפי לפריט (כולל התעדוף הידני שעבר לפה)
-                itemsMap[sn].Stages.Add(new ProductionItemStage
+                string currentProductionItemId = ReadNullableString(reader, "InventoryItemID", "ProductionItemID") ?? string.Empty;
+                string currentRowKey = $"{sn}|{currentProductionItemId}";
+                itemsMap[currentRowKey].Stages.Add(new ProductionItemStage
                 {
                     Stage = new ProductionStage
                     {
@@ -1145,10 +1154,15 @@ public class DBservices
                         ProductionStatusName = reader["StatusName"].ToString()
                     },
                     Comment = reader["Comment"].ToString(),
-                   
+                    StartTimeStamp = ReadNullableDate(reader, "StartTimeStamp", "StartTimestamp", "StartTime"),
+                    FinishTimeStamp = ReadNullableDate(reader, "FinishTimeStamp", "FinishTimestamp", "FinishTime", "EndTime"),
                     ManualPriority = reader["ManualPriority"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["ManualPriority"])
                 });
             }
+            reader.Close();
+            ApplyStageTimestamps(con, itemsMap);
+            sw.Stop();
+            Debug.WriteLine($"[TasksBoard] GetTasksBoard loaded {itemsMap.Count} rows in {sw.ElapsedMilliseconds}ms");
             return itemsMap.Values.ToList();
         }
         catch (Exception)
@@ -1677,7 +1691,7 @@ public class DBservices
 
     //עדכון סטטוס לתחנה ספציפית
     //הפונקציה מקבלת את הפריט והתחנה שהוא נמצא, את הסטטוס החדש והנתונים הנוספים במידה והוסיף
-    public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime, bool resetFuture)
+    public int UpdateStageStatus(int serial, string itemID, int stageID, int newStatusID, string comment, DateTime? userTime, bool resetFuture, DateTime? startTime = null, DateTime? finishTime = null)
     {
         SqlConnection con = null;
         try
@@ -1689,21 +1703,42 @@ public class DBservices
 
             con = connect("myProjDB");
 
-            Dictionary<string, object> paramDic = new Dictionary<string, object>
-        {
-            { "@Serial", serial },
-            { "@ItemID", itemID },
-            { "@StageID", stageID },
-            { "@NewStatusID", newStatusID },
-            { "@Comment", (object)comment ?? DBNull.Value },
-            { "@UserTime", (object)userTime ?? DBNull.Value },
-            { "@ResetFuture", resetFuture } 
-        };
+            using SqlCommand cmd = new SqlCommand(@"
+UPDATE ProductionItemStage
+SET ProductionStatusID = @NewStatusID,
+    Comment = @Comment,
+    StartTimeStamp = CASE WHEN @NewStatusID IN (2,3,4,5) THEN @StartTime ELSE NULL END,
+    FinishTimeStamp = CASE WHEN @NewStatusID = 4 THEN @FinishTime ELSE NULL END
+WHERE SerialNumber = @Serial AND ProductionItemID = @ItemID AND ProductionStageID = @StageID;
 
-            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spItemsInProduction_UpdateStageStatus", con, paramDic);
-            cmd.ExecuteNonQuery();
+IF @ResetFuture = 1
+BEGIN
+    UPDATE futureStage
+    SET ProductionStatusID = 1,
+        Comment = NULL,
+        StartTimeStamp = NULL,
+        FinishTimeStamp = NULL
+    FROM ProductionItemStage futureStage
+    INNER JOIN ProductionStages currentStage ON currentStage.ProductionStageID = @StageID
+    INNER JOIN ProductionStages nextStage ON nextStage.ProductionStageID = futureStage.ProductionStageID
+    WHERE futureStage.SerialNumber = @Serial
+      AND futureStage.ProductionItemID = @ItemID
+      AND nextStage.StageOrder > currentStage.StageOrder;
+END", con);
 
-            return 1;
+            cmd.CommandType = CommandType.Text;
+            cmd.Parameters.AddWithValue("@Serial", serial);
+            cmd.Parameters.AddWithValue("@ItemID", itemID);
+            cmd.Parameters.AddWithValue("@StageID", stageID);
+            cmd.Parameters.AddWithValue("@NewStatusID", newStatusID);
+            cmd.Parameters.AddWithValue("@Comment", (object?)comment ?? DBNull.Value);
+            DateTime? effectiveStartTime = startTime ?? userTime;
+            DateTime? effectiveFinishTime = finishTime ?? (newStatusID == 4 ? userTime : null);
+            cmd.Parameters.AddWithValue("@StartTime", effectiveStartTime.HasValue ? effectiveStartTime.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@FinishTime", effectiveFinishTime.HasValue ? effectiveFinishTime.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@ResetFuture", resetFuture);
+
+            return cmd.ExecuteNonQuery();
         }
         catch (Exception)
         {
@@ -1741,6 +1776,219 @@ public class DBservices
         {
             if (con != null) con.Close();
         }
+    }
+
+    public int UpdateItemInProductionRow(UpdateItemInProductionRowRequest data)
+    {
+        SqlConnection con = null;
+        SqlTransaction trans = null;
+        try
+        {
+            con = connect("myProjDB");
+            trans = con.BeginTransaction();
+            HandleWorkOrder(con, trans, data.WorkOrderID.ToString(CultureInfo.InvariantCulture));
+
+            if (!string.IsNullOrWhiteSpace(data.TailNumber) && data.PlaneTypeID > 0)
+            {
+                HandleProjectAndPlane(con, trans, data.ProjectName, data.TailNumber, data.PlaneTypeID, DateTime.Today, 2);
+            }
+
+            using (SqlCommand mainCmd = new SqlCommand(@"
+UPDATE ItemsInProduction
+SET SerialNumber = @SerialNumber,
+    ProductionItemID = @ProductionItemID,
+    WorkOrderID = @WorkOrderID,
+    PlaneID = @TailNumber,
+    PlannedQty = @PlannedQty,
+    Comments = @Comments
+WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProductionItemID", con, trans))
+            {
+                mainCmd.CommandType = CommandType.Text;
+                mainCmd.Parameters.AddWithValue("@OriginalSerialNumber", data.OriginalSerialNumber);
+                mainCmd.Parameters.AddWithValue("@OriginalProductionItemID", data.OriginalProductionItemID);
+                mainCmd.Parameters.AddWithValue("@SerialNumber", data.SerialNumber);
+                mainCmd.Parameters.AddWithValue("@ProductionItemID", data.ProductionItemID);
+                mainCmd.Parameters.AddWithValue("@WorkOrderID", data.WorkOrderID);
+                mainCmd.Parameters.AddWithValue("@TailNumber", string.IsNullOrWhiteSpace(data.TailNumber) ? DBNull.Value : data.TailNumber);
+                mainCmd.Parameters.AddWithValue("@PlannedQty", data.PlannedQty);
+                mainCmd.Parameters.AddWithValue("@Comments", string.IsNullOrWhiteSpace(data.Comments) ? DBNull.Value : data.Comments);
+                int affected = mainCmd.ExecuteNonQuery();
+                if (affected == 0)
+                {
+                    trans.Rollback();
+                    return 0;
+                }
+            }
+
+            UpdateOptionalItemsInProductionColumn(con, trans, data.SerialNumber, data.ProductionItemID, "ItemName", data.ItemName);
+            UpdateOptionalItemsInProductionColumn(con, trans, data.SerialNumber, data.ProductionItemID, "ProjectName", data.ProjectName);
+            UpdateOptionalItemsInProductionColumn(con, trans, data.SerialNumber, data.ProductionItemID, "PlaneTypeID", data.PlaneTypeID);
+
+            if (data.SerialNumber != data.OriginalSerialNumber || !string.Equals(data.ProductionItemID, data.OriginalProductionItemID, StringComparison.OrdinalIgnoreCase))
+            {
+                using SqlCommand stagesCmd = new SqlCommand(@"
+UPDATE ProductionItemStage
+SET SerialNumber = @SerialNumber,
+    ProductionItemID = @ProductionItemID
+WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProductionItemID", con, trans);
+                stagesCmd.CommandType = CommandType.Text;
+                stagesCmd.Parameters.AddWithValue("@OriginalSerialNumber", data.OriginalSerialNumber);
+                stagesCmd.Parameters.AddWithValue("@OriginalProductionItemID", data.OriginalProductionItemID);
+                stagesCmd.Parameters.AddWithValue("@SerialNumber", data.SerialNumber);
+                stagesCmd.Parameters.AddWithValue("@ProductionItemID", data.ProductionItemID);
+                stagesCmd.ExecuteNonQuery();
+            }
+
+            trans.Commit();
+            return 1;
+        }
+        catch
+        {
+            trans?.Rollback();
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    private static void UpdateOptionalItemsInProductionColumn(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID, string columnName, string? value)
+    {
+        using SqlCommand checkCmd = new SqlCommand("SELECT COL_LENGTH('ItemsInProduction', @ColumnName)", con, trans);
+        checkCmd.Parameters.AddWithValue("@ColumnName", columnName);
+        object exists = checkCmd.ExecuteScalar();
+        if (exists == DBNull.Value || exists == null) return;
+
+        using SqlCommand updateCmd = new SqlCommand($"UPDATE ItemsInProduction SET {columnName} = @Value WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans);
+        updateCmd.Parameters.AddWithValue("@Value", string.IsNullOrWhiteSpace(value) ? DBNull.Value : value);
+        updateCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
+        updateCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
+        updateCmd.ExecuteNonQuery();
+    }
+
+    private static void UpdateOptionalItemsInProductionColumn(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID, string columnName, int value)
+    {
+        using SqlCommand checkCmd = new SqlCommand("SELECT COL_LENGTH('ItemsInProduction', @ColumnName)", con, trans);
+        checkCmd.Parameters.AddWithValue("@ColumnName", columnName);
+        object exists = checkCmd.ExecuteScalar();
+        if (exists == DBNull.Value || exists == null) return;
+
+        using SqlCommand updateCmd = new SqlCommand($"UPDATE ItemsInProduction SET {columnName} = @Value WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans);
+        updateCmd.Parameters.AddWithValue("@Value", value);
+        updateCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
+        updateCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
+        updateCmd.ExecuteNonQuery();
+    }
+
+    public int DeleteItemInProductionRow(int serialNumber, string productionItemID)
+    {
+        SqlConnection con = null;
+        SqlTransaction trans = null;
+        try
+        {
+            con = connect("myProjDB");
+            trans = con.BeginTransaction();
+
+            using (SqlCommand stagesCmd = new SqlCommand("DELETE FROM ProductionItemStage WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans))
+            {
+                stagesCmd.CommandType = CommandType.Text;
+                stagesCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
+                stagesCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
+                stagesCmd.ExecuteNonQuery();
+            }
+
+            int affected;
+            using (SqlCommand mainCmd = new SqlCommand("DELETE FROM ItemsInProduction WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans))
+            {
+                mainCmd.CommandType = CommandType.Text;
+                mainCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
+                mainCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
+                affected = mainCmd.ExecuteNonQuery();
+            }
+
+            trans.Commit();
+            return affected;
+        }
+        catch
+        {
+            trans?.Rollback();
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+    }
+
+    private static void ApplyStageTimestamps(SqlConnection con, Dictionary<string, ItemInProduction> itemsMap)
+    {
+        if (itemsMap.Count == 0) return;
+
+        string? startColumn = GetExistingColumnName(con, "ProductionItemStage", "StartTimeStamp", "StartTimestamp", "StartTime");
+        string? finishColumn = GetExistingColumnName(con, "ProductionItemStage", "FinishTimeStamp", "FinishTimestamp", "FinishTime", "EndTime");
+        if (startColumn == null && finishColumn == null) return;
+
+        string startSelect = startColumn == null ? "CAST(NULL AS datetime) AS StartValue" : $"{startColumn} AS StartValue";
+        string finishSelect = finishColumn == null ? "CAST(NULL AS datetime) AS FinishValue" : $"{finishColumn} AS FinishValue";
+        string qualifiedStartSelect = startColumn == null ? "CAST(NULL AS datetime) AS StartValue" : $"pis.{startColumn} AS StartValue";
+        string qualifiedFinishSelect = finishColumn == null ? "CAST(NULL AS datetime) AS FinishValue" : $"pis.{finishColumn} AS FinishValue";
+
+        List<string> rowKeys = itemsMap.Keys.ToList();
+        string sourceSql = "ProductionItemStage";
+        SqlCommand cmd;
+
+        if (rowKeys.Count <= 900)
+        {
+            List<string> values = new List<string>();
+            cmd = new SqlCommand();
+            cmd.Connection = con;
+
+            for (int i = 0; i < rowKeys.Count; i++)
+            {
+                string[] parts = rowKeys[i].Split('|', 2);
+                values.Add($"(@Serial{i}, @Item{i})");
+                cmd.Parameters.AddWithValue($"@Serial{i}", Convert.ToInt32(parts[0], CultureInfo.InvariantCulture));
+                cmd.Parameters.AddWithValue($"@Item{i}", parts.Length > 1 ? parts[1] : string.Empty);
+            }
+
+            sourceSql = $@"ProductionItemStage pis
+INNER JOIN (VALUES {string.Join(",", values)}) wanted(SerialNumber, ProductionItemID)
+    ON wanted.SerialNumber = pis.SerialNumber AND wanted.ProductionItemID = pis.ProductionItemID";
+            cmd.CommandText = $"SELECT pis.SerialNumber, pis.ProductionItemID, pis.ProductionStageID, {qualifiedStartSelect}, {qualifiedFinishSelect} FROM {sourceSql}";
+        }
+        else
+        {
+            cmd = new SqlCommand($@"
+SELECT SerialNumber, ProductionItemID, ProductionStageID, {startSelect}, {finishSelect}
+FROM {sourceSql}", con);
+        }
+        cmd.CommandType = CommandType.Text;
+
+        using SqlDataReader reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            int serial = Convert.ToInt32(reader["SerialNumber"]);
+            string itemId = Convert.ToString(reader["ProductionItemID"], CultureInfo.InvariantCulture) ?? string.Empty;
+            int stageId = Convert.ToInt32(reader["ProductionStageID"]);
+            string key = $"{serial}|{itemId}";
+
+            if (!itemsMap.TryGetValue(key, out ItemInProduction? row)) continue;
+
+            ProductionItemStage? stage = row.Stages.FirstOrDefault(s => s.Stage?.ProductionStageID == stageId);
+            if (stage == null) continue;
+
+            stage.StartTimeStamp = reader["StartValue"] == DBNull.Value ? null : Convert.ToDateTime(reader["StartValue"]);
+            stage.FinishTimeStamp = reader["FinishValue"] == DBNull.Value ? null : Convert.ToDateTime(reader["FinishValue"]);
+        }
+    }
+
+    private static string? GetExistingColumnName(SqlConnection con, string tableName, params string[] candidates)
+    {
+        foreach (string candidate in candidates)
+        {
+            using SqlCommand cmd = new SqlCommand("SELECT COL_LENGTH(@TableName, @ColumnName)", con);
+            cmd.Parameters.AddWithValue("@TableName", tableName);
+            cmd.Parameters.AddWithValue("@ColumnName", candidate);
+            object result = cmd.ExecuteScalar();
+            if (result != null && result != DBNull.Value) return candidate;
+        }
+
+        return null;
     }
 
     private static int? ReadNullableInt(SqlDataReader reader, params string[] columnNames)

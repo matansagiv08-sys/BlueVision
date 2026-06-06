@@ -54,12 +54,48 @@
                     <label id="timeLabel" class="tb-label" style="display:block; margin-bottom:5px;"></label>
                     <input type="datetime-local" id="userTimeInput" class="generic-input" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
                 </div>
+                <div id="finishTimeInputContainer" style="display:none; margin-top:10px;">
+                    <label id="finishTimeLabel" class="tb-label" style="display:block; margin-bottom:5px;">זמן סיום:</label>
+                    <input type="datetime-local" id="finishTimeInput" class="generic-input" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                </div>
             </div>
         </div>
 
         <div class="modal-footer tb-status-modal-footer" style="padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px;">
             <button type="button" class="btn-modal btn-save" id="tbModalSubmitBtn" disabled style="background:#0c2340; color:white; padding:10px 20px; border-radius:8px; border:none; font-weight:600; cursor:pointer;">שמור</button>
             <button type="button" class="btn-modal btn-cancel" onclick="window.closeTaskStatusModal()" style="background:white; color:#64748b; padding:10px 20px; border-radius:8px; border:1px solid #e2e8f0; font-weight:600; cursor:pointer;">ביטול</button>
+        </div>
+    </div>
+</div>
+
+<div id="editProductionRowModal" class="modal-overlay" onclick="window.closeEditProductionRowModal()">
+    <div class="modal-content tb-edit-row-modal" onclick="event.stopPropagation()">
+        <div class="modal-header-blue" style="background:#0c2340; padding:12px 16px;">
+            <h2 style="margin:0; font-size:1.2rem;">עריכת פריט בייצור</h2>
+            <button class="close-btn" onclick="window.closeEditProductionRowModal()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body tb-edit-row-body" style="padding:16px;">
+            <input type="hidden" id="editOriginalSerialNumber">
+            <input type="hidden" id="editOriginalProductionItemID">
+            <div id="editProductionRowMessage" class="tb-edit-row-message" style="display:none;"></div>
+            <div class="tb-edit-row-grid">
+                <label><span class="tb-label">פק״ע</span><input id="editWorkOrderID" class="generic-input" type="text" list="editWorkOrdersList" placeholder="בחר או הקלד מספר עבודה"><datalist id="editWorkOrdersList"></datalist></label>
+                <label><span class="tb-label">שם פרויקט</span><select id="editProjectName" class="generic-input"><option value="">בחר פרויקט...</option></select></label>
+                <label><span class="tb-label">מספר זנב</span><input id="editTailNumber" class="generic-input" type="text" list="editTrackedPlaneList" placeholder="מספר מטוס לפריט (אופציונלי)"><datalist id="editTrackedPlaneList"></datalist></label>
+                <label><span class="tb-label">מק״ט</span><select id="editProductionItemID" class="generic-input"><option value="">בחר מק״ט...</option></select></label>
+                <label><span class="tb-label">שם פריט</span><input id="editItemName" class="generic-input readonly-input" type="text" readonly placeholder="ייבחר אוטומטית"></label>
+                <label><span class="tb-label">סוג מטוס</span><select id="editPlaneTypeID" class="generic-input"><option value="">בחר סוג...</option></select></label>
+                <label><span class="tb-label">סיריאלי</span><input id="editSerialNumber" class="generic-input" type="number" min="1"></label>
+                <label><span class="tb-label">כמות</span><input id="editPlannedQty" class="generic-input" type="number" min="1"></label>
+                <label class="tb-edit-row-full"><span class="tb-label">הערות</span><input id="editComments" class="generic-input" type="text"></label>
+            </div>
+        </div>
+        <div class="modal-footer tb-status-modal-footer tb-edit-row-footer" style="padding:12px 16px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; gap:8px;">
+            <button type="button" class="btn-modal tb-edit-delete-btn" id="editProductionRowDeleteBtn">מחק שורה</button>
+            <div class="tb-edit-row-main-actions">
+                <button type="button" class="btn-modal btn-save" id="editProductionRowSaveBtn" style="background:#0c2340; color:white; padding:10px 20px; border-radius:8px; border:none; font-weight:600; cursor:pointer;">שמור</button>
+                <button type="button" class="btn-modal btn-cancel" onclick="window.closeEditProductionRowModal()" style="background:white; color:#64748b; padding:10px 20px; border-radius:8px; border:1px solid #e2e8f0; font-weight:600; cursor:pointer;">ביטול</button>
+            </div>
         </div>
     </div>
 </div>

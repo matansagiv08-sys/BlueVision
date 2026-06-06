@@ -75,5 +75,39 @@ namespace Server.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+        [HttpPut("updateRow")]
+        public IActionResult UpdateRow([FromBody] UpdateItemInProductionRowRequest? data)
+        {
+            try
+            {
+                ItemInProduction model = new ItemInProduction();
+                int res = model.UpdateProductionRow(data);
+
+                if (res > 0) return Ok(new { message = "Production row updated successfully" });
+                return BadRequest(new { error = "Could not update production row" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("deleteRow")]
+        public IActionResult DeleteRow([FromQuery] int serialNumber, [FromQuery] string productionItemID)
+        {
+            try
+            {
+                ItemInProduction model = new ItemInProduction();
+                int res = model.DeleteProductionRow(serialNumber, productionItemID);
+
+                if (res > 0) return Ok(new { message = "Production row deleted successfully" });
+                return BadRequest(new { error = "Could not delete production row" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }

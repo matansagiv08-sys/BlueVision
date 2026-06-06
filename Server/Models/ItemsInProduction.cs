@@ -277,6 +277,8 @@ namespace Server.Models
             int statusID = data?.ProductionStatusID ?? 0;
             string? comment = data?.Comment;
             DateTime? userTime = data?.UserTime;
+            DateTime? startTime = data?.StartTime;
+            DateTime? finishTime = data?.FinishTime;
             bool resetFuture = data?.ResetFuture ?? false;
 
             if (serial <= 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || statusID <= 0)
@@ -285,7 +287,26 @@ namespace Server.Models
             }
 
             DBservices dbs = new DBservices();
-            return dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime, resetFuture);
+            return dbs.UpdateStageStatus(serial, itemID, stageID, statusID, comment, userTime, resetFuture, startTime, finishTime);
+        }
+
+        public int UpdateProductionRow(UpdateItemInProductionRowRequest? data)
+        {
+            if (data == null || data.OriginalSerialNumber <= 0 || string.IsNullOrWhiteSpace(data.OriginalProductionItemID)
+                || data.SerialNumber <= 0 || string.IsNullOrWhiteSpace(data.ProductionItemID) || data.WorkOrderID <= 0 || data.PlannedQty <= 0 || data.PlaneTypeID <= 0)
+            {
+                return 0;
+            }
+
+            DBservices dbs = new DBservices();
+            return dbs.UpdateItemInProductionRow(data);
+        }
+
+        public int DeleteProductionRow(int serialNumber, string productionItemID)
+        {
+            if (serialNumber <= 0 || string.IsNullOrWhiteSpace(productionItemID)) return 0;
+            DBservices dbs = new DBservices();
+            return dbs.DeleteItemInProductionRow(serialNumber, productionItemID);
         }
 
         public List<ItemInProduction> SortItemsByUrgency(List<ItemInProduction> items)
@@ -374,6 +395,23 @@ namespace Server.Models
         public int? ProductionStatusID { get; set; }
         public string? Comment { get; set; }
         public DateTime? UserTime { get; set; }
+        public DateTime? StartTime { get; set; }
+        public DateTime? FinishTime { get; set; }
         public bool? ResetFuture { get; set; }
+    }
+
+    public class UpdateItemInProductionRowRequest
+    {
+        public int OriginalSerialNumber { get; set; }
+        public string OriginalProductionItemID { get; set; } = string.Empty;
+        public int SerialNumber { get; set; }
+        public string ProductionItemID { get; set; } = string.Empty;
+        public string? ItemName { get; set; }
+        public int WorkOrderID { get; set; }
+        public string? ProjectName { get; set; }
+        public string? TailNumber { get; set; }
+        public int PlaneTypeID { get; set; }
+        public int PlannedQty { get; set; }
+        public string? Comments { get; set; }
     }
 } 

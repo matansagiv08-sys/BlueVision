@@ -24,7 +24,8 @@ body:has(.tasks-board-page) .sidebar.collapsed + .main {
 body:has(.tasks-board-page) #app,
 body:has(.tasks-board-page) .tasks-board-page,
 body:has(.tasks-board-page) #tasks-board-container,
-body:has(.tasks-board-page) .aircraft-section {
+body:has(.tasks-board-page) .aircraft-section,
+body:has(.tasks-board-page) .table-container {
     width: 100%;
     min-width: 0;
     max-width: 100%;
@@ -130,7 +131,8 @@ body:has(.tasks-board-page) .aircraft-section {
     direction: rtl;
     table-layout: fixed;
     width: 100%;
-    min-width: 1540px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .tasks-board-page .tb-table th {
@@ -147,8 +149,8 @@ body:has(.tasks-board-page) .aircraft-section {
     max-width: 100%;
     min-width: 0;
     display: block;
-    direction: ltr;
-    overflow-x: auto;
+    direction: rtl;
+    overflow-x: hidden;
     overflow-y: visible;
     box-sizing: border-box;
 }
@@ -158,8 +160,8 @@ body:has(.tasks-board-page) .aircraft-section {
     max-width: 100%;
     min-width: 0;
     display: block;
-    direction: ltr;
-    overflow-x: auto;
+    direction: rtl;
+    overflow-x: hidden;
     overflow-y: visible;
     box-sizing: border-box;
 }
@@ -168,8 +170,8 @@ body:has(.tasks-board-page) .aircraft-section {
 .tasks-board-page .tb-table td {
     overflow: hidden;
     text-overflow: ellipsis;
-    padding-inline: clamp(4px, 0.55vw, 12px);
-    font-size: clamp(11px, 0.72vw, 14px);
+    padding-inline: clamp(3px, 0.42vw, 8px);
+    font-size: clamp(10px, 0.66vw, 13px);
 }
 
 .tasks-board-page .tb-table th {
@@ -188,12 +190,12 @@ body:has(.tasks-board-page) .aircraft-section {
 
 /* רוחב עמודות */
 .tasks-board-page .tb-col-qty {
-    width: 70px;
+    width: 42px;
     text-align: center;
 }
 
 .tasks-board-page .tb-col-item-name {
-    width: 220px;
+    width: 14%;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
@@ -202,27 +204,38 @@ body:has(.tasks-board-page) .aircraft-section {
 
 .tasks-board-page .tb-col-wo,
 .tasks-board-page .tb-col-tail,
-.tasks-board-page .tb-col-sn,
-.tasks-board-page .tb-col-qty {
-    width: 90px;
+.tasks-board-page .tb-col-sn {
+    width: 62px;
 }
 
 .tasks-board-page .tb-col-project {
-    width: 100px;
+    width: 74px;
     text-align: center;
 }
 
 .tasks-board-page .tb-col-item-id {
-    width: 125px;
+    width: 86px;
     text-align: right;
 }
 
 .tasks-board-page .tb-col-progress {
-    width: 105px;
+    width: 66px;
 }
 
 .tasks-board-page .tb-col-stage {
-    width: 100px;
+    width: 62px;
+}
+
+.tasks-board-page .tb-col-actions {
+    width: 24px;
+    text-align: center;
+    overflow: visible;
+    padding-inline: 0 !important;
+}
+
+.tasks-board-page .tb-table th.tb-col-actions,
+.tasks-board-page .tb-table td.tb-col-actions {
+    overflow: visible;
 }
 
 .tasks-board-page .status-cell,
@@ -233,7 +246,7 @@ body:has(.tasks-board-page) .aircraft-section {
 
 .tasks-board-page .tb-table th.status-col,
 .tasks-board-page .tb-table td.status-col {
-    width: 100px;
+    width: 62px;
     text-align: center;
 }
 
@@ -284,12 +297,191 @@ body:has(.tasks-board-page) .aircraft-section {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: clamp(50px, 4.6vw, 82px);
-    height: clamp(22px, 1.8vw, 30px);
-    padding: 0 clamp(5px, 0.6vw, 12px);
-    font-size: clamp(10px, 0.7vw, 13px);
+    width: clamp(52px, 3.5vw, 64px);
+    min-width: 0;
+    max-width: 100%;
+    height: clamp(20px, 1.55vw, 26px);
+    padding: 0 clamp(4px, 0.45vw, 9px);
+    font-size: clamp(9px, 0.62vw, 12px);
     white-space: nowrap;
     box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tasks-board-page .row-actions-wrap {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    width: 18px;
+}
+
+.tasks-board-page .row-actions-btn {
+    width: 18px;
+    height: 24px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #0c2340;
+    cursor: pointer;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
+}
+
+.tasks-board-page .row-actions-btn:hover {
+    background: #f1f5f9;
+}
+
+.tasks-board-page .row-actions-btn span {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    display: block;
+}
+
+.tasks-board-page .row-actions-menu {
+    position: absolute;
+    top: 28px;
+    right: 0;
+    z-index: 30;
+    min-width: 150px;
+    padding: 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+    display: none;
+    direction: rtl;
+}
+
+.tasks-board-page .row-actions-menu.open {
+    display: block;
+}
+
+.tasks-board-page .row-actions-menu button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 8px 10px;
+    border-radius: 6px;
+    text-align: right;
+    cursor: pointer;
+    color: #0f172a;
+}
+
+.tasks-board-page .row-actions-menu button:hover {
+    background: #f8fafc;
+}
+
+.tasks-board-page .row-actions-menu .danger {
+    color: #b42318;
+}
+
+#tbStatusModal .btn-choice {
+    min-height: 44px;
+    padding: 10px 12px;
+}
+
+#editProductionRowModal {
+    align-items: center;
+    justify-content: center;
+    padding: 20px 16px;
+}
+
+#editProductionRowModal .tb-edit-row-modal {
+    width: min(760px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.tb-edit-row-body {
+    overflow-y: auto;
+}
+
+.tb-edit-row-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    direction: rtl;
+}
+
+.tb-edit-row-grid label {
+    display: grid;
+    gap: 5px;
+}
+
+.tb-edit-row-grid select,
+.tb-edit-row-grid input {
+    min-width: 0;
+    width: 100%;
+}
+
+.tb-edit-row-grid select {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tb-edit-row-full {
+    grid-column: 1 / -1;
+}
+
+.tb-edit-row-message {
+    margin-bottom: 12px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.tb-edit-row-message.error {
+    background: #fef2f2;
+    color: #b42318;
+}
+
+.tb-edit-row-main-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.tb-edit-delete-btn {
+    background: #ffffff;
+    color: #b42318;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid #fecaca;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tb-edit-delete-btn:hover {
+    background: #fff7f7;
+}
+
+@media (max-width: 720px) {
+    .tb-edit-row-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tb-edit-row-footer {
+        flex-direction: column-reverse;
+    }
+
+    .tb-edit-row-main-actions,
+    .tb-edit-delete-btn {
+        width: 100%;
+    }
+
+    .tb-edit-row-main-actions .btn-modal {
+        flex: 1;
+    }
 }
 
     .tasks-board-page .status-pill:hover {
