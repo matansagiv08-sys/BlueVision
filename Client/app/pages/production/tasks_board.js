@@ -387,7 +387,7 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
         const itemIdValue = (itemID || "").toString().trim();
 
         if (!statusId || !serialNumberValue || !stageIdValue || !itemIdValue || itemIdValue === "---") {
-            alert("נתוני שורה לא תקינים לעדכון סטטוס");
+            showAppMessage("נתוני שורה לא תקינים לעדכון סטטוס", { title: "שגיאה" });
             return;
         }
 
@@ -416,7 +416,7 @@ window.openStatusModal = function (serialNumber, itemID, itemName, workOrder, st
                     refreshBoardAfterStatusUpdate();
                 },
                 function (err) {
-                    alert("שגיאה בעדכון: " + err.responseText);
+                    showAppMessage("שגיאה בעדכון: " + err.responseText, { title: "שגיאה" });
                 }
             );
         };
@@ -448,8 +448,7 @@ function refreshBoardAfterStatusUpdate() {
 function showConfirm(title, message, onConfirm) {
     const modal = document.getElementById('confirmModal');
     if (!modal) {
-        // גיבוי למקרה שהמודל המעוצב לא קיים ב-HTML
-        if (confirm(message)) onConfirm();
+        showAppConfirm({ title, message, confirmText: "אישור", cancelText: "ביטול", onConfirm });
         return;
     }
 

@@ -31,11 +31,6 @@
                 <option value="all">הכל</option>
             </select>
 
-            <select id="bomHasChildFilter" onchange="window.filterBomTable()">
-                <option value="" selected disabled>סטטוס ילדים</option>
-                <option value="all">הכל</option>
-            </select>
-
             <select id="bomBuyMethodFilter" onchange="window.filterBomTable()">
                 <option value="" selected disabled>שיטת רכישה</option>
                 <option value="all">הכל</option>
@@ -61,16 +56,26 @@
 
     <div class="table-container">
         <table id="bomDataTable" class="generic-data-table bom-data-table">
+            <colgroup>
+                <col class="bom-col-level">
+                <col class="bom-col-sku">
+                <col class="bom-col-name">
+                <col class="bom-col-qty">
+                <col class="bom-col-unit">
+                <col class="bom-col-warehouse">
+                <col class="bom-col-buy-method">
+                <col class="bom-col-body-plane">
+            </colgroup>
             <thead>
                 <tr>
-                    <th>מק&quot;ט</th>
-                    <th>שם פריט</th>
-                    <th>כמות</th>
-                    <th>יחידת מידה</th>
-                    <th>מחסן</th>
-                    <th>רמת BOM</th>
-                    <th>שיטת רכש</th>
-                    <th>גוף מטוס</th>
+                    <th class="bom-col-level">רמת BOM</th>
+                    <th class="bom-col-sku">מק&quot;ט</th>
+                    <th class="bom-col-name">שם פריט</th>
+                    <th class="bom-col-qty">כמות</th>
+                    <th class="bom-col-unit">יחידת מידה</th>
+                    <th class="bom-col-warehouse">מחסן</th>
+                    <th class="bom-col-buy-method">שיטת רכש</th>
+                    <th class="bom-col-body-plane">גוף מטוס</th>
                 </tr>
             </thead>
             <tbody id="bom-table-body">

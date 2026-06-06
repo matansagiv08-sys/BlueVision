@@ -953,6 +953,28 @@ body.mode-admin .tab-admin {
     color: white;
 }
 
+.btn-confirm-danger {
+    background: #dc2626;
+    color: white;
+}
+
+.btn-confirm-danger:hover {
+    background: #b91c1c;
+}
+
+.app-dialog-ok {
+    background: #0c2340;
+    color: white;
+}
+
+.app-dialog-ok:hover {
+    background: #162e4f;
+}
+
+.app-dialog-modal {
+    z-index: 20000;
+}
+
     .btn-confirm-yes:hover {
         background: #b91c1c;
     }

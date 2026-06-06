@@ -15,11 +15,11 @@ let currentBomSearch = "";
 let currentBomMeasureUnit = "";
 let currentBomWarehouse = "";
 let currentBomLevel = "";
-let currentBomHasChild = "";
 let currentBomBuyMethod = "";
 let currentBomBodyPlane = "";
 
 window.initUavBOM = function () {
+    bindBomCellTooltips();
     checkAndRunInventoryImport(function () {
         loadBomPlaneOptions();
     }, {
@@ -150,7 +150,6 @@ function buildBomQueryParams({ page, pageSize, includeSearch, treeMode }) {
     if (currentBomMeasureUnit) params.set("measureUnit", currentBomMeasureUnit);
     if (currentBomWarehouse) params.set("warehouse", currentBomWarehouse);
     if (currentBomLevel) params.set("bomLevel", currentBomLevel);
-    if (currentBomHasChild) params.set("hasChild", currentBomHasChild);
     if (currentBomBuyMethod) params.set("buyMethod", currentBomBuyMethod);
     if (currentBomBodyPlane) params.set("bodyPlane", currentBomBodyPlane);
     return params;
@@ -185,7 +184,6 @@ window.filterBomTable = function () {
     currentBomMeasureUnit = readFilterValue("bomMeasureUnitFilter");
     currentBomWarehouse = readFilterValue("bomWarehouseFilter");
     currentBomLevel = readFilterValue("bomLevelFilter");
-    currentBomHasChild = readFilterValue("bomHasChildFilter");
     currentBomBuyMethod = readFilterValue("bomBuyMethodFilter");
     currentBomBodyPlane = readFilterValue("bomBodyPlaneFilter");
 
@@ -194,7 +192,7 @@ window.filterBomTable = function () {
 };
 
 window.clearBomFilters = function () {
-    const ids = ["bomSearch", "bomMeasureUnitFilter", "bomWarehouseFilter", "bomLevelFilter", "bomHasChildFilter", "bomBuyMethodFilter", "bomBodyPlaneFilter"];
+    const ids = ["bomSearch", "bomMeasureUnitFilter", "bomWarehouseFilter", "bomLevelFilter", "bomBuyMethodFilter", "bomBodyPlaneFilter"];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -268,6 +266,7 @@ function buildBomTreeByRowOrderAndLevel(rows) {
 function renderBomTreeTable() {
     const tbody = document.getElementById("bom-table-body");
     if (!tbody) return;
+    hideBomCellTooltip();
     document.getElementById("bomDataTable")?.classList.add("tree-mode");
 
     const searchText = currentBomSearch.trim().toLowerCase();
@@ -290,11 +289,14 @@ function renderBomTreeTable() {
         const buyMethod = displayOrDash(readValue(item, "BuyMethod"));
         const warehouse = displayOrDash(readValue(item, "Warehouse"));
         const level = displayOrDash(readValue(item, "BomLevel"));
+        const levelClass = getBomLevelClass(level);
+        const itemName = displayOrDash(readValue(item, "ItemName"));
 
         return `
             <tr class="${nodeHasChildren ? "bom-tree-parent-row" : "bom-tree-leaf-row"}" data-depth="${node.level}">
-                <td class="col-sku bom-tree-chip-cell"><span class="bom-tree-chip">${itemId}</span></td>
-                <td>
+                <td class="bom-tree-chip-cell bom-col-level"><span class="bom-tree-chip bom-level-chip ${levelClass}">רמה ${level}</span></td>
+                <td class="col-sku bom-tree-chip-cell bom-col-sku"><span class="bom-tree-chip">${itemId}</span></td>
+                <td class="bom-col-name">
                     <div class="bom-tree-item-cell" style="--tree-indent:${indent}px;">
                         <span class="bom-tree-branch-line"></span>
                         ${nodeHasChildren
@@ -309,18 +311,99 @@ function renderBomTreeTable() {
                                     </svg>
                                </span>`
                             : '<span class="bom-tree-node-icon bom-tree-node-icon-leaf" aria-hidden="true"></span>'}
-                        <span class="bom-tree-name" title="${escapeHtml(displayOrDash(readValue(item, "ItemName")))}">${displayOrDash(readValue(item, "ItemName"))}</span>
+                        <span class="bom-tree-name bom-cell-tooltip" tabindex="0" data-tooltip="${escapeHtml(itemName)}">${escapeHtml(itemName)}</span>
                         ${childCount}
                     </div>
                 </td>
-                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">כמות ${qty}</span></td>
-                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${unit}</span></td>
-                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${warehouse}</span></td>
-                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">רמה ${level}</span></td>
-                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${buyMethod}</span></td>
-                <td class="bom-tree-chip-cell"><span class="bom-tree-chip">${displayOrDash(readValue(item, "BodyPlane"))}</span></td>
+                <td class="bom-tree-chip-cell bom-col-qty"><span class="bom-tree-chip">כמות ${qty}</span></td>
+                <td class="bom-tree-chip-cell bom-col-unit"><span class="bom-tree-chip">${unit}</span></td>
+                <td class="bom-tree-chip-cell bom-col-warehouse"><span class="bom-tree-chip">${warehouse}</span></td>
+                <td class="bom-tree-chip-cell bom-col-buy-method"><span class="bom-tree-chip">${buyMethod}</span></td>
+                <td class="bom-tree-chip-cell bom-col-body-plane"><span class="bom-tree-chip">${displayOrDash(readValue(item, "BodyPlane"))}</span></td>
             </tr>`;
     }).join("");
+}
+
+function bindBomCellTooltips() {
+    const tbody = document.getElementById("bom-table-body");
+    if (!tbody || tbody.dataset.tooltipBound === "true") return;
+    tbody.dataset.tooltipBound = "true";
+
+    tbody.addEventListener("mouseover", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".bom-cell-tooltip") : null;
+        if (target) showBomCellTooltip(target);
+    });
+
+    tbody.addEventListener("mouseout", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".bom-cell-tooltip") : null;
+        if (!target) return;
+        const related = e.relatedTarget instanceof Element ? e.relatedTarget.closest(".bom-cell-tooltip") : null;
+        if (related !== target) hideBomCellTooltip();
+    });
+
+    tbody.addEventListener("focusin", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".bom-cell-tooltip") : null;
+        if (target) showBomCellTooltip(target);
+    });
+
+    tbody.addEventListener("focusout", hideBomCellTooltip);
+    window.addEventListener("scroll", hideBomCellTooltip, true);
+    window.addEventListener("resize", hideBomCellTooltip);
+}
+
+function getBomCellTooltip() {
+    let tooltip = document.getElementById("bomCellTooltip");
+    if (tooltip) return tooltip;
+
+    tooltip = document.createElement("div");
+    tooltip.id = "bomCellTooltip";
+    tooltip.className = "bom-cell-tooltip-popover";
+    tooltip.setAttribute("role", "tooltip");
+    document.body.appendChild(tooltip);
+    return tooltip;
+}
+
+function showBomCellTooltip(target) {
+    const text = target?.dataset?.tooltip;
+    if (!text || text === "-" || !isBomCellTextTruncated(target)) {
+        hideBomCellTooltip();
+        return;
+    }
+
+    const tooltip = getBomCellTooltip();
+    tooltip.textContent = text;
+    tooltip.style.display = "block";
+
+    const targetRect = target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const viewportPadding = 12;
+    let top = targetRect.top - tooltipRect.height - 8;
+    let left = targetRect.right - tooltipRect.width;
+
+    if (top < viewportPadding) top = targetRect.bottom + 8;
+    left = Math.max(viewportPadding, Math.min(left, window.innerWidth - tooltipRect.width - viewportPadding));
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+}
+
+function hideBomCellTooltip() {
+    const tooltip = document.getElementById("bomCellTooltip");
+    if (tooltip) tooltip.style.display = "none";
+}
+
+function isBomCellTextTruncated(target) {
+    if (!target) return false;
+    return target.scrollWidth > target.clientWidth + 1;
+}
+
+function getBomLevelClass(level) {
+    const numeric = Number(level);
+    if (!Number.isFinite(numeric)) return "bom-level-neutral";
+    if (numeric <= 1) return "bom-level-1";
+    if (numeric === 2) return "bom-level-2";
+    if (numeric === 3) return "bom-level-3";
+    if (numeric === 4) return "bom-level-4";
+    return "bom-level-5plus";
 }
 
 function flattenVisibleTreeRows(nodes, out, includeKeys, autoExpandedKeys) {
@@ -448,14 +531,14 @@ function renderBomTable(data) {
     tbody.innerHTML = data.map(item => {
         return `
             <tr>
-                <td class="col-sku">${displayOrDash(readValue(item, "InventoryItemID"))}</td>
-                <td>${displayOrDash(readValue(item, "ItemName"))}</td>
-                <td>${displayOrDash(readValue(item, "Quantity"))}</td>
-                <td>${displayOrDash(readValue(item, "MeasureUnit"))}</td>
-                <td>${displayOrDash(readValue(item, "Warehouse"))}</td>
-                <td>${displayOrDash(readValue(item, "BomLevel"))}</td>
-                <td>${displayOrDash(readValue(item, "BuyMethod"))}</td>
-                <td>${displayOrDash(readValue(item, "BodyPlane"))}</td>
+                <td class="bom-col-level">${displayOrDash(readValue(item, "BomLevel"))}</td>
+                <td class="col-sku bom-col-sku">${displayOrDash(readValue(item, "InventoryItemID"))}</td>
+                <td class="bom-col-name">${displayOrDash(readValue(item, "ItemName"))}</td>
+                <td class="bom-col-qty">${displayOrDash(readValue(item, "Quantity"))}</td>
+                <td class="bom-col-unit">${displayOrDash(readValue(item, "MeasureUnit"))}</td>
+                <td class="bom-col-warehouse">${displayOrDash(readValue(item, "Warehouse"))}</td>
+                <td class="bom-col-buy-method">${displayOrDash(readValue(item, "BuyMethod"))}</td>
+                <td class="bom-col-body-plane">${displayOrDash(readValue(item, "BodyPlane"))}</td>
             </tr>`;
     }).join("");
 }
@@ -464,14 +547,12 @@ function populateBomFilterOptions(options) {
     const measureUnits = Array.isArray(options.measureUnits) ? options.measureUnits : (Array.isArray(options.MeasureUnits) ? options.MeasureUnits : []);
     const warehouses = Array.isArray(options.warehouses) ? options.warehouses : (Array.isArray(options.Warehouses) ? options.Warehouses : []);
     const bomLevels = Array.isArray(options.bomLevels) ? options.bomLevels : (Array.isArray(options.BomLevels) ? options.BomLevels : []);
-    const hasChildOptions = Array.isArray(options.hasChildOptions) ? options.hasChildOptions : (Array.isArray(options.HasChildOptions) ? options.HasChildOptions : []);
     const buyMethods = Array.isArray(options.buyMethods) ? options.buyMethods : (Array.isArray(options.BuyMethods) ? options.BuyMethods : []);
     const bodyPlanes = Array.isArray(options.bodyPlanes) ? options.bodyPlanes : (Array.isArray(options.BodyPlanes) ? options.BodyPlanes : []);
 
     populateSelectFromList("bomMeasureUnitFilter", measureUnits, currentBomMeasureUnit, "יחידת מידה");
     populateSelectFromList("bomWarehouseFilter", warehouses, currentBomWarehouse, "מחסן");
     populateSelectFromList("bomLevelFilter", bomLevels.map(v => String(v)), currentBomLevel, "רמת BOM");
-    populateHasChildSelect(hasChildOptions, "סטטוס ילדים");
     populateSelectFromList("bomBuyMethodFilter", buyMethods, currentBomBuyMethod, "שיטת רכישה");
     populateSelectFromList("bomBodyPlaneFilter", bodyPlanes, currentBomBodyPlane, "כל גוף/כנף");
 }
@@ -484,20 +565,6 @@ function populateSelectFromList(selectId, values, selectedValue, placeholderText
         .forEach(value => select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
     const normalizedValues = values.map(v => String(v ?? "").trim());
     select.value = normalizedValues.includes(selectedValue) ? selectedValue : "";
-}
-
-function populateHasChildSelect(values, placeholderText) {
-    const select = document.getElementById("bomHasChildFilter");
-    if (!select) return;
-    select.innerHTML = `<option value="" disabled>${escapeHtml(placeholderText)}</option><option value="all">הכל</option>`;
-    const normalized = values.map(v => String(v).toLowerCase())
-        .map(v => (v === "true" || v === "1") ? "true" : ((v === "false" || v === "0") ? "false" : ""))
-        .filter(v => v !== "");
-    const unique = [...new Set(normalized)];
-    if (unique.includes("true")) select.insertAdjacentHTML("beforeend", '<option value="true">כן</option>');
-    if (unique.includes("false")) select.insertAdjacentHTML("beforeend", '<option value="false">לא</option>');
-    select.value = unique.includes(currentBomHasChild) ? currentBomHasChild : "";
-    currentBomHasChild = select.value;
 }
 
 function readFilterValue(selectId) {

@@ -30,6 +30,67 @@ let inventoryImportWaiters = [];
 let inventoryImportRunningWaiters = [];
 window.isInventoryImportRunning = false;
 
+window.showAppMessage = function (message, options = {}) {
+    const modal = getAppDialogModal();
+    const title = options.title || "הודעה";
+    modal.querySelector(".app-dialog-title").textContent = title;
+    modal.querySelector(".app-dialog-body").textContent = message || "";
+    modal.querySelector(".app-dialog-footer").innerHTML = '<button type="button" class="btn-confirm btn-confirm-yes app-dialog-ok">אישור</button>';
+    modal.classList.remove("app-dialog-danger");
+    modal.style.display = "flex";
+    modal.querySelector(".app-dialog-ok").onclick = closeAppDialogModal;
+};
+
+window.showAppConfirm = function ({ title = "אישור פעולה", message = "האם להמשיך?", confirmText = "אישור", cancelText = "ביטול", destructive = false, onConfirm } = {}) {
+    const modal = getAppDialogModal();
+    modal.querySelector(".app-dialog-title").textContent = title;
+    modal.querySelector(".app-dialog-body").textContent = message;
+    modal.querySelector(".app-dialog-footer").innerHTML = `
+        <button type="button" class="btn-confirm btn-confirm-no app-dialog-cancel">${escapeAppDialogHtml(cancelText)}</button>
+        <button type="button" class="btn-confirm ${destructive ? "btn-confirm-danger" : "btn-confirm-yes"} app-dialog-confirm">${escapeAppDialogHtml(confirmText)}</button>
+    `;
+    modal.classList.toggle("app-dialog-danger", destructive);
+    modal.style.display = "flex";
+    modal.querySelector(".app-dialog-cancel").onclick = closeAppDialogModal;
+    modal.querySelector(".app-dialog-confirm").onclick = function () {
+        closeAppDialogModal();
+        if (typeof onConfirm === "function") onConfirm();
+    };
+};
+
+function getAppDialogModal() {
+    let modal = document.getElementById("appDialogModal");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "appDialogModal";
+    modal.className = "confirm-modal-overlay app-dialog-modal";
+    modal.innerHTML = `
+        <div class="confirm-modal-content app-dialog-content" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+            <div class="confirm-modal-header app-dialog-title">אישור פעולה</div>
+            <div class="confirm-modal-body app-dialog-body"></div>
+            <div class="confirm-modal-footer app-dialog-footer"></div>
+        </div>
+    `;
+    modal.addEventListener("click", closeAppDialogModal);
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function closeAppDialogModal() {
+    const modal = document.getElementById("appDialogModal");
+    if (modal) modal.style.display = "none";
+}
+
+function escapeAppDialogHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 /* =========================
    ROUTES
    IMPORTANT:

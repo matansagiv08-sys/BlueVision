@@ -363,6 +363,7 @@ function renderSavedCharts() {
     calculatePackedLayout(savedChartsState).forEach(item => {
         const chart = item.chart;
         const chartID = getChartId(chart);
+        const chartIDArg = JSON.stringify(chartID);
         const chartTitle = chart.chartTitle || chart.ChartTitle || "תצוגה";
         const chartType = (chart.chartType || chart.ChartType || "bar").toLowerCase();
         chart.DisplayOrder = item.index;
@@ -375,10 +376,10 @@ function renderSavedCharts() {
                     <button class="drag-handle" title="גרירה לסידור" aria-label="גרירה לסידור">✥</button>
                     <span class="chart-card-title">${escapeHtml(chartTitle)}</span>
                     <div class="card-menu-wrap">
-                        <button class="card-menu-btn" onclick="toggleCardMenu(${chartID})" title="פעולות">⋯</button>
+                        <button class="card-menu-btn" onclick='toggleCardMenu(${chartIDArg})' title="פעולות">⋯</button>
                         <div class="card-menu-panel" id="menu_${chartID}" style="display:none;">
-                            <button onclick="openVisualizationModal(${chartID})">הגדל תצוגה</button>
-                            <button onclick="showVisualizationQuery(${chartID})">הצג שאילתה</button>
+                            <button onclick='openVisualizationModal(${chartIDArg})'>הגדל תצוגה</button>
+                            <button onclick='showVisualizationQuery(${chartIDArg})'>הצג שאילתה</button>
                             <div class="card-size-menu">
                                 <button class="card-size-trigger" type="button" data-size-menu-trigger>
                                     <span>שינוי גודל</span>
@@ -388,7 +389,7 @@ function renderSavedCharts() {
                                     ${buildSizeMenu(chartID, item.size)}
                                 </div>
                             </div>
-                            <button onclick="deleteChart(${chartID})">מחק</button>
+                            <button onclick='deleteChart(${chartIDArg})'>מחק</button>
                         </div>
                     </div>
                 </div>
@@ -404,7 +405,7 @@ function renderSavedCharts() {
             const itemHtml = `
                 <div class="manage-chart-item" id="manageItem_${chartID}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border: 1px solid #e2e8f0; border-radius: 6px;">
                     <span>📊 ${escapeHtml(chartTitle)} (${escapeHtml(chartType)})</span>
-                    <button class="btn-delete-chart" onclick="deleteChart(${chartID})" style="background: none; border: none; cursor: pointer; font-size: 16px;">🗑️</button>
+                    <button class="btn-delete-chart" onclick='deleteChart(${chartIDArg})' style="background: none; border: none; cursor: pointer; font-size: 16px;">🗑️</button>
                 </div>`;
             manageList.insertAdjacentHTML('beforeend', itemHtml);
         }
@@ -490,7 +491,7 @@ window.enterArrangeDashboard = function () {
         return;
     }
     if (window.matchMedia && window.matchMedia("(max-width: 760px)").matches) {
-        alert("סידור בגרירה זמין במסך רחב. ניתן עדיין לשנות גדלים מתפריט הכרטיסים.");
+        showAppMessage("סידור בגרירה זמין במסך רחב. ניתן עדיין לשנות גדלים מתפריט הכרטיסים.");
         return;
     }
     layoutSnapshot = cloneLayout(savedChartsState);
@@ -551,7 +552,7 @@ function persistDashboardLayout(exitArrangeMode) {
             }
         },
         error: function (xhr) {
-            alert("שמירת סידור הדשבורד נכשלה: " + (xhr.responseJSON?.error || xhr.statusText));
+            showAppMessage("שמירת סידור הדשבורד נכשלה: " + (xhr.responseJSON?.error || xhr.statusText), { title: "שגיאה" });
         }
     });
 }
@@ -707,14 +708,14 @@ window.generateAiChart = function () {
     const previewContainer = document.getElementById("previewChartContainer");
 
     if (!promptInput || !promptInput.value.trim()) {
-        alert("נא להזין שאלה או בקשה עבור ה-AI");
+        showAppMessage("נא להזין שאלה או בקשה עבור ה-AI");
         return;
     }
 
     // משיכה מדויקת מתוך ה-sessionStorage שלכם
     const userRaw = sessionStorage.getItem("bluevisionUser");
     if (!userRaw) {
-        alert("שגיאה: משתמש לא מחובר למערכת");
+        showAppMessage("שגיאה: משתמש לא מחובר למערכת", { title: "שגיאה" });
         return;
     }
     const userObj = JSON.parse(userRaw);
@@ -777,7 +778,7 @@ window.generateAiChart = function () {
             setPreviewMessage(xhr.responseJSON?.error || "ה-AI לא הצליח לייצר גרף.");
             canSaveGeneratedResult = false;
             setSaveButtonEnabled(false);
-            alert("ה-AI לא הצליח לייצר גרף. שגיאה: " + (xhr.responseJSON?.error || xhr.statusText));
+            showAppMessage("ה-AI לא הצליח לייצר גרף. שגיאה: " + (xhr.responseJSON?.error || xhr.statusText), { title: "שגיאה" });
         }
     });
 };
@@ -790,13 +791,13 @@ window.generateAiChart = function () {
 window.saveGeneratedChart = function () {
     const titleInput = document.getElementById("newChartTitleInput");
     if (!titleInput || !titleInput.value.trim()) {
-        alert("נא להזין שם עבור הגרף החדש");
+        showAppMessage("נא להזין שם עבור הגרף החדש");
         return;
     }
 
     const userRaw = sessionStorage.getItem("bluevisionUser");
     if (!canSaveGeneratedResult || !lastGeneratedSql) {
-        alert("אין תוצאה תקינה לשמירה כרגע.");
+        showAppMessage("אין תוצאה תקינה לשמירה כרגע.");
         return;
     }
     const userObj = JSON.parse(userRaw);
@@ -815,7 +816,7 @@ window.saveGeneratedChart = function () {
         contentType: "application/json",
         data: JSON.stringify(saveData),
         success: function (res) {
-            alert("הגרף נשמר בהצלחה והתווסף לדשבורד!");
+            showAppMessage("הגרף נשמר בהצלחה והתווסף לדשבורד!", { title: "בוצע" });
             closeEditDashboardModal();
 
             titleInput.value = "";
@@ -828,7 +829,7 @@ window.saveGeneratedChart = function () {
             loadSavedCharts();
         },
         error: function (xhr) {
-            alert("שגיאה בשמירת הגרף: " + (xhr.responseJSON?.error || xhr.statusText));
+            showAppMessage("שגיאה בשמירת הגרף: " + (xhr.responseJSON?.error || xhr.statusText), { title: "שגיאה" });
         }
     });
 };
@@ -987,17 +988,24 @@ function escapeHtml(value) {
 
 // 4. מחיקת גרף מהמערכת
 window.deleteChart = function (chartID) {
-    if (!confirm("האם אתה בטוח שברצונך למחוק גרף זה לצמיתות מהדשבורד?")) return;
-
-    $.ajax({
-        url: server + `api/dashboard/delete/${chartID}`,
-        type: "DELETE",
-        success: function () {
-            alert("הגרף נמחק בהצלחה");
-            loadSavedCharts(); // טעינה מחדש של הדשבורד המעודכן
-        },
-        error: function (xhr) {
-            alert("מחיקת הגרף נכשלה.");
+    showAppConfirm({
+        title: "מחיקת גרף",
+        message: "האם למחוק את הגרף מהדשבורד?",
+        confirmText: "מחק",
+        cancelText: "ביטול",
+        destructive: true,
+        onConfirm: function () {
+            $.ajax({
+                url: server + `api/dashboard/delete/${chartID}`,
+                type: "DELETE",
+                success: function () {
+                    showAppMessage("הגרף נמחק בהצלחה", { title: "בוצע" });
+                    loadSavedCharts(); // טעינה מחדש של הדשבורד המעודכן
+                },
+                error: function () {
+                    showAppMessage("מחיקת הגרף נכשלה.", { title: "שגיאה" });
+                }
+            });
         }
     });
 };
