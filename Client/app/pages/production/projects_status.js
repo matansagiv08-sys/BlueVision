@@ -9,8 +9,14 @@
 
 $(document).ready(function () {
     console.log("Projects Status: DOM ready.");
+    loadProjectStatusOptions();
     loadFullProjectsStatus();
 });
+
+let projectsStatusProjects = [];
+let projectsStatusPlanes = [];
+let projectsStatusPlaneTypes = [];
+let projectsStatusPriorities = [];
 
 function loadFullProjectsStatus() {
     const api = server + "api/Projects/full-status";
@@ -20,6 +26,8 @@ function loadFullProjectsStatus() {
             console.log("Data received from server:", data);
             let projects = data.$values ? data.$values : data;
             if (!Array.isArray(projects)) projects = [];
+
+            projectsStatusProjects = projects;
 
             renderProjects(projects);
         },
@@ -34,6 +42,8 @@ function renderProjects(projects) {
     let str = "";
 
     projects.forEach(project => {
+        const projectID = project.projectID || project.ProjectID;
+        const projectName = project.projectName || project.ProjectName || "";
         const pProgress = Math.round(project.progress || 0);
         const dueDate = project.dueDate ? new Date(project.dueDate).toLocaleDateString('he-IL') : "אין תאריך";
 
@@ -41,12 +51,15 @@ function renderProjects(projects) {
         const planeCount = planesList.length;
 
         str += `
-<div class="ps-project-card" id="project-${project.projectID}">
-    <button class="ps-project-head" onclick="toggleProject(${project.projectID})">
+<div class="ps-project-card" id="project-${projectID}">
+    <button class="ps-project-head" onclick="toggleProject(${projectID})">
         <span class="ps-chev">▼</span>
-        <div class="ps-project-title">
-            <span class="ps-project-name">${project.projectName}</span>
-            <span class="ps-counter">${planeCount} כטב"מים</span> 
+        <div class="ps-project-topline">
+            <div class="ps-project-title">
+                <span class="ps-project-name">${escapeHtml(projectName)}</span>
+                <span class="ps-counter">${planeCount} כטב"מים</span>
+            </div>
+            <span type="button" class="ps-project-action-btn" onclick="event.stopPropagation(); openProjectStatusNewPlaneModal(${projectID});">+ הוספת כלי</span>
         </div>
         
         <div class="ps-project-meta">
@@ -167,10 +180,245 @@ function togglePlane(element) {
     const $row = $(element);
     const $body = $row.next('.ps-uav-body');
     const $container = $row.closest('.ps-project-body');
+    const isOpening = !$body.is(':visible');
     if (!$body.is(':visible')) {
         $container.find('.ps-uav-body').slideUp();
         $container.find('.ps-uav-row').removeClass('active');
+        $container.find('.ps-uav-row .ps-chev').removeClass('up');
     }
     $body.slideToggle();
-    $row.toggleClass('active');
+    $row.toggleClass('active', isOpening);
+    $row.find('.ps-chev').toggleClass('up', isOpening);
+}
+
+function loadProjectStatusOptions(afterLoad) {
+    ajaxCall("GET", server + "api/ItemsInProduction/GetInitialFormData", "",
+        function (data) {
+            projectsStatusPlaneTypes = normalizePlaneTypes(data?.planeTypes || []);
+            projectsStatusPriorities = data?.priorities || [];
+            projectsStatusPlanes = data?.planes || [];
+            if (Array.isArray(data?.projects)) {
+                projectsStatusProjects = data.projects;
+            }
+            if (typeof afterLoad === "function") afterLoad(data);
+        },
+        function (err) {
+            console.error("Error loading project status options:", err);
+        }
+    );
+}
+
+function normalizePlaneTypes(types) {
+    return (types || []).map(type => ({
+        planeTypeID: parseNullableInt(type.planeTypeID ?? type.PlaneTypeID),
+        planeTypeName: type.planeTypeName ?? type.PlaneTypeName ?? ""
+    })).filter(type => type.planeTypeID);
+}
+
+window.openProjectStatusNewProjectModal = function () {
+    clearProjectStatusModalMessage("#psNewProjectMessage");
+    $("#psNewProjectName").val("");
+    $("#psNewProjectDueDate").val("");
+    renderProjectStatusSelect(
+        document.getElementById("psNewProjectPriority"),
+        (projectsStatusPriorities || []).map(priority => ({ value: priority.id ?? priority.ID, label: priority.name ?? priority.Name })),
+        "בחר עדיפות...",
+        2
+    );
+    $("#psNewProjectModal").css("display", "flex");
+    setTimeout(() => $("#psNewProjectName").focus(), 0);
+};
+
+window.closeProjectStatusNewProjectModal = function () {
+    $("#psNewProjectModal").hide();
+    clearProjectStatusModalMessage("#psNewProjectMessage");
+};
+
+window.saveProjectStatusNewProject = function () {
+    const projectName = String($("#psNewProjectName").val() || "").trim();
+    const dueDate = $("#psNewProjectDueDate").val() || null;
+    const priorityLevel = parseNullableInt($("#psNewProjectPriority").val()) || 2;
+
+    if (!projectName) {
+        showProjectStatusModalMessage("#psNewProjectMessage", "שם פרויקט הוא שדה חובה.", true);
+        return;
+    }
+
+    if (projectNameExists(projectName)) {
+        showProjectStatusModalMessage("#psNewProjectMessage", "פרויקט בשם זה כבר קיים.", true);
+        return;
+    }
+
+    setProjectStatusSaving("#psSaveNewProjectBtn", true);
+    ajaxCall("POST", server + "api/Projects", JSON.stringify({ ProjectName: projectName, DueDate: dueDate, PriorityLevel: priorityLevel }),
+        function () {
+            loadProjectStatusOptions(function () {
+                loadFullProjectsStatus();
+                closeProjectStatusNewProjectModal();
+                showProjectStatusToast("הפרויקט נוסף בהצלחה.", false);
+                setProjectStatusSaving("#psSaveNewProjectBtn", false);
+            });
+        },
+        function (err) {
+            setProjectStatusSaving("#psSaveNewProjectBtn", false);
+            showProjectStatusModalMessage("#psNewProjectMessage", getProjectStatusErrorText(err, "שגיאה ביצירת הפרויקט."), true);
+        }
+    );
+};
+
+window.openProjectStatusNewPlaneModal = function (projectID) {
+    clearProjectStatusModalMessage("#psNewPlaneMessage");
+    $("#psNewPlaneID").val("");
+    renderProjectStatusSelect(
+        document.getElementById("psNewPlaneProject"),
+        getProjectOptions().map(project => ({ value: project.projectID, label: project.projectName })),
+        "בחר פרויקט...",
+        projectID || ""
+    );
+    renderProjectStatusSelect(
+        document.getElementById("psNewPlaneType"),
+        projectsStatusPlaneTypes.map(type => ({ value: type.planeTypeID, label: type.planeTypeName })),
+        "בחר סוג...",
+        ""
+    );
+
+    if (projectID && !$("#psNewPlaneProject").val()) {
+        const project = getProjectOptions().find(option => String(option.projectID) === String(projectID));
+        const option = document.createElement("option");
+        option.value = String(projectID);
+        option.textContent = project?.projectName || String(projectID);
+        document.getElementById("psNewPlaneProject").appendChild(option);
+        $("#psNewPlaneProject").val(String(projectID));
+    }
+
+    $("#psNewPlaneModal").css("display", "flex");
+    setTimeout(() => $("#psNewPlaneID").focus(), 0);
+};
+
+window.closeProjectStatusNewPlaneModal = function () {
+    $("#psNewPlaneModal").hide();
+    clearProjectStatusModalMessage("#psNewPlaneMessage");
+};
+
+window.saveProjectStatusNewPlane = function () {
+    const projectID = parseNullableInt($("#psNewPlaneProject").val());
+    const planeID = String($("#psNewPlaneID").val() || "").trim();
+    const planeTypeID = parseNullableInt($("#psNewPlaneType").val());
+
+    if (!projectID) {
+        showProjectStatusModalMessage("#psNewPlaneMessage", "יש לבחור פרויקט.", true);
+        return;
+    }
+
+    if (!planeID) {
+        showProjectStatusModalMessage("#psNewPlaneMessage", "מספר / מזהה כלי הוא שדה חובה.", true);
+        return;
+    }
+
+    if (!planeTypeID) {
+        showProjectStatusModalMessage("#psNewPlaneMessage", "יש לבחור סוג כטב״ם.", true);
+        return;
+    }
+
+    if (planeExistsForProject(projectID, planeID)) {
+        showProjectStatusModalMessage("#psNewPlaneMessage", "כלי זה כבר קיים בפרויקט הנבחר.", true);
+        return;
+    }
+
+    setProjectStatusSaving("#psSaveNewPlaneBtn", true);
+    ajaxCall("POST", server + "api/Planes", JSON.stringify({ ProjectID: projectID, PlaneID: planeID, PlaneTypeID: planeTypeID }),
+        function () {
+            loadProjectStatusOptions(function () {
+                loadFullProjectsStatus();
+                closeProjectStatusNewPlaneModal();
+                showProjectStatusToast("הכלי נוסף לפרויקט בהצלחה.", false);
+                setProjectStatusSaving("#psSaveNewPlaneBtn", false);
+            });
+        },
+        function (err) {
+            setProjectStatusSaving("#psSaveNewPlaneBtn", false);
+            showProjectStatusModalMessage("#psNewPlaneMessage", getProjectStatusErrorText(err, "שגיאה ביצירת הכלי."), true);
+        }
+    );
+};
+
+function getProjectOptions() {
+    const map = new Map();
+    (projectsStatusProjects || []).forEach(project => {
+        const id = project.projectID ?? project.ProjectID;
+        const name = project.projectName ?? project.ProjectName;
+        if (id && name && !map.has(String(id))) {
+            map.set(String(id), { projectID: id, projectName: name });
+        }
+    });
+    return Array.from(map.values());
+}
+
+function renderProjectStatusSelect(select, options, placeholder, selectedValue) {
+    if (!select) return;
+    select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>`;
+    (options || []).forEach(option => {
+        if (option.value === undefined || option.value === null || option.value === "") return;
+        const optionEl = document.createElement("option");
+        optionEl.value = String(option.value);
+        optionEl.textContent = option.label || option.value;
+        select.appendChild(optionEl);
+    });
+    if (selectedValue !== undefined && selectedValue !== null && selectedValue !== "") {
+        select.value = String(selectedValue);
+    }
+}
+
+function projectNameExists(projectName) {
+    const normalized = projectName.trim().toLowerCase();
+    return getProjectOptions().some(project => String(project.projectName || "").trim().toLowerCase() === normalized);
+}
+
+function planeExistsForProject(projectID, planeID) {
+    const normalized = planeID.trim().toLowerCase();
+    return (projectsStatusPlanes || []).some(plane => {
+        const existingPlaneID = String(plane.planeID ?? plane.PlaneID ?? "").trim().toLowerCase();
+        const existingProjectID = parseNullableInt(plane.projectID ?? plane.ProjectID);
+        return existingProjectID === projectID && existingPlaneID === normalized;
+    });
+}
+
+function parseNullableInt(value) {
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+function showProjectStatusModalMessage(selector, message, isError) {
+    $(selector).text(message).toggleClass("error", !!isError).show();
+}
+
+function clearProjectStatusModalMessage(selector) {
+    $(selector).hide().text("").removeClass("error");
+}
+
+function setProjectStatusSaving(selector, saving) {
+    const $btn = $(selector);
+    $btn.prop("disabled", !!saving);
+    if (saving) {
+        $btn.data("original-text", $btn.text()).text("שומר...");
+    } else if ($btn.data("original-text")) {
+        $btn.text($btn.data("original-text"));
+    }
+}
+
+function showProjectStatusToast(message, isError) {
+    showAppMessage(message, { title: isError ? "שגיאה" : "הצלחה" });
+}
+
+function getProjectStatusErrorText(err, fallback) {
+    return err?.responseJSON?.error || err?.responseText || err?.statusText || fallback;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }

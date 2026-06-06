@@ -23,6 +23,7 @@ function bindFormEvents() {
         syncProjectDueDateVisibility();
         updateProjectDisplayName();
         renderFilteredPlanes();
+        updateAddPlaneButtonState();
     });
 
     $('#project-new').off('input.projectMeta').on('input.projectMeta', function () {
@@ -226,7 +227,7 @@ function resetProductionForm() {
     $('#item-code-select').focus();
 }
 
-function loadInitialData() {
+function loadInitialData(afterLoad) {
     const api = server + 'api/ItemsInProduction/GetInitialFormData';
 
     ajaxCall('GET', api, '', function (data) {
@@ -260,6 +261,10 @@ function loadInitialData() {
         updateProjectDisplayName();
         renderFilteredPlanes();
         updateUnitsSection();
+        updateAddPlaneButtonState();
+        if (typeof afterLoad === 'function') {
+            afterLoad(data);
+        }
     }, err => console.error(err));
 }
 
@@ -421,6 +426,24 @@ function renderFilteredPlanes() {
     }
 }
 
+function updateAddPlaneButtonState() {
+    const btn = document.getElementById('add-plane-btn');
+    if (!btn) return;
+    btn.disabled = !getSelectedProjectID();
+    btn.title = btn.disabled ? 'יש לבחור פרויקט לפני הוספת כלי' : 'הוספת כלי לפרויקט';
+}
+
+function getSelectedProjectID() {
+    const raw = $('#project-select').find(':selected').data('id');
+    const parsed = parseNullableInt(raw);
+    return parsed && parsed > 0 ? parsed : null;
+}
+
+function getSelectedProjectName() {
+    const selectedText = String($('#project-select option:selected').text() || '').trim();
+    return selectedText && selectedText !== 'בחר פרויקט...' ? selectedText : '';
+}
+
 function renderSelect(selector, list, valField, textField) {
     const $el = $(selector);
     const placeholder = $el.find('option:first').text() || 'בחר...';
@@ -578,4 +601,156 @@ function toggleInput(field) {
         updateProjectDisplayName();
     }
 
+}
+
+window.openNewProjectModal = function () {
+    clearModalMessage('#newProjectModalMessage');
+    $('#new-project-name-input').val('');
+    $('#new-project-due-date-input').val('');
+    renderSelect('#new-project-priority-select', allData.priorities, 'id', 'name');
+    $('#new-project-priority-select').val(2);
+    $('#newProjectModal').css('display', 'flex');
+    setTimeout(() => $('#new-project-name-input').focus(), 0);
+};
+
+window.closeNewProjectModal = function () {
+    $('#newProjectModal').hide();
+    clearModalMessage('#newProjectModalMessage');
+};
+
+window.saveNewProject = function () {
+    const projectName = String($('#new-project-name-input').val() || '').trim();
+    const dueDate = $('#new-project-due-date-input').val() || null;
+    const priorityLevel = parseNullableInt($('#new-project-priority-select').val()) || 2;
+
+    if (!projectName) {
+        showModalMessage('#newProjectModalMessage', 'שם פרויקט הוא שדה חובה.', true);
+        return;
+    }
+
+    const duplicate = (allData.projects || []).some(p => String(p.projectName || '').trim().toLowerCase() === projectName.toLowerCase());
+    if (duplicate) {
+        showModalMessage('#newProjectModalMessage', 'פרויקט בשם זה כבר קיים.', true);
+        return;
+    }
+
+    setModalSaving('#save-new-project-btn', true);
+    ajaxCall('POST', server + 'api/Projects', JSON.stringify({ ProjectName: projectName, DueDate: dueDate, PriorityLevel: priorityLevel }),
+        function (createdProject) {
+            const createdName = createdProject.projectName || createdProject.ProjectName || projectName;
+            loadInitialData(function () {
+                $('#project-select').val(createdName);
+                updateProjectDisplayName();
+                renderFilteredPlanes();
+                updateAddPlaneButtonState();
+                window.closeNewProjectModal();
+                showFormMessage('הפרויקט נוסף בהצלחה.', false, 3500);
+                setModalSaving('#save-new-project-btn', false);
+            });
+        },
+        function (err) {
+            setModalSaving('#save-new-project-btn', false);
+            showModalMessage('#newProjectModalMessage', getAjaxErrorText(err, 'שגיאה ביצירת הפרויקט.'), true);
+        }
+    );
+};
+
+window.openNewPlaneModal = function () {
+    const projectID = getSelectedProjectID();
+    const projectName = getSelectedProjectName();
+    if (!projectID) {
+        showFormMessage('יש לבחור פרויקט לפני הוספת כלי', true, 3500);
+        return;
+    }
+
+    clearModalMessage('#newPlaneModalMessage');
+    $('#new-plane-project-id').val(projectID);
+    $('#new-plane-project-name').val(projectName);
+    $('#new-plane-id-input').val('');
+    setOptions(
+        $('#new-plane-type-select'),
+        allPlaneTypes.map(t => ({ value: t.planeTypeID, label: t.planeTypeName })),
+        'בחר סוג...',
+        $('#plane-type-select').val()
+    );
+    $('#newPlaneModal').css('display', 'flex');
+    setTimeout(() => $('#new-plane-id-input').focus(), 0);
+};
+
+window.closeNewPlaneModal = function () {
+    $('#newPlaneModal').hide();
+    clearModalMessage('#newPlaneModalMessage');
+};
+
+window.saveNewPlane = function () {
+    const projectID = parseNullableInt($('#new-plane-project-id').val());
+    const planeID = String($('#new-plane-id-input').val() || '').trim();
+    const planeTypeID = parseNullableInt($('#new-plane-type-select').val());
+
+    if (!projectID) {
+        showModalMessage('#newPlaneModalMessage', 'יש לבחור פרויקט לפני הוספת כלי.', true);
+        return;
+    }
+
+    if (!planeID) {
+        showModalMessage('#newPlaneModalMessage', 'מספר / מזהה כלי הוא שדה חובה.', true);
+        return;
+    }
+
+    if (!planeTypeID) {
+        showModalMessage('#newPlaneModalMessage', 'יש לבחור סוג כטב״ם.', true);
+        return;
+    }
+
+    const duplicate = (allData.planes || []).some(p => String(p.planeID || '').trim().toLowerCase() === planeID.toLowerCase() && parseNullableInt(p.projectID) === projectID);
+    if (duplicate) {
+        showModalMessage('#newPlaneModalMessage', 'כלי זה כבר קיים בפרויקט הנבחר.', true);
+        return;
+    }
+
+    setModalSaving('#save-new-plane-btn', true);
+    ajaxCall('POST', server + 'api/Planes', JSON.stringify({ ProjectID: projectID, PlaneID: planeID, PlaneTypeID: planeTypeID }),
+        function () {
+            const selectedProjectName = getSelectedProjectName();
+            loadInitialData(function () {
+                $('#project-select').val(selectedProjectName);
+                $('#plane-type-select').val(String(planeTypeID));
+                $('#single-unit-plane-input').val(planeID);
+                updateProjectDisplayName();
+                renderFilteredPlanes();
+                updateUnitsSection();
+                updateAddPlaneButtonState();
+                window.closeNewPlaneModal();
+                showFormMessage('הכלי נוסף לפרויקט בהצלחה.', false, 3500);
+                setModalSaving('#save-new-plane-btn', false);
+            });
+        },
+        function (err) {
+            setModalSaving('#save-new-plane-btn', false);
+            showModalMessage('#newPlaneModalMessage', getAjaxErrorText(err, 'שגיאה ביצירת הכלי.'), true);
+        }
+    );
+};
+
+function showModalMessage(selector, message, isError) {
+    const $msg = $(selector);
+    $msg.text(message).toggleClass('error', !!isError).show();
+}
+
+function clearModalMessage(selector) {
+    $(selector).hide().text('').removeClass('error');
+}
+
+function setModalSaving(selector, saving) {
+    const $btn = $(selector);
+    $btn.prop('disabled', !!saving);
+    if (saving) {
+        $btn.data('original-text', $btn.text()).text('שומר...');
+    } else if ($btn.data('original-text')) {
+        $btn.text($btn.data('original-text'));
+    }
+}
+
+function getAjaxErrorText(err, fallback) {
+    return err?.responseJSON?.error || err?.responseText || err?.statusText || fallback;
 }

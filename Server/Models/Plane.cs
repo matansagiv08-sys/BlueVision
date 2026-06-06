@@ -21,6 +21,37 @@ namespace Server.Models
         }
 
         public Plane() { }
+
+        public object CreatePlane(CreatePlaneRequest? data)
+        {
+            string planeID = data?.PlaneID?.Trim() ?? string.Empty;
+            int projectID = data?.ProjectID ?? 0;
+            int planeTypeID = data?.PlaneTypeID ?? 0;
+
+            if (string.IsNullOrWhiteSpace(planeID))
+            {
+                throw new Exception("Plane identifier is required.");
+            }
+
+            if (projectID <= 0)
+            {
+                throw new Exception("Project is required.");
+            }
+
+            if (planeTypeID <= 0)
+            {
+                throw new Exception("Plane type is required.");
+            }
+
+            DBservices dbs = new DBservices();
+            return dbs.CreatePlaneForProject(projectID, planeID, planeTypeID);
+        }
+    }
+
+    public class CreatePlaneRequest
+    {
+        public int? ProjectID { get; set; }
+        public string? PlaneID { get; set; }
+        public int? PlaneTypeID { get; set; }
     }
 }
-

@@ -1,3 +1,70 @@
 ﻿<div id="projects-status-root" class="projects-status-page">
+    <div class="ps-page-toolbar">
+        <div>
+            <h2 class="ps-page-title">סטטוס פרויקטים</h2>
+            <p class="ps-page-subtitle">ניהול פרויקטים, כלים וסטטוס פריטי ייצור</p>
+        </div>
+        <button type="button" class="btn-primary ps-add-project-btn" onclick="openProjectStatusNewProjectModal()">הוספת פרויקט</button>
+    </div>
     <div id="projects-list" class="projects-list"></div>
+</div>
+
+<div id="psNewProjectModal" class="modal-overlay ps-create-modal" onclick="closeProjectStatusNewProjectModal()">
+    <div class="modal-content ps-create-modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header-blue">
+            <h2>הוספת פרויקט חדש</h2>
+            <button class="close-btn" type="button" onclick="closeProjectStatusNewProjectModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="psNewProjectMessage" class="ps-modal-message" style="display:none;"></div>
+            <div class="ps-modal-grid">
+                <label class="ps-modal-field ps-modal-full">
+                    <span>שם פרויקט <b>*</b></span>
+                    <input id="psNewProjectName" type="text" placeholder="שם פרויקט חדש">
+                </label>
+                <label class="ps-modal-field">
+                    <span>תאריך יעד</span>
+                    <input id="psNewProjectDueDate" type="date">
+                </label>
+                <label class="ps-modal-field">
+                    <span>עדיפות</span>
+                    <select id="psNewProjectPriority"></select>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer ps-modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeProjectStatusNewProjectModal()">ביטול</button>
+            <button type="button" class="btn-primary" id="psSaveNewProjectBtn" onclick="saveProjectStatusNewProject()">שמור פרויקט</button>
+        </div>
+    </div>
+</div>
+
+<div id="psNewPlaneModal" class="modal-overlay ps-create-modal" onclick="closeProjectStatusNewPlaneModal()">
+    <div class="modal-content ps-create-modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header-blue">
+            <h2>הוספת כלי לפרויקט</h2>
+            <button class="close-btn" type="button" onclick="closeProjectStatusNewPlaneModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="psNewPlaneMessage" class="ps-modal-message" style="display:none;"></div>
+            <div class="ps-modal-grid">
+                <label class="ps-modal-field">
+                    <span>פרויקט <b>*</b></span>
+                    <select id="psNewPlaneProject"></select>
+                </label>
+                <label class="ps-modal-field">
+                    <span>סוג כטב״ם <b>*</b></span>
+                    <select id="psNewPlaneType"></select>
+                </label>
+                <label class="ps-modal-field ps-modal-full">
+                    <span>מספר / מזהה כלי <b>*</b></span>
+                    <input id="psNewPlaneID" type="text" placeholder="מספר מטוס / כלי">
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer ps-modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeProjectStatusNewPlaneModal()">ביטול</button>
+            <button type="button" class="btn-primary" id="psSaveNewPlaneBtn" onclick="saveProjectStatusNewPlane()">שמור כלי</button>
+        </div>
+    </div>
 </div>

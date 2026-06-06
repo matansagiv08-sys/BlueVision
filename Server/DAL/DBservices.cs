@@ -1212,7 +1212,7 @@ public class DBservices
         SqlConnection con = null;
         Dictionary<string, object> d = new Dictionary<string, object> {
         {"@ProjectName", p.ProjectName},
-        {"@DueDate", p.DueDate},
+        {"@DueDate", p.DueDate.HasValue ? p.DueDate.Value : DBNull.Value},
         {"@PriorityLevel", p.PriorityLevel}
     };
         try
@@ -1229,6 +1229,35 @@ public class DBservices
         {
             if (con != null) con.Close();
         }
+    }
+
+    public Project CreateProject(string projectName, DateTime? dueDate, int priorityLevel)
+    {
+        string normalizedName = projectName.Trim();
+        Project? existing = GetProjects()
+            .FirstOrDefault(p => string.Equals(p.ProjectName?.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null)
+        {
+            throw new Exception("Project already exists.");
+        }
+
+        InsertProject(new Project
+        {
+            ProjectName = normalizedName,
+            DueDate = dueDate,
+            PriorityLevel = priorityLevel <= 0 ? 2 : priorityLevel
+        });
+
+        Project? created = GetProjects()
+            .FirstOrDefault(p => string.Equals(p.ProjectName?.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+
+        if (created == null)
+        {
+            throw new Exception("Project was not created.");
+        }
+
+        return created;
     }
 
     //עריכת פרוייקט - לא בשימוש כרגע - תשתית להמשך
@@ -1675,6 +1704,58 @@ public class DBservices
             cmd.Parameters.AddWithValue("@priorityLevel", projectPriorityLevel);
             cmd.ExecuteNonQuery();
         }
+    }
+
+    public object CreatePlaneForProject(int projectID, string planeID, int planeTypeID)
+    {
+        string normalizedPlaneID = planeID.Trim();
+        Project? project = GetProjects().FirstOrDefault(p => p.ProjectID == projectID);
+        if (project == null)
+        {
+            throw new Exception("Project was not found.");
+        }
+
+        object? existing = GetPlanes().FirstOrDefault(p =>
+        {
+            string existingPlaneID = Convert.ToString(p.GetType().GetProperty("planeID")?.GetValue(p)) ?? string.Empty;
+            int existingProjectID = Convert.ToInt32(p.GetType().GetProperty("projectID")?.GetValue(p) ?? 0);
+            return existingProjectID == projectID && string.Equals(existingPlaneID.Trim(), normalizedPlaneID, StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (existing != null)
+        {
+            throw new Exception("Plane already exists for this project.");
+        }
+
+        SqlConnection con = null;
+        SqlTransaction trans = null;
+        try
+        {
+            con = connect("myProjDB");
+            trans = con.BeginTransaction();
+            HandleProjectAndPlane(con, trans, project.ProjectName, normalizedPlaneID, planeTypeID, project.DueDate ?? DateTime.Today, project.PriorityLevel <= 0 ? 2 : project.PriorityLevel);
+            trans.Commit();
+        }
+        catch
+        {
+            trans?.Rollback();
+            throw;
+        }
+        finally { if (con != null) con.Close(); }
+
+        object? created = GetPlanes().FirstOrDefault(p =>
+        {
+            string existingPlaneID = Convert.ToString(p.GetType().GetProperty("planeID")?.GetValue(p)) ?? string.Empty;
+            int existingProjectID = Convert.ToInt32(p.GetType().GetProperty("projectID")?.GetValue(p) ?? 0);
+            return existingProjectID == projectID && string.Equals(existingPlaneID.Trim(), normalizedPlaneID, StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (created == null)
+        {
+            throw new Exception("Plane was not created.");
+        }
+
+        return created;
     }
 
     //יצירת תחנות עבור פריט ייצור חדש שנוצר במערכת

@@ -28,11 +28,30 @@ namespace Server.Models
         //קריאת כל הפרוייקטים מהDB
         public List<Project> GetProjects() { DBservices dbs = new DBservices(); return dbs.GetProjects(); }
 
+        public Project CreateProject(CreateProjectRequest? data)
+        {
+            string projectName = data?.ProjectName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(projectName))
+            {
+                throw new Exception("Project name is required.");
+            }
+
+            DBservices dbs = new DBservices();
+            return dbs.CreateProject(projectName, data?.DueDate, data?.PriorityLevel ?? 2);
+        }
+
         //קריאת כל נתוני הפרוייקטים, המטוסים שלהם והפריטים בכל מטוס עבור טופס סטטוס פרוייקטים
         public List<Project> GetFullProjectsStatus()
         {
             DBservices dbs = new DBservices();
             return dbs.GetFullProjectsStatus();
         }
+    }
+
+    public class CreateProjectRequest
+    {
+        public string? ProjectName { get; set; }
+        public DateTime? DueDate { get; set; }
+        public int? PriorityLevel { get; set; }
     }
 }

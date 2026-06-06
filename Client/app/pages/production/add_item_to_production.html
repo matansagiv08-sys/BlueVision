@@ -12,7 +12,7 @@
                                 <option value="">בחר פרויקט...</option>
                             </select>
                             <input type="text" id="project-new" style="display:none;" placeholder="שם פרויקט חדש">
-                            <button type="button" class="toggle-btn" onclick="toggleInput('project')">+</button>
+                            <button type="button" class="toggle-btn" onclick="openNewProjectModal()" title="הוספת פרויקט חדש">+</button>
                         </div>
                     </div>
 
@@ -91,7 +91,10 @@
                     </div>
                     <div class="form-group">
                         <label>מספר מטוס לפריט</label>
-                        <input type="text" id="single-unit-plane-input" list="tracked-plane-list" placeholder="מספר מטוס לפריט (אופציונלי)">
+                        <div class="input-with-action">
+                            <input type="text" id="single-unit-plane-input" list="tracked-plane-list" placeholder="מספר מטוס לפריט (אופציונלי)">
+                            <button type="button" class="toggle-btn" id="add-plane-btn" onclick="openNewPlaneModal()" title="הוספת כלי לפרויקט">+</button>
+                        </div>
                     </div>
                 </div>
 
@@ -125,5 +128,70 @@
                 <button type="submit" class="btn-primary">💾 שמור והוסף לייצור</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div id="newProjectModal" class="modal-overlay add-production-modal" onclick="closeNewProjectModal()">
+    <div class="modal-content add-production-modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header-blue">
+            <h2>הוספת פרויקט חדש</h2>
+            <button class="close-btn" type="button" onclick="closeNewProjectModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="newProjectModalMessage" class="modal-feedback-message" style="display:none;"></div>
+            <div class="section-grid two-cols">
+                <div class="form-group full-width">
+                    <label>שם פרויקט <span class="req">*</span></label>
+                    <input id="new-project-name-input" type="text" placeholder="שם פרויקט חדש">
+                </div>
+                <div class="form-group">
+                    <label>תאריך יעד</label>
+                    <input id="new-project-due-date-input" type="date">
+                </div>
+                <div class="form-group">
+                    <label>עדיפות</label>
+                    <select id="new-project-priority-select">
+                        <option value="2">רגילה</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer add-production-modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeNewProjectModal()">ביטול</button>
+            <button type="button" class="btn-primary" id="save-new-project-btn" onclick="saveNewProject()">שמור פרויקט</button>
+        </div>
+    </div>
+</div>
+
+<div id="newPlaneModal" class="modal-overlay add-production-modal" onclick="closeNewPlaneModal()">
+    <div class="modal-content add-production-modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header-blue">
+            <h2>הוספת כלי לפרויקט</h2>
+            <button class="close-btn" type="button" onclick="closeNewPlaneModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="newPlaneModalMessage" class="modal-feedback-message" style="display:none;"></div>
+            <input id="new-plane-project-id" type="hidden">
+            <div class="section-grid two-cols">
+                <div class="form-group">
+                    <label>פרויקט</label>
+                    <input id="new-plane-project-name" type="text" class="readonly-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>סוג כטב״ם <span class="req">*</span></label>
+                    <select id="new-plane-type-select">
+                        <option value="">בחר סוג...</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label>מספר / מזהה כלי <span class="req">*</span></label>
+                    <input id="new-plane-id-input" type="text" placeholder="מספר מטוס / כלי">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer add-production-modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeNewPlaneModal()">ביטול</button>
+            <button type="button" class="btn-primary" id="save-new-plane-btn" onclick="saveNewPlane()">שמור כלי</button>
+        </div>
     </div>
 </div>

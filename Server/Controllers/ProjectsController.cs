@@ -13,6 +13,22 @@ namespace Server.Controllers
             Project p = new Project();
             return p.GetProjects();
         }
+
+        [HttpPost]
+        public IActionResult Create([FromBody] CreateProjectRequest? data)
+        {
+            try
+            {
+                Project project = new Project();
+                Project created = project.CreateProject(data);
+                return Ok(created);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpGet("full-status")]
         public ActionResult GetFullStatus()
         {
