@@ -168,11 +168,11 @@ function toggleProject(projectId) {
     const isOpening = !currentBody.is(':visible');
     $('.ps-project-body').slideUp();
     $('.ps-project-card').removeClass('highlight-blue');
-    $('.ps-chev').removeClass('up');
+    $('.ps-project-head .ps-chev').removeClass('up');
     if (isOpening) {
         currentBody.slideDown();
         currentCard.addClass('highlight-blue');
-        currentCard.find('.ps-chev').addClass('up');
+        currentCard.find('.ps-project-head .ps-chev').addClass('up');
     }
 }
 
