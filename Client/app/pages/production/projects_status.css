@@ -77,6 +77,11 @@
     color: #0ea5b7;
 }
 
+/* Align button vertically with the project chevron (which is centered on the full head) */
+.ps-project-topline .ps-project-action-btn {
+    margin-top: 35px;
+}
+
 .ps-create-modal {
     align-items: center;
     justify-content: center;
@@ -232,6 +237,7 @@
     .ps-chev.up {
         transform: translateY(-50%) rotate(180deg);
     }
+
 
 /* Project title area */
 .ps-project-title {
