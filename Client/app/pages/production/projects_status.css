@@ -37,6 +37,30 @@
     white-space: nowrap;
 }
 
+.ps-filters-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin: 0 0 14px;
+}
+
+.ps-checkbox-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #334155;
+    font-weight: 750;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ps-checkbox-filter input {
+    width: 18px;
+    height: 18px;
+    accent-color: #0ea5b7;
+    cursor: pointer;
+}
+
 /* Projects list */
 .projects-list {
     display: flex;

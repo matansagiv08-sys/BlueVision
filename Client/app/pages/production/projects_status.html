@@ -6,6 +6,12 @@
         </div>
         <button type="button" class="btn-primary ps-add-project-btn" onclick="openProjectStatusNewProjectModal()">הוספת פרויקט</button>
     </div>
+    <div class="ps-filters-bar">
+        <label class="ps-checkbox-filter">
+            <input id="ps-only-unfinished-projects" type="checkbox" onchange="applyProjectStatusFilters()">
+            <span>רק פרויקטים שלא הסתיימו</span>
+        </label>
+    </div>
     <div id="projects-list" class="projects-list"></div>
 </div>
 

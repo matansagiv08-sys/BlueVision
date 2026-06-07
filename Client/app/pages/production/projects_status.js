@@ -14,6 +14,7 @@ $(document).ready(function () {
 });
 
 let projectsStatusProjects = [];
+let projectsStatusProjectOptions = [];
 let projectsStatusPlanes = [];
 let projectsStatusPlaneTypes = [];
 let projectsStatusPriorities = [];
@@ -29,7 +30,7 @@ function loadFullProjectsStatus() {
 
             projectsStatusProjects = projects;
 
-            renderProjects(projects);
+            applyProjectStatusFilters();
         },
         function (err) {
             console.error("Error:", err);
@@ -38,8 +39,60 @@ function loadFullProjectsStatus() {
     );
 }
 
+window.applyProjectStatusFilters = function () {
+    const onlyUnfinishedProjects = !!document.getElementById("ps-only-unfinished-projects")?.checked;
+    const visibleProjects = onlyUnfinishedProjects
+        ? projectsStatusProjects.filter(project => !isProjectCompleted(project))
+        : projectsStatusProjects;
+
+    renderProjects(visibleProjects);
+};
+
+function isProjectCompleted(project) {
+    const planesList = getCollection(project?.planes ?? project?.Planes);
+    if (planesList.length === 0) return false;
+
+    return planesList.every(isPlaneCompleted);
+}
+
+function isPlaneCompleted(plane) {
+    const itemsList = getCollection(plane?.items ?? plane?.Items);
+    if (itemsList.length === 0) return false;
+
+    return itemsList.every(isProductionItemCompleted);
+}
+
+function isProductionItemCompleted(item) {
+    const progress = Number(item?.progress ?? item?.Progress);
+    if (!Number.isNaN(progress)) return progress >= 100;
+
+    const stages = getCollection(item?.stages ?? item?.Stages);
+    if (stages.length > 0) {
+        return stages.every(stageRow => getStatusId(stageRow?.status ?? stageRow?.Status) === 4);
+    }
+
+    const currentStage = item?.currentStage ?? item?.CurrentStage;
+    return getStatusId(currentStage?.status ?? currentStage?.Status) === 4;
+}
+
+function getStatusId(status) {
+    return parseInt(status?.productionStatusID ?? status?.ProductionStatusID ?? 0, 10);
+}
+
+function getCollection(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (Array.isArray(value.$values)) return value.$values;
+    return [];
+}
+
 function renderProjects(projects) {
     let str = "";
+
+    if (!projects || projects.length === 0) {
+        $("#projects-list").html("<p style='text-align:center; color:#64748b; padding:20px;'>אין פרויקטים להצגה.</p>");
+        return;
+    }
 
     projects.forEach(project => {
         const projectID = project.projectID || project.ProjectID;
@@ -198,7 +251,7 @@ function loadProjectStatusOptions(afterLoad) {
             projectsStatusPriorities = data?.priorities || [];
             projectsStatusPlanes = data?.planes || [];
             if (Array.isArray(data?.projects)) {
-                projectsStatusProjects = data.projects;
+                projectsStatusProjectOptions = data.projects;
             }
             if (typeof afterLoad === "function") afterLoad(data);
         },
@@ -344,7 +397,7 @@ window.saveProjectStatusNewPlane = function () {
 
 function getProjectOptions() {
     const map = new Map();
-    (projectsStatusProjects || []).forEach(project => {
+    [...(projectsStatusProjectOptions || []), ...(projectsStatusProjects || [])].forEach(project => {
         const id = project.projectID ?? project.ProjectID;
         const name = project.projectName ?? project.ProjectName;
         if (id && name && !map.has(String(id))) {
