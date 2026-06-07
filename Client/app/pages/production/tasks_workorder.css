@@ -91,7 +91,7 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 
 .tasks-workorder-page .workorder-table {
     width: 100%;
-    min-width: 1420px;
+    min-width: 1305px;
     table-layout: fixed;
 }
 
@@ -119,6 +119,12 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 .tasks-workorder-page .workorder-table th:nth-child(1),
 .tasks-workorder-page .workorder-table td:nth-child(1) {
     width: 44px;
+}
+
+.tasks-workorder-page .workorder-table td:nth-child(1),
+.tasks-workorder-page .workorder-table td:nth-child(11) {
+    overflow: visible;
+    text-overflow: clip;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(2),
@@ -165,11 +171,6 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
     text-align: center;
 }
 
-.tasks-workorder-page .workorder-table th:nth-child(12),
-.tasks-workorder-page .workorder-table td:nth-child(12) {
-    width: 115px;
-}
-
 /* Urgency dropdown styling (workorder page) */
 /*.tasks-workorder-page .urgency-select {
     width: auto;
@@ -186,6 +187,7 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 /* Drag handle column */
 .tasks-workorder-page .drag-col {
     width: 44px;
+    padding-inline: 4px;
 }
 
 .tasks-workorder-page .drag-handle {
@@ -316,12 +318,29 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
     pointer-events: none;
 }
 
-.tasks-workorder-page .workorder-expired-row td {
-    background-color: #fff1f1;
+.tasks-workorder-page .workorder-due-date-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    max-width: 100%;
+    direction: rtl;
 }
 
-.tasks-workorder-page .workorder-expired-row:hover td {
-    background-color: #ffe6e6;
+.tasks-workorder-page .workorder-date-warning {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
 }
 
 .btn-tiny-algo {

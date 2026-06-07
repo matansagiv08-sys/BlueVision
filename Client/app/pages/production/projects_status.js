@@ -7,32 +7,48 @@
 //    }
 //});
 
-$(document).ready(function () {
-    console.log("Projects Status: DOM ready.");
+var projectsStatusState = window.projectsStatusState || {
+    allProjects: [],
+    projectOptions: [],
+    planes: [],
+    planeTypes: [],
+    priorities: [],
+    loadToken: 0
+};
+window.projectsStatusState = projectsStatusState;
+
+window.initProjectsStatus = function () {
+    console.log("Projects Status: init.");
+    resetProjectStatusView();
     loadProjectStatusOptions();
     loadFullProjectsStatus();
-});
+};
 
-let projectsStatusProjects = [];
-let projectsStatusProjectOptions = [];
-let projectsStatusPlanes = [];
-let projectsStatusPlaneTypes = [];
-let projectsStatusPriorities = [];
+function resetProjectStatusView() {
+    const onlyUnfinishedEl = document.getElementById("ps-only-unfinished-projects");
+    if (onlyUnfinishedEl) onlyUnfinishedEl.checked = false;
+    projectsStatusState.loadToken += 1;
+    projectsStatusState.allProjects = [];
+    setProjectStatusListMessage("טוען פרויקטים...");
+}
 
 function loadFullProjectsStatus() {
     const api = server + "api/Projects/full-status";
+    const loadToken = projectsStatusState.loadToken;
 
     ajaxCall("GET", api, null,
         function (data) {
+            if (loadToken !== projectsStatusState.loadToken) return;
             console.log("Data received from server:", data);
             let projects = data.$values ? data.$values : data;
             if (!Array.isArray(projects)) projects = [];
 
-            projectsStatusProjects = projects;
+            projectsStatusState.allProjects = projects;
 
             applyProjectStatusFilters();
         },
         function (err) {
+            if (loadToken !== projectsStatusState.loadToken) return;
             console.error("Error:", err);
             $("#projects-list").html("<p style='text-align:center; color:red; padding:20px;'>שגיאה בטעינת נתונים מהשרת.</p>");
         }
@@ -41,9 +57,10 @@ function loadFullProjectsStatus() {
 
 window.applyProjectStatusFilters = function () {
     const onlyUnfinishedProjects = !!document.getElementById("ps-only-unfinished-projects")?.checked;
+    const allProjects = projectsStatusState.allProjects || [];
     const visibleProjects = onlyUnfinishedProjects
-        ? projectsStatusProjects.filter(project => !isProjectCompleted(project))
-        : projectsStatusProjects;
+        ? allProjects.filter(project => !isProjectCompleted(project))
+        : allProjects.slice();
 
     renderProjects(visibleProjects);
 };
@@ -90,7 +107,7 @@ function renderProjects(projects) {
     let str = "";
 
     if (!projects || projects.length === 0) {
-        $("#projects-list").html("<p style='text-align:center; color:#64748b; padding:20px;'>אין פרויקטים להצגה.</p>");
+        setProjectStatusListMessage("אין פרויקטים להצגה.");
         return;
     }
 
@@ -137,6 +154,10 @@ function renderProjects(projects) {
     });
 
     $("#projects-list").html(str);
+}
+
+function setProjectStatusListMessage(message) {
+    $("#projects-list").html(`<p style='text-align:center; color:#64748b; padding:20px;'>${escapeHtml(message)}</p>`);
 }
 
 function renderPlanes(planes) {
@@ -247,11 +268,11 @@ function togglePlane(element) {
 function loadProjectStatusOptions(afterLoad) {
     ajaxCall("GET", server + "api/ItemsInProduction/GetInitialFormData", "",
         function (data) {
-            projectsStatusPlaneTypes = normalizePlaneTypes(data?.planeTypes || []);
-            projectsStatusPriorities = data?.priorities || [];
-            projectsStatusPlanes = data?.planes || [];
+            projectsStatusState.planeTypes = normalizePlaneTypes(data?.planeTypes || []);
+            projectsStatusState.priorities = data?.priorities || [];
+            projectsStatusState.planes = data?.planes || [];
             if (Array.isArray(data?.projects)) {
-                projectsStatusProjectOptions = data.projects;
+                projectsStatusState.projectOptions = data.projects;
             }
             if (typeof afterLoad === "function") afterLoad(data);
         },
@@ -274,7 +295,7 @@ window.openProjectStatusNewProjectModal = function () {
     $("#psNewProjectDueDate").val("");
     renderProjectStatusSelect(
         document.getElementById("psNewProjectPriority"),
-        (projectsStatusPriorities || []).map(priority => ({ value: priority.id ?? priority.ID, label: priority.name ?? priority.Name })),
+        (projectsStatusState.priorities || []).map(priority => ({ value: priority.id ?? priority.ID, label: priority.name ?? priority.Name })),
         "בחר עדיפות...",
         2
     );
@@ -330,7 +351,7 @@ window.openProjectStatusNewPlaneModal = function (projectID) {
     );
     renderProjectStatusSelect(
         document.getElementById("psNewPlaneType"),
-        projectsStatusPlaneTypes.map(type => ({ value: type.planeTypeID, label: type.planeTypeName })),
+        projectsStatusState.planeTypes.map(type => ({ value: type.planeTypeID, label: type.planeTypeName })),
         "בחר סוג...",
         ""
     );
@@ -397,7 +418,7 @@ window.saveProjectStatusNewPlane = function () {
 
 function getProjectOptions() {
     const map = new Map();
-    [...(projectsStatusProjectOptions || []), ...(projectsStatusProjects || [])].forEach(project => {
+    [...(projectsStatusState.projectOptions || []), ...(projectsStatusState.allProjects || [])].forEach(project => {
         const id = project.projectID ?? project.ProjectID;
         const name = project.projectName ?? project.ProjectName;
         if (id && name && !map.has(String(id))) {
@@ -429,7 +450,7 @@ function projectNameExists(projectName) {
 
 function planeExistsForProject(projectID, planeID) {
     const normalized = planeID.trim().toLowerCase();
-    return (projectsStatusPlanes || []).some(plane => {
+    return (projectsStatusState.planes || []).some(plane => {
         const existingPlaneID = String(plane.planeID ?? plane.PlaneID ?? "").trim().toLowerCase();
         const existingProjectID = parseNullableInt(plane.projectID ?? plane.ProjectID);
         return existingProjectID === projectID && existingPlaneID === normalized;

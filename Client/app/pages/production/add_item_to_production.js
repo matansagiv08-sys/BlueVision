@@ -36,6 +36,10 @@ function bindFormEvents() {
         updateUnitsSection();
     });
 
+    $('#single-quantity-row-checkbox').off('change.units').on('change.units', function () {
+        updateUnitsSection();
+    });
+
     $('#tracked-units-body').off('input').on('input', 'input', function () {
         const index = parseInt($(this).data('index'), 10);
         if (!Number.isInteger(index) || index < 0 || index >= trackedUnits.length) {
@@ -66,6 +70,7 @@ function submitProductionForm() {
     }
 
     const quantity = normalizeQuantity();
+    const addAsSingleQuantityRow = isSingleQuantityRowMode();
     const isNewProject = $('#project-new').is(':visible');
     const projectValue = isNewProject ? $('#project-new').val() : $('#project-select').val();
     const projectPriorityLevel = parseNullableInt($('#project-priority-select').val());
@@ -80,7 +85,8 @@ function submitProductionForm() {
         ProjectDueDate: isNewProject ? ($('#project-due-date-input').val() || null) : null,
         ProjectPriorityLevel: isNewProject ? projectPriorityLevel : null,
         Comments: $('#comments-input').val() || null,
-        Quantity: quantity
+        Quantity: quantity,
+        AddAsSingleQuantityRow: addAsSingleQuantityRow
     };
 
     if (!basePayload.ProductionItemID) {
@@ -95,10 +101,16 @@ function submitProductionForm() {
 
     let payload;
 
-    if (quantity === 1) {
-        const serial = parseNullableInt($('#serial-number-input').val());
-        if (!serial || serial <= 0) {
+    if (quantity === 1 || addAsSingleQuantityRow) {
+        const serialRaw = String($('#serial-number-input').val() || '').trim();
+        const serial = parseNullableInt(serialRaw);
+        if (!addAsSingleQuantityRow && (!serial || serial <= 0)) {
             showFormMessage('יש להזין מספר סריאלי תקין.', true);
+            return;
+        }
+
+        if (addAsSingleQuantityRow && serialRaw && (!serial || serial <= 0)) {
+            showFormMessage('אם מזינים מספר סריאלי, יש להזין מספר תקין.', true);
             return;
         }
 
@@ -106,7 +118,7 @@ function submitProductionForm() {
 
         payload = {
             ...basePayload,
-            SerialNumber: serial,
+            SerialNumber: serial || null,
             PlaneID: singlePlane || null,
             Units: null
         };
@@ -214,6 +226,7 @@ function resetProductionForm() {
 
     trackedUnits = [];
     $('#qty-input').val(1);
+    $('#single-quantity-row-checkbox').prop('checked', false);
     $('#item-name-input').val('');
     $('#item-code-select').val('');
     $('#plane-type-select').val('');
@@ -304,6 +317,10 @@ function normalizeQuantity() {
     return safeValue;
 }
 
+function isSingleQuantityRowMode() {
+    return !!document.getElementById('single-quantity-row-checkbox')?.checked;
+}
+
 function ensureTrackedUnitsLength(qty) {
     const defaultPlane = String($('#single-unit-plane-input').val() || '').trim();
 
@@ -317,12 +334,14 @@ function ensureTrackedUnitsLength(qty) {
 
 function updateUnitsSection() {
     const qty = normalizeQuantity();
+    const addAsSingleQuantityRow = isSingleQuantityRowMode();
     const $single = $('#single-unit-fields');
     const $multi = $('#multi-unit-wrapper');
     const $serialInput = $('#serial-number-input');
     const $singlePlane = $('#single-unit-plane-input');
+    const $serialRequiredMark = $('#serial-number-required-mark');
 
-    if (qty <= 1) {
+    if (qty <= 1 || addAsSingleQuantityRow) {
         if (!$serialInput.val() && trackedUnits[0]?.serialNumber) {
             $serialInput.val(trackedUnits[0].serialNumber);
         }
@@ -332,7 +351,8 @@ function updateUnitsSection() {
 
         $single.show();
         $multi.hide();
-        $serialInput.prop('required', true);
+        $serialInput.prop('required', !addAsSingleQuantityRow);
+        $serialRequiredMark.toggle(!addAsSingleQuantityRow);
         return;
     }
 
@@ -349,6 +369,7 @@ function updateUnitsSection() {
     $single.hide();
     $multi.show();
     $serialInput.prop('required', false);
+    $serialRequiredMark.hide();
 }
 
 function renderTrackedUnitsTable() {

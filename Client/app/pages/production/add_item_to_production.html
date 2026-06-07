@@ -82,11 +82,17 @@
                         <label>כמות לייצור <span class="req">*</span></label>
                         <input type="number" id="qty-input" value="1" min="1" required>
                     </div>
+                    <div class="form-group single-quantity-mode-group">
+                        <label class="single-quantity-mode-label">
+                            <input type="checkbox" id="single-quantity-row-checkbox">
+                            <span>הוסף כשורה אחת עם כמות</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div id="single-unit-fields" class="section-grid two-cols">
                     <div class="form-group">
-                        <label>מספר סריאלי <span class="req">*</span></label>
+                        <label>מספר סריאלי <span class="req" id="serial-number-required-mark">*</span></label>
                         <input type="number" id="serial-number-input" placeholder="לדוגמה: 50021" required>
                     </div>
                     <div class="form-group">

@@ -134,6 +134,27 @@
     margin-top: 8px;
 }
 
+.single-quantity-mode-group {
+    justify-content: end;
+}
+
+.single-quantity-mode-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    color: #334155;
+    cursor: pointer;
+    user-select: none;
+}
+
+.single-quantity-mode-label input {
+    width: 18px;
+    height: 18px;
+    accent-color: #0ea5b7;
+    cursor: pointer;
+}
+
 .multi-unit-hint {
     font-size: 13px;
     color: #64748b;

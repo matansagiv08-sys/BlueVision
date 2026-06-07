@@ -264,7 +264,6 @@ function renderRow(row, allStages) {
                     </button>
                     <div class="row-actions-menu">
                         <button type="button" onclick="window.openEditProductionRowModal('${rowPayloadKey}')">עריכת פריט בייצור</button>
-                        <button type="button" class="danger" onclick="window.confirmDeleteProductionRow('${rowPayloadKey}')">מחיקת שורה</button>
                     </div>
                 </div>
             </td>
@@ -295,11 +294,12 @@ function buildProductionRowPayload(row) {
     const item = row.productionItem || row.ProductionItem || {};
     const plane = row.planeID || row.PlaneID || {};
     const planeType = plane.type || plane.Type || {};
+    const productionItemID = item.productionItemID || item.ProductionItemID || row.inventoryItemID || row.InventoryItemID || row.productionItemID || row.ProductionItemID || "";
     return {
         originalSerialNumber: row.serialNumber || row.SerialNumber || 0,
-        originalProductionItemID: item.productionItemID || item.ProductionItemID || "",
+        originalProductionItemID: productionItemID,
         serialNumber: row.serialNumber || row.SerialNumber || 0,
-        productionItemID: item.productionItemID || item.ProductionItemID || "",
+        productionItemID: productionItemID,
         itemName: item.itemName || item.ItemName || item.productionItemDescription || item.ProductionItemDescription || "",
         workOrderID: row.workOrderID || row.WorkOrderID || "",
         projectName: row.projectName || row.ProjectName || plane.project?.projectName || plane.Project?.ProjectName || "",
@@ -533,13 +533,53 @@ function toDatetimeLocalValue(value) {
 window.toggleTaskRowMenu = function (button) {
     const menu = button?.parentElement?.querySelector(".row-actions-menu");
     document.querySelectorAll(".row-actions-menu.open").forEach(existing => {
-        if (existing !== menu) existing.classList.remove("open");
+        if (existing !== menu) closeTaskRowMenu(existing);
     });
-    if (menu) menu.classList.toggle("open");
+    if (!menu) return;
+
+    if (menu.classList.contains("open")) {
+        closeTaskRowMenu(menu);
+        return;
+    }
+
+    menu.classList.add("open");
+    positionTaskRowMenu(button, menu);
 };
 
 function closeTaskRowMenus() {
-    document.querySelectorAll(".row-actions-menu.open").forEach(menu => menu.classList.remove("open"));
+    document.querySelectorAll(".row-actions-menu.open").forEach(closeTaskRowMenu);
+}
+
+function closeTaskRowMenu(menu) {
+    menu.classList.remove("open", "opens-up");
+    menu.style.top = "";
+    menu.style.right = "";
+    menu.style.left = "";
+}
+
+function positionTaskRowMenu(button, menu) {
+    const buttonRect = button.getBoundingClientRect();
+    const viewportPadding = 8;
+
+    menu.style.top = "0px";
+    menu.style.right = "auto";
+    menu.style.left = "0px";
+    const menuRect = menu.getBoundingClientRect();
+
+    const spaceBelow = window.innerHeight - buttonRect.bottom - viewportPadding;
+    const opensUp = spaceBelow < menuRect.height && buttonRect.top > menuRect.height;
+    const top = opensUp
+        ? Math.max(viewportPadding, buttonRect.top - menuRect.height - 4)
+        : Math.min(window.innerHeight - menuRect.height - viewportPadding, buttonRect.bottom + 4);
+
+    const left = Math.max(
+        viewportPadding,
+        Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - viewportPadding)
+    );
+
+    menu.classList.toggle("opens-up", opensUp);
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
 }
 
 window.openEditProductionRowModal = function (payloadKey) {

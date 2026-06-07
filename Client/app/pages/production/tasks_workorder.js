@@ -51,7 +51,7 @@ function renderTasks(tasks) {
     const activeTasks = tasks.filter(t => Number(getTaskValue(t, ["progress", "Progress"], 0)) < 100);
 
     if (activeTasks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;">אין משימות פעילות להצגה</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">אין משימות פעילות להצגה</td></tr>';
         return;
     }
 
@@ -71,21 +71,21 @@ function renderTasks(tasks) {
         const planeNumber = getTaskValue(task, ["planeNumber", "PlaneNumber", "tailNumber", "TailNumber"], '-') || '-';
         const currentStationName = getTaskValue(task, ["currentStationName", "CurrentStationName"], '') ||
             task.currentStage?.stage?.productionStageName || task.CurrentStage?.Stage?.ProductionStageName || "לא הוגדר";
-        const score = Number(getTaskValue(task, ["urgencyScore", "UrgencyScore", "calculatedScore", "CalculatedScore"], 0)) || 0;
         const currentStageId = getTaskValue(task, ["currentStage", "CurrentStage"], null)?.stage?.productionStageID ||
             getTaskValue(task, ["currentStage", "CurrentStage"], null)?.Stage?.ProductionStageID || 0;
         const rowKey = getRowKey(task);
 
         const projectDueDate = formatDate(projectDueDateRaw);
         const itemDueDate = formatDate(itemDueDateRaw);
-        const isExpiredRow = isExpiredDate(projectDueDateRaw) || isExpiredDate(itemDueDateRaw);
+        const isProjectDueDateExpired = isExpiredDate(projectDueDateRaw);
+        const isItemDueDateExpired = isExpiredDate(itemDueDateRaw);
 
         const rowHasManualPriority = hasManualPriority(task);
         const magicIconColor = rowHasManualPriority ? "orange" : "#94a3b8";
         const safeItemId = String(itemId).replace(/'/g, "\\'");
 
         const rowHtml = `
-            <tr class="${isExpiredRow ? 'workorder-expired-row' : ''}" data-rowkey="${rowKey}" data-sn="${sn}" data-itemid="${itemId}" data-stageid="${currentStageId}">
+            <tr data-rowkey="${rowKey}" data-sn="${sn}" data-itemid="${itemId}" data-stageid="${currentStageId}">
                 <td class="drag-col">
                     <div class="drag-handle">⋮⋮</div>
                     <button class="btn-tiny-algo" 
@@ -99,11 +99,10 @@ function renderTasks(tasks) {
                 <td>${renderWorkOrderCellWithTooltip(sn)}</td>
                 <td>${renderWorkOrderCellWithTooltip(planeType)}</td>
                 <td class="project-name-cell">${renderWorkOrderCellWithTooltip(projectName)}</td>
-                <td>${renderWorkOrderCellWithTooltip(projectDueDate)}</td>
-                <td>${renderWorkOrderCellWithTooltip(itemDueDate)}</td>
+                <td>${renderDueDateCell(projectDueDate, isProjectDueDateExpired, "תאריך יעד הפרויקט עבר")}</td>
+                <td>${renderDueDateCell(itemDueDate, isItemDueDateExpired, "תאריך יעד הפריט עבר")}</td>
                 <td>${renderWorkOrderCellWithTooltip(planeNumber)}</td>
                 <td><span class="status-pill">${escapeHtml(currentStationName)}</span></td>
-                <td>${score.toFixed(4)}</td>
             </tr>
         `;
         tbody.insertAdjacentHTML('beforeend', rowHtml);
@@ -174,6 +173,13 @@ function renderWorkOrderCellWithTooltip(value) {
     const safeValue = escapeHtml(displayValue);
     if (displayValue === '-') return safeValue;
     return `<span class="workorder-cell-tooltip" tabindex="0" data-tooltip="${safeValue}">${safeValue}</span>`;
+}
+
+function renderDueDateCell(value, isExpired, warningTitle) {
+    const dateHtml = renderWorkOrderCellWithTooltip(value);
+    if (!isExpired) return dateHtml;
+
+    return `<span class="workorder-due-date-cell">${dateHtml}<span class="workorder-date-warning" title="${escapeHtml(warningTitle)}" aria-label="${escapeHtml(warningTitle)}">!</span></span>`;
 }
 
 function getWorkOrderCellTooltip() {

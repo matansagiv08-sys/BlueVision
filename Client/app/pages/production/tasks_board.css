@@ -345,10 +345,8 @@ body:has(.tasks-board-page) .table-container {
 }
 
 .tasks-board-page .row-actions-menu {
-    position: absolute;
-    top: 28px;
-    right: 0;
-    z-index: 30;
+    position: fixed;
+    z-index: 5000;
     min-width: 150px;
     padding: 6px;
     border: 1px solid #e2e8f0;

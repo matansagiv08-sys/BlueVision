@@ -98,6 +98,12 @@ namespace Server.Controllers
         {
             try
             {
+                productionItemID = productionItemID?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(productionItemID))
+                {
+                    return BadRequest(new { error = "Production item ID is required" });
+                }
+
                 ItemInProduction model = new ItemInProduction();
                 int res = model.DeleteProductionRow(serialNumber, productionItemID);
 

@@ -199,6 +199,32 @@ namespace Server.Models
                 Quantity = 1
             };
 
+            if (itemData.AddAsSingleQuantityRow == true)
+            {
+                int? serialNumber = itemData.SerialNumber.HasValue && itemData.SerialNumber.Value > 0
+                    ? itemData.SerialNumber.Value
+                    : null;
+
+                return new List<InsertItemInProductionRequest>
+                {
+                    new InsertItemInProductionRequest
+                    {
+                        ProjectName = baseRequest.ProjectName,
+                        PlaneID = string.IsNullOrWhiteSpace(itemData.PlaneID) ? null : itemData.PlaneID.Trim(),
+                        DueDate = baseRequest.DueDate,
+                        ProjectDueDate = baseRequest.ProjectDueDate,
+                        ProductionItemID = baseRequest.ProductionItemID,
+                        WorkOrderID = baseRequest.WorkOrderID,
+                        SerialNumber = serialNumber,
+                        PlaneTypeID = baseRequest.PlaneTypeID,
+                        PriorityID = baseRequest.PriorityID,
+                        ProjectPriorityLevel = baseRequest.ProjectPriorityLevel,
+                        Quantity = quantity,
+                        Comments = baseRequest.Comments
+                    }
+                };
+            }
+
             if (quantity == 1 && (itemData.Units == null || itemData.Units.Count == 0))
             {
                 int serialNumber = itemData.SerialNumber ?? 0;
@@ -304,7 +330,8 @@ namespace Server.Models
 
         public int DeleteProductionRow(int serialNumber, string productionItemID)
         {
-            if (serialNumber <= 0 || string.IsNullOrWhiteSpace(productionItemID)) return 0;
+            productionItemID = productionItemID?.Trim() ?? string.Empty;
+            if (serialNumber < 0 || string.IsNullOrWhiteSpace(productionItemID)) return 0;
             DBservices dbs = new DBservices();
             return dbs.DeleteItemInProductionRow(serialNumber, productionItemID);
         }
@@ -374,6 +401,7 @@ namespace Server.Models
         public int? PriorityID { get; set; }
         public int? ProjectPriorityLevel { get; set; }
         public int? Quantity { get; set; }
+        public bool? AddAsSingleQuantityRow { get; set; }
         public string? Comments { get; set; }
         public List<InsertTrackedUnitRequest>? Units { get; set; }
     }

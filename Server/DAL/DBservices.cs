@@ -1018,6 +1018,72 @@ public class DBservices
     //ייצור
 
     //שליפת כל הנתונים של פרטי הייצור עבור עמודי לוח משימות וניהול לוז
+    private SqlCommand CreateProductionBoardDataCommand(SqlConnection con)
+    {
+        SqlCommand cmd = new SqlCommand(@"
+SELECT
+    iip.SerialNumber,
+    iip.WorkOrderID AS WorkOrderNumber,
+    iip.WorkOrderID,
+    iip.ProductionItemID AS InventoryItemID,
+    iip.ProductionItemID,
+    pi.ItemName,
+    pt.PlaneTypeName,
+    COALESCE(pl.PlaneTypeID, iip.PlaneTypeID) AS PlaneTypeID,
+    COALESCE(p.ProjectName, iip.ProjectName) AS ProjectName,
+    CAST(pl.PlaneID AS nvarchar(50)) AS PlaneNumber,
+    CAST(pl.PlaneID AS nvarchar(50)) AS TailNumber,
+    iip.PlannedQty,
+    ISNULL(iip.PriorityLevel, 3) AS ItemPriorityLevel,
+    ISNULL(p.PriorityLevel, 3) AS ProjectPriorityLevel,
+    iip.DueDate AS ItemDueDate,
+    p.DueDate AS ProjectDueDate,
+    p.DueDate AS DueDate,
+    pis.ProductionStageID,
+    ps.ProductionStageName,
+    ps.StageOrder,
+    ISNULL(ps.TargetDuration, CAST('01:00:00' AS time)) AS TargetDuration,
+    ISNULL(pis.ProductionStatusID, 1) AS ProductionStatusID,
+    ISNULL(pst.ProductionStatusName, N'לא ידוע') AS StatusName,
+    ISNULL(pis.Comment, N'') AS Comment,
+    pis.ManualPriority,
+    cur.CurrentStationName
+FROM dbo.ItemsInProduction iip
+INNER JOIN dbo.ProductionItems pi
+    ON pi.ProductionItemID = iip.ProductionItemID
+LEFT JOIN dbo.Planes pl
+    ON pl.PlaneID = iip.PlaneID
+LEFT JOIN dbo.PlaneTypes pt
+    ON pt.PlaneTypeID = COALESCE(pl.PlaneTypeID, iip.PlaneTypeID)
+LEFT JOIN dbo.Projects p
+    ON p.ProjectID = pl.ProjectID
+INNER JOIN dbo.ProductionItemStage pis
+    ON pis.SerialNumber = iip.SerialNumber
+   AND pis.ProductionItemID = iip.ProductionItemID
+INNER JOIN dbo.ProductionStages ps
+    ON ps.ProductionStageID = pis.ProductionStageID
+LEFT JOIN dbo.ProductionStatuses pst
+    ON pst.ProductionStatusID = pis.ProductionStatusID
+OUTER APPLY
+(
+    SELECT TOP (1)
+        ps2.ProductionStageName AS CurrentStationName
+    FROM dbo.ProductionItemStage pis2
+    INNER JOIN dbo.ProductionStages ps2
+        ON ps2.ProductionStageID = pis2.ProductionStageID
+    WHERE pis2.SerialNumber = iip.SerialNumber
+      AND pis2.ProductionItemID = iip.ProductionItemID
+    ORDER BY
+        CASE WHEN ISNULL(pis2.ProductionStatusID, 1) <> 4 THEN 0 ELSE 1 END,
+        ps2.StageOrder
+) cur
+ORDER BY
+    iip.SerialNumber,
+    ps.StageOrder;", con);
+        cmd.CommandType = CommandType.Text;
+        return cmd;
+    }
+
     public List<ItemInProduction> GetTasksBoard()
     {
         SqlConnection con = null;
@@ -1027,7 +1093,8 @@ public class DBservices
         {
             Stopwatch sw = Stopwatch.StartNew();
             con = connect("myProjDB");
-            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("spGetProductionBoardData", con, null);
+            EnsureItemsInProductionPlaneTypeColumn(con);
+            SqlCommand cmd = CreateProductionBoardDataCommand(con);
             SqlDataReader reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -1229,6 +1296,21 @@ public class DBservices
         {
             if (con != null) con.Close();
         }
+    }
+
+    private void EnsureItemsInProductionPlaneTypeColumn(SqlConnection con)
+    {
+        using SqlCommand cmd = new SqlCommand(@"
+IF COL_LENGTH('dbo.ItemsInProduction', 'PlaneTypeID') IS NULL
+BEGIN
+    ALTER TABLE dbo.ItemsInProduction ADD PlaneTypeID INT NULL;
+END
+IF COL_LENGTH('dbo.ItemsInProduction', 'ProjectName') IS NULL
+BEGIN
+    ALTER TABLE dbo.ItemsInProduction ADD ProjectName NVARCHAR(255) NULL;
+END", con);
+        cmd.CommandType = CommandType.Text;
+        cmd.ExecuteNonQuery();
     }
 
     public Project CreateProject(string projectName, DateTime? dueDate, int priorityLevel)
@@ -1632,6 +1714,7 @@ public class DBservices
         {
             con = connect("myProjDB");
             if (con.State != System.Data.ConnectionState.Open) con.Open();
+            EnsureItemsInProductionPlaneTypeColumn(con);
             trans = con.BeginTransaction();
 
             string projectName = item.ProjectName;
@@ -1662,6 +1745,10 @@ public class DBservices
                 mainCmd.Parameters.AddWithValue("@comments", (object)item.Comments ?? DBNull.Value);
                 mainCmd.ExecuteNonQuery();
             }
+
+            UpdateOptionalItemsInProductionColumn(con, trans, serialNumber, productionItemID, "PlaneTypeID", planeTypeID);
+            UpdateOptionalItemsInProductionColumn(con, trans, serialNumber, productionItemID, "ProjectName", projectName);
+
             //קריאה לפונקציה שמוסיפה תחנות עבודה לפריט החדש שהוכנס
             InsertStagesForProduct(con, trans, serialNumber, productionItemID);
 
@@ -1961,6 +2048,9 @@ WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProdu
 
     public int DeleteItemInProductionRow(int serialNumber, string productionItemID)
     {
+        productionItemID = productionItemID?.Trim() ?? string.Empty;
+        if (serialNumber < 0 || string.IsNullOrWhiteSpace(productionItemID)) return 0;
+
         SqlConnection con = null;
         SqlTransaction trans = null;
         try
