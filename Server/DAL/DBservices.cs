@@ -467,6 +467,11 @@ public class DBservices
             cmd.Parameters.AddWithValue("@ItemIds", idsCsv);
 
             SqlDataReader reader = cmd.ExecuteReader();
+            bool hasOpenPurchaseRequestQty = ReaderHasColumn(reader, "OpenPurchaseRequestQty");
+            bool hasOpenPurchaseOrderQty = ReaderHasColumn(reader, "OpenPurchaseOrderQty");
+            bool hasApprovedOrderQty = ReaderHasColumn(reader, "ApprovedOrderQty");
+            bool hasUnapprovedOrderQty = ReaderHasColumn(reader, "UnapprovedOrderQty");
+
             while (reader.Read())
             {
                 string itemId = reader["InventoryItemID"]?.ToString() ?? string.Empty;
@@ -482,7 +487,11 @@ public class DBservices
                                + (reader["Whse03_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse03_QTY"]))
                                + (reader["Whse90_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse90_QTY"])),
                     SupplierName = string.Empty,
-                    Price = null
+                    Price = null,
+                    OpenPurchaseRequestQty = hasOpenPurchaseRequestQty && reader["OpenPurchaseRequestQty"] != DBNull.Value ? Convert.ToInt32(reader["OpenPurchaseRequestQty"]) : 0,
+                    OpenPurchaseOrderQty = hasOpenPurchaseOrderQty && reader["OpenPurchaseOrderQty"] != DBNull.Value ? Convert.ToInt32(reader["OpenPurchaseOrderQty"]) : 0,
+                    ApprovedOrderQty = hasApprovedOrderQty && reader["ApprovedOrderQty"] != DBNull.Value ? Convert.ToInt32(reader["ApprovedOrderQty"]) : 0,
+                    UnapprovedOrderQty = hasUnapprovedOrderQty && reader["UnapprovedOrderQty"] != DBNull.Value ? Convert.ToInt32(reader["UnapprovedOrderQty"]) : 0
                 };
             }
 
@@ -496,6 +505,19 @@ public class DBservices
         {
             if (con != null) con.Close();
         }
+    }
+
+    private static bool ReaderHasColumn(SqlDataReader reader, string columnName)
+    {
+        for (int i = 0; i < reader.FieldCount; i++)
+        {
+            if (string.Equals(reader.GetName(i), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     //db connection to get all the options for inventory filters (platforms, groups, buy methods, suppliers, body planes)

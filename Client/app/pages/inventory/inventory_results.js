@@ -1,4 +1,5 @@
 let currentResultsData = [];
+let currentReadyToProduceRows = [];
 
 window.initInventoryResults = function () {
     setInventoryResultsLoading(true);
@@ -7,6 +8,7 @@ window.initInventoryResults = function () {
 
     const payloadText = sessionStorage.getItem("inventoryCheckPayload");
     if (!payloadText) {
+        currentReadyToProduceRows = [];
         renderResultsTable([]);
         updateSummaryCards([]);
         populatePlatformFilter([]);
@@ -22,6 +24,7 @@ window.initInventoryResults = function () {
     }
 
     if (!payload || !Array.isArray(payload.requests) || payload.requests.length === 0) {
+        currentReadyToProduceRows = [];
         renderResultsTable([]);
         updateSummaryCards([]);
         populatePlatformFilter([]);
@@ -44,6 +47,9 @@ window.initInventoryResults = function () {
                 currentResultsData = Array.isArray(data?.items)
                     ? data.items
                     : (Array.isArray(data?.Items) ? data.Items : []);
+                currentReadyToProduceRows = Array.isArray(data?.readyToProduceRows)
+                    ? data.readyToProduceRows
+                    : (Array.isArray(data?.ReadyToProduceRows) ? data.ReadyToProduceRows : []);
 
                 const totalShortageItems = data?.totalShortageItems ?? data?.TotalShortageItems ?? currentResultsData.length;
                 const totalShortageUnits = data?.totalShortageUnits ?? data?.TotalShortageUnits ?? currentResultsData.reduce((sum, item) => sum + Number(item.shortageQty ?? item.ShortageQty ?? 0), 0);
@@ -63,6 +69,7 @@ window.initInventoryResults = function () {
             function (xhr) {
                 console.error("Failed to calculate inventory shortages", xhr);
                 currentResultsData = [];
+                currentReadyToProduceRows = [];
                 renderResultsTable([]);
                 updateSummaryCards([]);
                 populatePlatformFilter([]);
@@ -96,6 +103,10 @@ function renderResultsTable(data) {
         const sku = item.inventoryItemID ?? item.InventoryItemID ?? "";
         const desc = item.itemName ?? item.ItemName ?? "";
         const current = item.totalStock ?? item.TotalStock ?? 0;
+        const openPurchaseRequestQty = item.openPurchaseRequestQty ?? item.OpenPurchaseRequestQty ?? 0;
+        const openPurchaseOrderQty = item.openPurchaseOrderQty ?? item.OpenPurchaseOrderQty ?? 0;
+        const approvedOrderQty = item.approvedOrderQty ?? item.ApprovedOrderQty ?? 0;
+        const unapprovedOrderQty = item.unapprovedOrderQty ?? item.UnapprovedOrderQty ?? 0;
         const req = item.requiredQty ?? item.RequiredQty ?? 0;
         const shortage = item.shortageQty ?? item.ShortageQty ?? 0;
         const supplier = item.supplierName ?? item.SupplierName ?? "";
@@ -115,6 +126,10 @@ function renderResultsTable(data) {
                 <td>${displayNumber(req)}</td>
                 <td class="shortage-cell">${displayNumber(shortage)}</td>
                 <td>${escapeHtml(displayOrDash(measureUnit))}</td>
+                <td>${displayNumber(openPurchaseRequestQty)}</td>
+                <td>${displayNumber(openPurchaseOrderQty)}</td>
+                <td>${displayNumber(approvedOrderQty)}</td>
+                <td>${displayNumber(unapprovedOrderQty)}</td>
                 <td>${escapeHtml(displayOrDash(supplier))}</td>
                 <td>${price === null || price === undefined ? "-" : Number(price).toLocaleString()}</td>
                 <td>${escapeHtml(displayOrDash(platforms))}</td>
@@ -140,7 +155,22 @@ function updateSummaryCards(data, totalItemsOverride, totalUnitsOverride, totalC
     if (totalShortageEl) totalShortageEl.innerText = String(totalShortageCount);
     if (totalItemsCountEl) totalItemsCountEl.innerText = `${displayNumber(totalUnits)} יחידות`;
     if (totalCostEl) totalCostEl.innerText = `₪ ${Number(totalCost).toLocaleString()}`;
-    if (readyEl) readyEl.innerText = "-";
+    if (readyEl) renderReadyToProduceRows(readyEl, currentReadyToProduceRows);
+}
+
+function renderReadyToProduceRows(target, rows) {
+    const readyRows = Array.isArray(rows) ? rows : [];
+    if (readyRows.length === 0) {
+        target.innerText = "-";
+        return;
+    }
+
+    target.innerHTML = readyRows.map(row => {
+        const readyQty = displayWholeNumber(row.readyQty ?? row.ReadyQty ?? 0);
+        const requestedQty = displayWholeNumber(row.requestedQty ?? row.RequestedQty ?? 0);
+        const planeName = row.planeTypeName ?? row.PlaneTypeName ?? row.planeTypeID ?? row.PlaneTypeID ?? "-";
+        return `<div class="ready-to-prod-line">${readyQty}/${requestedQty} ${escapeHtml(displayOrDash(planeName))}</div>`;
+    }).join("");
 }
 
 function populatePlatformFilter(data) {
@@ -206,6 +236,10 @@ window.exportToExcel = function () {
         "RequiredQty",
         "ShortageQty",
         "MeasureUnit",
+        "OpenPurchaseRequestQty",
+        "OpenPurchaseOrderQty",
+        "ApprovedOrderQty",
+        "UnapprovedOrderQty",
         "SupplierName",
         "Price",
         "ContributingPlaneTypes",
@@ -221,6 +255,10 @@ window.exportToExcel = function () {
             item.requiredQty ?? item.RequiredQty ?? "",
             item.shortageQty ?? item.ShortageQty ?? "",
             item.measureUnit ?? item.MeasureUnit ?? "",
+            item.openPurchaseRequestQty ?? item.OpenPurchaseRequestQty ?? 0,
+            item.openPurchaseOrderQty ?? item.OpenPurchaseOrderQty ?? 0,
+            item.approvedOrderQty ?? item.ApprovedOrderQty ?? 0,
+            item.unapprovedOrderQty ?? item.UnapprovedOrderQty ?? 0,
             item.supplierName ?? item.SupplierName ?? "",
             item.price ?? item.Price ?? "",
             item.contributingPlaneTypes ?? item.ContributingPlaneTypes ?? "",
@@ -250,6 +288,12 @@ function displayNumber(value) {
     const num = Number(value);
     if (!Number.isFinite(num)) return "0";
     return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
+function displayWholeNumber(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return "0";
+    return Math.trunc(num).toLocaleString();
 }
 
 function escapeHtml(value) {    

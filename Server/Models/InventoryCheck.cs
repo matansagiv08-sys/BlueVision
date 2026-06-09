@@ -124,6 +124,7 @@ public class InventoryCheck
                         {
                             allocation = new RequestDemandAllocation
                             {
+                                RequestIndex = demandRow.RequestIndex,
                                 PlaneTypeID = demandRow.PlaneTypeID,
                                 IsHighPriority = demandRow.IsHighPriority
                             };
@@ -185,6 +186,10 @@ public class InventoryCheck
                 ShortageQty = Decimal.Round(shortage, 4),
                 SupplierName = stock?.SupplierName ?? string.Empty,
                 Price = stock?.Price,
+                OpenPurchaseRequestQty = stock?.OpenPurchaseRequestQty ?? 0,
+                OpenPurchaseOrderQty = stock?.OpenPurchaseOrderQty ?? 0,
+                ApprovedOrderQty = stock?.ApprovedOrderQty ?? 0,
+                UnapprovedOrderQty = stock?.UnapprovedOrderQty ?? 0,
                 IsSharedAcrossPlanes = need.PlaneTypeIDs.Count > 1,
                 ContributingPlaneTypes = planeNames,
                 ShortageByPlane = shortageByPlane
@@ -192,6 +197,12 @@ public class InventoryCheck
 
             response.Items.Add(item);
         }
+
+        response.ReadyToProduceRows = BuildReadyToProduceRows(
+            requestDemandRows,
+            needsByItem.Values,
+            stockByItem,
+            planeTypeNames);
 
         //sort the response items by shortage quantity desc, then by item id asc
         response.Items = response.Items
@@ -205,6 +216,95 @@ public class InventoryCheck
         response.TotalEstimatedCost = Decimal.Round(response.Items.Sum(i => (decimal)(i.Price ?? 0d) * i.ShortageQty), 2);
 
         return response;
+    }
+
+    private static List<InventoryCheckReadyToProduceItem> BuildReadyToProduceRows(
+        List<RequestDemandInput> requestRows,
+        IEnumerable<AggregatedBomNeed> needs,
+        Dictionary<string, InventorySnapshot> stockByItem,
+        Dictionary<int, string> planeTypeNames)
+    {
+        List<InventoryCheckReadyToProduceItem> readyRows = new List<InventoryCheckReadyToProduceItem>();
+
+        if (requestRows == null || requestRows.Count == 0)
+        {
+            return readyRows;
+        }
+
+        Dictionary<int, RequestDemandInput> requestByIndex = requestRows.ToDictionary(r => r.RequestIndex);
+        Dictionary<int, decimal> readyByRequestIndex = requestRows.ToDictionary(r => r.RequestIndex, r => r.Quantity);
+        HashSet<int> requestsWithRequirements = new HashSet<int>();
+
+        foreach (AggregatedBomNeed need in needs)
+        {
+            List<RequestDemandAllocation> allocations = need.RequiredQtyByRequestIndex.Values
+                .Where(v => v.RequiredQty > 0 && requestByIndex.ContainsKey(v.RequestIndex))
+                .Select(v => new RequestDemandAllocation
+                {
+                    RequestIndex = v.RequestIndex,
+                    PlaneTypeID = v.PlaneTypeID,
+                    IsHighPriority = v.IsHighPriority,
+                    RequiredQty = Decimal.Round(v.RequiredQty, 6),
+                    AllocatedQty = 0m
+                })
+                .ToList();
+
+            if (allocations.Count == 0)
+            {
+                continue;
+            }
+
+            decimal totalStock = stockByItem.TryGetValue(need.InventoryItemID, out InventorySnapshot? stock)
+                ? stock.TotalStock
+                : 0m;
+
+            List<RequestDemandAllocation> highPriorityDemands = allocations.Where(d => d.IsHighPriority).ToList();
+            List<RequestDemandAllocation> normalDemands = allocations.Where(d => !d.IsHighPriority).ToList();
+            decimal remainingStock = totalStock;
+
+            AllocateStockForDemandGroup(highPriorityDemands, ref remainingStock);
+            AllocateStockForDemandGroup(normalDemands, ref remainingStock);
+
+            foreach (RequestDemandAllocation allocation in allocations)
+            {
+                RequestDemandInput request = requestByIndex[allocation.RequestIndex];
+                if (request.Quantity <= 0 || allocation.RequiredQty <= 0)
+                {
+                    continue;
+                }
+
+                requestsWithRequirements.Add(allocation.RequestIndex);
+                decimal requiredPerUnit = allocation.RequiredQty / request.Quantity;
+                if (requiredPerUnit <= 0)
+                {
+                    continue;
+                }
+
+                decimal possibleByItem = Math.Floor(allocation.AllocatedQty / requiredPerUnit);
+                readyByRequestIndex[allocation.RequestIndex] = Math.Min(readyByRequestIndex[allocation.RequestIndex], possibleByItem);
+            }
+        }
+
+        foreach (RequestDemandInput request in requestRows.OrderBy(r => r.RequestIndex))
+        {
+            string planeName = planeTypeNames.TryGetValue(request.PlaneTypeID, out string? name) && !string.IsNullOrWhiteSpace(name)
+                ? name
+                : request.PlaneTypeID.ToString();
+
+            int readyQty = requestsWithRequirements.Contains(request.RequestIndex)
+                ? Convert.ToInt32(Math.Max(0m, Math.Min(request.Quantity, readyByRequestIndex[request.RequestIndex])))
+                : 0;
+
+            readyRows.Add(new InventoryCheckReadyToProduceItem
+            {
+                PlaneTypeID = request.PlaneTypeID,
+                PlaneTypeName = planeName,
+                RequestedQty = Convert.ToInt32(request.Quantity),
+                ReadyQty = readyQty
+            });
+        }
+
+        return readyRows;
     }
 
     private static Dictionary<string, decimal> BuildShortageByPlane(
@@ -277,6 +377,7 @@ public class InventoryCheck
                 .Where(v => v.RequiredQty > 0)
                 .Select(v => new RequestDemandAllocation
                 {
+                    RequestIndex = v.RequestIndex,
                     PlaneTypeID = v.PlaneTypeID,
                     IsHighPriority = v.IsHighPriority,
                     RequiredQty = Decimal.Round(v.RequiredQty, 6),
@@ -483,6 +584,7 @@ public class InventoryCheck
 
     private class RequestDemandAllocation
     {
+        public int RequestIndex { get; set; }
         public int PlaneTypeID { get; set; }
         public bool IsHighPriority { get; set; }
         public decimal RequiredQty { get; set; }
@@ -495,6 +597,10 @@ public class InventoryCheck
         public decimal TotalStock { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public double? Price { get; set; }
+        public int OpenPurchaseRequestQty { get; set; }
+        public int OpenPurchaseOrderQty { get; set; }
+        public int ApprovedOrderQty { get; set; }
+        public int UnapprovedOrderQty { get; set; }
     }
 }
 
@@ -517,7 +623,16 @@ public class InventoryCheckResponse
     public int TotalShortageItems { get; set; }
     public decimal TotalShortageUnits { get; set; }
     public decimal TotalEstimatedCost { get; set; }
+    public List<InventoryCheckReadyToProduceItem> ReadyToProduceRows { get; set; } = new List<InventoryCheckReadyToProduceItem>();
     public List<InventoryCheckShortageItem> Items { get; set; } = new List<InventoryCheckShortageItem>();
+}
+
+public class InventoryCheckReadyToProduceItem
+{
+    public int PlaneTypeID { get; set; }
+    public string PlaneTypeName { get; set; } = string.Empty;
+    public int RequestedQty { get; set; }
+    public int ReadyQty { get; set; }
 }
 
 public class InventoryCheckShortageItem
@@ -530,6 +645,10 @@ public class InventoryCheckShortageItem
     public decimal ShortageQty { get; set; }
     public string SupplierName { get; set; } = string.Empty;
     public double? Price { get; set; }
+    public int OpenPurchaseRequestQty { get; set; }
+    public int OpenPurchaseOrderQty { get; set; }
+    public int ApprovedOrderQty { get; set; }
+    public int UnapprovedOrderQty { get; set; }
     public bool IsSharedAcrossPlanes { get; set; }
     public string ContributingPlaneTypes { get; set; } = string.Empty;
     public Dictionary<string, decimal> ShortageByPlane { get; set; } = new Dictionary<string, decimal>();

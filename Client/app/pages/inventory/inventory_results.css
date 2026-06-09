@@ -44,6 +44,18 @@
     background: #f8fafc;
 }
 
+.inventory-results-page #ready-to-prod {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 18px;
+    line-height: 1.35;
+}
+
+.inventory-results-page .ready-to-prod-line {
+    white-space: nowrap;
+}
+
 .inventory-results-page .table-container {
     max-width: 100%;
     overflow-x: auto;
