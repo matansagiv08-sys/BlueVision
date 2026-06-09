@@ -62,49 +62,79 @@ body:has(.tasks-board-page) .table-container {
 
 #tbStatusModal .tb-status-modal {
     width: min(620px, calc(100vw - 32px));
-    max-height: calc(100vh - 40px);
+    max-height: calc(100vh - 32px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     border-radius: 12px;
 }
 
+#tbStatusModal .modal-header-blue {
+    flex: 0 0 auto;
+}
+
 #tbStatusModal .tb-status-modal-body {
+    flex: 1 1 auto;
     overflow-y: auto;
     min-height: 0;
-    padding: 16px;
+    padding: 12px 16px;
 }
 
 #tbStatusModal .tb-status-info-card {
-    padding: 12px;
-    margin-bottom: 14px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
 }
 
 #tbStatusModal #statusButtonsContainer {
-    gap: 8px 10px;
-    margin-top: 8px;
-    margin-bottom: 14px;
+    gap: 7px 9px;
+    margin-top: 6px;
+    margin-bottom: 10px;
 }
 
 #tbStatusModal .btn-choice {
-    min-height: 40px;
-    padding: 8px 10px;
+    min-height: 36px;
+    padding: 7px 10px;
 }
 
 #tbStatusModal #statusCommentInput {
-    min-height: 80px;
-    max-height: 120px;
+    min-height: 68px;
+    max-height: 80px;
 }
 
 #tbStatusModal #timeInputContainer {
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 #tbStatusModal .tb-status-modal-footer {
-    position: sticky;
-    bottom: 0;
+    flex: 0 0 auto;
+    position: static;
     background: #f8fafc;
     z-index: 2;
+    padding: 10px 16px !important;
+}
+
+#tbStatusModal .tb-label {
+    margin-bottom: 6px !important;
+}
+
+#tbStatusModal hr {
+    margin: 10px 0 !important;
+}
+
+#tbStatusModal #timeInputContainer,
+#tbStatusModal #finishTimeInputContainer {
+    margin-top: 8px !important;
+}
+
+#tbStatusModal #userTimeInput,
+#tbStatusModal #finishTimeInput {
+    padding: 8px 10px !important;
+}
+
+@media (max-height: 680px) {
+    #tbStatusModal .tb-status-modal {
+        max-height: calc(100vh - 24px);
+    }
 }
 
 #tasks-board-container {

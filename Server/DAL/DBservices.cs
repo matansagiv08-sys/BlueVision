@@ -1042,6 +1042,11 @@ public class DBservices
     //שליפת כל הנתונים של פרטי הייצור עבור עמודי לוח משימות וניהול לוז
     private SqlCommand CreateProductionBoardDataCommand(SqlConnection con)
     {
+        string? startColumn = GetExistingColumnName(con, "ProductionItemStage", "StartTimeStamp", "StartTimestamp", "StartTime");
+        string? finishColumn = GetExistingColumnName(con, "ProductionItemStage", "FinishTimeStamp", "FinishTimestamp", "FinishTime", "EndTime");
+        string startSelect = startColumn == null ? "CAST(NULL AS datetime) AS StartTimeStamp" : $"pis.{startColumn} AS StartTimeStamp";
+        string finishSelect = finishColumn == null ? "CAST(NULL AS datetime) AS FinishTimeStamp" : $"pis.{finishColumn} AS FinishTimeStamp";
+
         SqlCommand cmd = new SqlCommand(@"
 SELECT
     iip.SerialNumber,
@@ -1068,6 +1073,8 @@ SELECT
     ISNULL(pis.ProductionStatusID, 1) AS ProductionStatusID,
     ISNULL(pst.ProductionStatusName, N'לא ידוע') AS StatusName,
     ISNULL(pis.Comment, N'') AS Comment,
+    " + startSelect + @",
+    " + finishSelect + @",
     pis.ManualPriority,
     cur.CurrentStationName
 FROM dbo.ItemsInProduction iip
@@ -1249,7 +1256,6 @@ ORDER BY
                 });
             }
             reader.Close();
-            ApplyStageTimestamps(con, itemsMap);
             sw.Stop();
             Debug.WriteLine($"[TasksBoard] GetTasksBoard loaded {itemsMap.Count} rows in {sw.ElapsedMilliseconds}ms");
             return itemsMap.Values.ToList();

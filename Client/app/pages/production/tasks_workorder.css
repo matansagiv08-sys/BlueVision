@@ -4,7 +4,7 @@
     min-width: 0;
     box-sizing: border-box;
     overflow-x: hidden;
-    padding: 20px;
+    padding: clamp(12px, 1.4vw, 20px);
 }
 
 body:has(.tasks-workorder-page) .main {
@@ -45,7 +45,7 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
     direction: rtl;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
     width: 100%;
     max-width: 100%;
@@ -53,19 +53,27 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 }
 
 .tasks-workorder-page .workorder-search-wrap {
-    flex: 2 1 280px;
-    min-width: 180px;
+    flex: 1.4 1 220px;
+    min-width: 170px;
+    max-width: 360px;
     margin: 0;
 }
 
 .tasks-workorder-page .workorder-search-wrap .standard-input {
     width: 100%;
+    direction: rtl;
+    text-align: right;
+    padding-inline: 12px 34px;
 }
 
 .tasks-workorder-page .workorder-filter-select {
-    flex: 1 1 150px;
-    min-width: 120px;
-    max-width: 190px;
+    flex: 1 1 128px;
+    min-width: 112px;
+    max-width: 158px;
+    direction: rtl;
+    text-align: right;
+    text-align-last: right;
+    padding-inline: 12px 28px;
 }
 
 .tasks-workorder-page .workorder-filter-row .btn-save,
@@ -73,6 +81,10 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 .tasks-workorder-page .workorder-filter-row .clear-filters-btn {
     flex: 0 1 auto;
     min-width: 0;
+    height: 38px;
+    padding: 0 12px;
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .tasks-workorder-page .workorder-filter-row > * {
@@ -84,14 +96,14 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
     max-width: 100%;
     min-width: 0;
     display: block;
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: visible;
     box-sizing: border-box;
 }
 
 .tasks-workorder-page .workorder-table {
     width: 100%;
-    min-width: 1305px;
+    min-width: 0;
     table-layout: fixed;
 }
 
@@ -99,7 +111,8 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 .tasks-workorder-page .workorder-table td {
     overflow: hidden;
     text-overflow: ellipsis;
-    padding-inline: clamp(8px, 0.7vw, 14px);
+    padding: 9px clamp(4px, 0.45vw, 8px);
+    font-size: clamp(11px, 0.78vw, 12px);
     vertical-align: middle;
 }
 
@@ -109,6 +122,7 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
     text-overflow: clip;
     line-height: 1.2;
     text-align: center;
+    word-break: normal;
 }
 
 .tasks-workorder-page .workorder-table td {
@@ -118,57 +132,59 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 
 .tasks-workorder-page .workorder-table th:nth-child(1),
 .tasks-workorder-page .workorder-table td:nth-child(1) {
-    width: 44px;
+    width: 3.5%;
 }
 
-.tasks-workorder-page .workorder-table td:nth-child(1),
-.tasks-workorder-page .workorder-table td:nth-child(11) {
+.tasks-workorder-page .workorder-table td:nth-child(1) {
     overflow: visible;
     text-overflow: clip;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(2),
 .tasks-workorder-page .workorder-table td:nth-child(2) {
-    width: 110px;
+    width: 8.5%;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(3),
 .tasks-workorder-page .workorder-table td:nth-child(3) {
-    width: 165px;
+    width: 15%;
     text-align: right;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(4),
 .tasks-workorder-page .workorder-table td:nth-child(4) {
-    width: 230px;
+    width: 20%;
     text-align: right;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(5),
-.tasks-workorder-page .workorder-table td:nth-child(5),
+.tasks-workorder-page .workorder-table td:nth-child(5) {
+    width: 8%;
+}
+
 .tasks-workorder-page .workorder-table th:nth-child(6),
-.tasks-workorder-page .workorder-table td:nth-child(6),
-.tasks-workorder-page .workorder-table th:nth-child(10),
-.tasks-workorder-page .workorder-table td:nth-child(10) {
-    width: 105px;
+.tasks-workorder-page .workorder-table td:nth-child(6) {
+    width: 8.2%;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(7),
 .tasks-workorder-page .workorder-table td:nth-child(7) {
-    width: 120px;
+    width: 10.8%;
 }
 
 .tasks-workorder-page .workorder-table th:nth-child(8),
-.tasks-workorder-page .workorder-table td:nth-child(8),
-.tasks-workorder-page .workorder-table th:nth-child(9),
-.tasks-workorder-page .workorder-table td:nth-child(9) {
-    width: 125px;
+.tasks-workorder-page .workorder-table td:nth-child(8) {
+    width: 9.2%;
 }
 
-.tasks-workorder-page .workorder-table th:nth-child(11),
-.tasks-workorder-page .workorder-table td:nth-child(11) {
-    width: 135px;
-    text-align: center;
+.tasks-workorder-page .workorder-table th:nth-child(9),
+.tasks-workorder-page .workorder-table td:nth-child(9) {
+    width: 9.2%;
+}
+
+.tasks-workorder-page .workorder-table th:nth-child(10),
+.tasks-workorder-page .workorder-table td:nth-child(10) {
+    width: 8.6%;
 }
 
 /* Urgency dropdown styling (workorder page) */
@@ -186,8 +202,7 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
 
 /* Drag handle column */
 .tasks-workorder-page .drag-col {
-    width: 44px;
-    padding-inline: 4px;
+    padding-inline: 3px;
 }
 
 .tasks-workorder-page .drag-handle {
@@ -196,8 +211,8 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     border-radius: 10px;
     background: #f1f5f9;
     border: 1px solid #e5e7eb;
@@ -354,6 +369,47 @@ body:has(.tasks-workorder-page) .tasks-workorder-page {
     margin: 2px auto;
 }
 
-    .btn-tiny-algo:hover {
-        opacity: 1;
+.btn-tiny-algo:hover {
+    opacity: 1;
+}
+
+@media (max-width: 1280px) {
+    .tasks-workorder-page .global-toolbar {
+        padding: 12px;
     }
+
+    .tasks-workorder-page .workorder-search-wrap {
+        flex-basis: 190px;
+        max-width: 300px;
+    }
+
+    .tasks-workorder-page .workorder-filter-select {
+        flex-basis: 116px;
+        min-width: 104px;
+        max-width: 140px;
+    }
+
+    .tasks-workorder-page .workorder-filter-row .btn-save,
+    .tasks-workorder-page .workorder-filter-row .btn-cancel,
+    .tasks-workorder-page .workorder-filter-row .clear-filters-btn {
+        padding: 0 10px;
+    }
+}
+
+@media (max-width: 980px) {
+    .tasks-workorder-page .workorder-filter-row {
+        align-items: stretch;
+    }
+
+    .tasks-workorder-page .workorder-search-wrap,
+    .tasks-workorder-page .workorder-filter-select {
+        flex: 1 1 160px;
+        max-width: none;
+    }
+
+    .tasks-workorder-page .workorder-filter-row .btn-save,
+    .tasks-workorder-page .workorder-filter-row .btn-cancel,
+    .tasks-workorder-page .workorder-filter-row .clear-filters-btn {
+        flex: 1 1 130px;
+    }
+}

@@ -52,9 +52,30 @@ function bindInventoryCellTooltips() {
     });
 
     tbody.addEventListener("focusout", hideInventoryCellTooltip);
+    tbody.addEventListener("mouseover", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".stock-total-tooltip") : null;
+        if (target) showStockBreakdownPopover(target);
+    });
+
+    tbody.addEventListener("mouseout", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".stock-total-tooltip") : null;
+        if (!target) return;
+        const related = e.relatedTarget instanceof Element ? e.relatedTarget.closest(".stock-total-tooltip") : null;
+        if (related !== target) hideStockBreakdownPopovers();
+    });
+
+    tbody.addEventListener("focusin", function (e) {
+        const target = e.target instanceof Element ? e.target.closest(".stock-total-tooltip") : null;
+        if (target) showStockBreakdownPopover(target);
+    });
+
+    tbody.addEventListener("focusout", hideStockBreakdownPopovers);
     tbody.addEventListener("scroll", hideInventoryCellTooltip);
+    tbody.addEventListener("scroll", hideStockBreakdownPopovers);
     window.addEventListener("scroll", hideInventoryCellTooltip, true);
+    window.addEventListener("scroll", hideStockBreakdownPopovers, true);
     window.addEventListener("resize", hideInventoryCellTooltip);
+    window.addEventListener("resize", hideStockBreakdownPopovers);
 }
 
 //renders the inventory table based on the current page and filters
@@ -225,6 +246,50 @@ function showInventoryCellTooltip(target) {
 function hideInventoryCellTooltip() {
     const tooltip = document.getElementById("inventoryCellTooltip");
     if (tooltip) tooltip.style.display = "none";
+}
+
+function showStockBreakdownPopover(target) {
+    const popover = target?.querySelector(".stock-breakdown-popover");
+    if (!popover) return;
+
+    hideStockBreakdownPopovers(popover);
+    popover.classList.add("stock-breakdown-open");
+    popover.classList.remove("stock-breakdown-below");
+    popover.style.visibility = "hidden";
+    popover.style.top = "0px";
+    popover.style.left = "0px";
+
+    const targetRect = target.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+    const gap = 10;
+    const viewportPadding = 8;
+    const shouldOpenBelow = targetRect.top < popoverRect.height + gap + viewportPadding;
+
+    let top = shouldOpenBelow
+        ? targetRect.bottom + gap
+        : targetRect.top - popoverRect.height - gap;
+    let left = targetRect.left + (targetRect.width / 2) - (popoverRect.width / 2);
+
+    left = Math.max(viewportPadding, Math.min(left, window.innerWidth - popoverRect.width - viewportPadding));
+    top = Math.max(viewportPadding, Math.min(top, window.innerHeight - popoverRect.height - viewportPadding));
+
+    if (shouldOpenBelow) {
+        popover.classList.add("stock-breakdown-below");
+    }
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${left}px`;
+    popover.style.visibility = "visible";
+}
+
+function hideStockBreakdownPopovers(exceptPopover = null) {
+    document.querySelectorAll(".stock-breakdown-popover.stock-breakdown-open").forEach(popover => {
+        if (popover === exceptPopover) return;
+        popover.classList.remove("stock-breakdown-open", "stock-breakdown-below");
+        popover.style.top = "";
+        popover.style.left = "";
+        popover.style.visibility = "";
+    });
 }
 
 function isInventoryCellTextTruncated(target) {

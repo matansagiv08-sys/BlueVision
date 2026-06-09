@@ -75,24 +75,37 @@ function initBoard() {
         container.innerHTML = "";
     }
 
-    loadStatuses(function (statuses) {
+    Promise.all([
+        loadStatusesAsync(),
+        loadStagesAsync(),
+        loadBoardDataAsync()
+    ]).then(([statuses, stages, boardData]) => {
         allStatusesData = statuses;
+        allStagesData = stages;
+        allBoardData = boardData;
 
-        loadStages(function (stages) {
-            allStagesData = stages;
-            populateStageFilter(allStagesData);
-
-            loadBoardData(function (boardData) {
-                allBoardData = boardData;
-                populateProjectFilter(allBoardData);
-                applyFilters();
-                console.timeEnd("[TasksBoard] initial load");
-            });
-        });
+        populateStageFilter(allStagesData);
+        populateProjectFilter(allBoardData);
+        applyFilters();
+        console.timeEnd("[TasksBoard] initial load");
+    }).catch(err => {
+        console.error("Error loading tasks board:", err);
     });
 }
 
-function loadStatuses(successCallback) {
+function loadStatusesAsync() {
+    return new Promise((resolve, reject) => loadStatuses(resolve, reject));
+}
+
+function loadStagesAsync() {
+    return new Promise((resolve, reject) => loadStages(resolve, reject));
+}
+
+function loadBoardDataAsync() {
+    return new Promise((resolve, reject) => loadBoardData(resolve, reject));
+}
+
+function loadStatuses(successCallback, errorCallback) {
     console.time("[TasksBoard] load statuses");
     ajaxCall(
         "GET",
@@ -104,11 +117,12 @@ function loadStatuses(successCallback) {
         },
         function (err) {
             console.error("Error fetching statuses:", err);
+            if (typeof errorCallback === "function") errorCallback(err);
         }
     );
 }
 
-function loadStages(successCallback) {
+function loadStages(successCallback, errorCallback) {
     console.time("[TasksBoard] load stages");
     ajaxCall(
         "GET",
@@ -125,11 +139,12 @@ function loadStages(successCallback) {
         },
         function (err) {
             console.error("Error stages:", err);
+            if (typeof errorCallback === "function") errorCallback(err);
         }
     );
 }
 
-function loadBoardData(successCallback) {
+function loadBoardData(successCallback, errorCallback) {
     console.time("[TasksBoard] load boardData");
     ajaxCall(
         "GET",
@@ -141,6 +156,7 @@ function loadBoardData(successCallback) {
         },
         function (err) {
             console.error("Error board data:", err);
+            if (typeof errorCallback === "function") errorCallback(err);
         }
     );
 }

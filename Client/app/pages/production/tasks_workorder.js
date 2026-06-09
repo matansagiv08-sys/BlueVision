@@ -51,7 +51,7 @@ function renderTasks(tasks) {
     const activeTasks = tasks.filter(t => Number(getTaskValue(t, ["progress", "Progress"], 0)) < 100);
 
     if (activeTasks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">אין משימות פעילות להצגה</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">אין משימות פעילות להצגה</td></tr>';
         return;
     }
 
@@ -102,7 +102,6 @@ function renderTasks(tasks) {
                 <td>${renderDueDateCell(projectDueDate, isProjectDueDateExpired, "תאריך יעד הפרויקט עבר")}</td>
                 <td>${renderDueDateCell(itemDueDate, isItemDueDateExpired, "תאריך יעד הפריט עבר")}</td>
                 <td>${renderWorkOrderCellWithTooltip(planeNumber)}</td>
-                <td><span class="status-pill">${escapeHtml(currentStationName)}</span></td>
             </tr>
         `;
         tbody.insertAdjacentHTML('beforeend', rowHtml);

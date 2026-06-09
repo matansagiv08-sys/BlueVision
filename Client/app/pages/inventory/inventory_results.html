@@ -43,12 +43,11 @@
     </div>
 
     <div class="global-toolbar">
-        <div class="search-container">
-            <input type="text" id="resultsSearch" class="standard-input" placeholder="חפש מק״ט או תיאור..." oninput="window.filterResults()">
-            <span class="search-icon-inside">🔍</span>
-        </div>
-
-        <div class="filter-actions">
+        <div class="results-filter-group">
+            <div class="search-container">
+                <input type="text" id="resultsSearch" class="standard-input" placeholder="חפש מק״ט או תיאור..." oninput="window.filterResults()">
+                <span class="search-icon-inside">🔍</span>
+            </div>
             <select id="platformFilter" onchange="window.filterResults()">
                 <option value="all">כל הפלטפורמות</option>
             </select>

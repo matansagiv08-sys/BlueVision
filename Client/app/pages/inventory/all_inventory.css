@@ -179,11 +179,10 @@ body:has(.all-inventory-page) #app,
 }
 
 .all-inventory-page .stock-breakdown-popover {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    right: 50%;
-    transform: translateX(50%);
-    z-index: 50;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 6000;
     display: none;
     min-width: 126px;
     padding: 8px 10px;
@@ -198,6 +197,7 @@ body:has(.all-inventory-page) #app,
     font-weight: 600;
     line-height: 1.45;
     white-space: nowrap;
+    pointer-events: none;
 }
 
 .all-inventory-page .stock-breakdown-popover::after {
@@ -208,6 +208,13 @@ body:has(.all-inventory-page) #app,
     transform: translateX(50%);
     border: 6px solid transparent;
     border-top-color: #ffffff;
+}
+
+.all-inventory-page .stock-breakdown-popover.stock-breakdown-below::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: #ffffff;
 }
 
 .all-inventory-page .stock-breakdown-row {
@@ -232,9 +239,7 @@ body:has(.all-inventory-page) #app,
     font-weight: 800;
 }
 
-.all-inventory-page .stock-total-tooltip:hover .stock-breakdown-popover,
-.all-inventory-page .stock-total-tooltip:focus .stock-breakdown-popover,
-.all-inventory-page .stock-total-tooltip:focus-visible .stock-breakdown-popover {
+.all-inventory-page .stock-breakdown-popover.stock-breakdown-open {
     display: block;
 }
 
