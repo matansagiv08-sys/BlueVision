@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Text;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Diagnostics;
 using Newtonsoft.Json;
 using Server.DAL;
 
@@ -40,7 +41,12 @@ namespace Server.Models
         private static readonly HashSet<string> BlockedTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Users", "UsersTable", "users_LC", "Baseball_2026_Users_MS", "UsersCards_LC",
-            "SystemSettings", "ExcelImportMetadata", "UserDashboards"
+            "SystemSettings", "ExcelImportMetadata", "UserDashboards", "sysdiagrams",
+            "apartmentsTbl", "Baseball_2026_Cards_MS", "Baseball_2026_UsersCards_MS",
+            "cards_LC", "Courses", "Flights_2026", "IngredientTable", "MealsTable",
+            "Orders_LC", "Players_LC", "Players_MS", "Players_XX", "Restaurants_LC",
+            "StudentInCourse", "Students", "Students_2026", "Students_2026_matan",
+            "UsersMealsTable", "Platforms"
         };
 
         private static readonly string[] BlockedKeywordPatterns =
@@ -113,6 +119,7 @@ namespace Server.Models
             AiChartResponse aiResponse;
             if (LooksLikeSql(safePrompt))
             {
+                // TODO: Direct SELECT input bypasses AI semantic context; restrict this path or make it admin-only later.
                 aiResponse = new AiChartResponse
                 {
                     Sql = safePrompt,
@@ -124,7 +131,15 @@ namespace Server.Models
             }
             else
             {
-                aiResponse = await GenerateChartFromPrompt(safePrompt, dashboardType);
+                try
+                {
+                    aiResponse = await GenerateChartFromPrompt(safePrompt, dashboardType);
+                }
+                catch (AiProviderException ex)
+                {
+                    return DashboardGenerateResult.Fail(ex.ErrorCode, ex.UserMessage);
+                }
+
                 if (aiResponse.IsAllowed == false)
                 {
                     return DashboardGenerateResult.Fail(
@@ -154,10 +169,18 @@ namespace Server.Models
                     throw;
                 }
 
-                AiChartResponse repairedResponse = await GenerateChartFromPrompt(
-                    BuildSqlRepairPrompt(safePrompt, validation.NormalizedSql, ex.Message),
-                    dashboardType
-                );
+                AiChartResponse repairedResponse;
+                try
+                {
+                    repairedResponse = await GenerateChartFromPrompt(
+                        BuildSqlRepairPrompt(safePrompt, validation.NormalizedSql, ex.Message),
+                        dashboardType
+                    );
+                }
+                catch (AiProviderException providerEx)
+                {
+                    return DashboardGenerateResult.Fail(providerEx.ErrorCode, providerEx.UserMessage);
+                }
 
                 if (repairedResponse.IsAllowed == false)
                 {
@@ -258,6 +281,242 @@ namespace Server.Models
             }
         }
 
+        private static SemanticContextSelection BuildSemanticContext(string userPrompt)
+        {
+            var selected = new List<(string Name, string Text)>
+            {
+                ("GLOBAL_SQL_SAFETY_RULES", GlobalSqlSafetyRulesContext()),
+                ("BLOCKED_TABLES_CONTEXT", BlockedTablesContext())
+            };
+
+            string prompt = (userPrompt ?? string.Empty).ToLowerInvariant();
+            bool inventory = ContainsAny(prompt, "inventory", "stock", "מלאי", "מחסן", "warehouse", "supplier", "ספק", "group", "קבוצה", "value", "שווי");
+            bool procurement = ContainsAny(prompt, "procurement", "רכש", "purchase", "approved", "unapproved", "הזמנות", "בקשות", "purchase order", "purchase request");
+            bool bom = ContainsAny(prompt, "bom", "עץ מוצר", "דרישות", "requirements", "רכיבים", "requirement");
+            bool platform = ContainsAny(prompt, "platform", "פלטפורמה", "plane type", "tbv", "wb");
+            bool production = ContainsAny(prompt, "production", "ייצור", "פקע", "פק\"ע", "פק״ע", "work order", "סדר עבודה", "priority", "עדיפות");
+            bool stageStatus = ContainsAny(prompt, "station", "status", "stage", "תחנה", "סטטוס", "תקוע", "בוצע", "בתהליך", "completed", "stuck");
+            bool projectPlane = ContainsAny(prompt, "project", "פרויקט", "plane", "מטוס", "tail", "זנב", "due date", "תאריך יעד");
+
+            if (procurement) inventory = true;
+            if (platform) inventory = true;
+            if (stageStatus) production = true;
+            if (projectPlane) production = true;
+
+            if (!inventory && !procurement && !bom && !platform && !production && !stageStatus && !projectPlane)
+            {
+                production = true;
+                stageStatus = true;
+                projectPlane = true;
+                inventory = true;
+            }
+
+            if (production) selected.Add(("PRODUCTION_CORE_CONTEXT", ProductionCoreContext()));
+            if (stageStatus) selected.Add(("PRODUCTION_STAGE_STATUS_CONTEXT", ProductionStageStatusContext()));
+            if (projectPlane || platform) selected.Add(("PROJECT_PLANE_CONTEXT", ProjectPlaneContext()));
+            if (inventory) selected.Add(("INVENTORY_CONTEXT", InventoryContext()));
+            if (procurement) selected.Add(("PROCUREMENT_CONTEXT", ProcurementContext()));
+            if (bom) selected.Add(("BOM_CONTEXT", BomContext()));
+            if (platform) selected.Add(("ITEM_PLATFORM_CONTEXT", ItemPlatformContext()));
+
+            bool includeInventoryExamples = inventory && !procurement;
+            string examples = ExampleSqlPatterns(production, stageStatus, projectPlane, includeInventoryExamples, procurement, bom);
+            if (!string.IsNullOrWhiteSpace(examples))
+            {
+                selected.Add(("EXAMPLE_SQL_PATTERNS", examples));
+            }
+
+            return new SemanticContextSelection
+            {
+                SectionNames = selected.Select(s => s.Name).ToList(),
+                ContextText = string.Join("\n\n", selected.Select(s => $"[{s.Name}]\n{s.Text}"))
+            };
+        }
+
+        private static bool ContainsAny(string text, params string[] terms)
+        {
+            return terms.Any(term => text.Contains(term.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string GlobalSqlSafetyRulesContext()
+        {
+            return @"Use SQL Server syntax only. Generate exactly one SELECT query. Never use SELECT *.
+Do not use SQL comments or semicolons. Do not use destructive, admin, DDL, DML, or procedural keywords.
+Always include TOP (N) in the outer SELECT and N must be <= 200.
+Query only approved BlueVision analytics tables from the provided schema/context.
+Never query blocked tables or invent table/column names.
+For bar, line, or pie charts, return exactly two columns named Label and Value, where Value is numeric.
+For table output, return explicit named columns and keep the result practical.
+Return only the required JSON object with isAllowed, visualizationType, resultType, sql, explanation, and assumptions.
+If the request asks for blocked, sensitive, auth, admin, system, sample, or unrelated data, return isAllowed=false with errorCode BLOCKED_TOPIC.";
+        }
+
+        private static string BlockedTablesContext()
+        {
+            return @"Never query these tables: Users, UsersTable, users_LC, UserDashboards, SystemSettings, ExcelImportMetadata, sysdiagrams.
+Never query old/sample/unrelated tables: apartmentsTbl, Baseball_2026_Cards_MS, Baseball_2026_Users_MS, Baseball_2026_UsersCards_MS, cards_LC, Courses, Flights_2026, IngredientTable, MealsTable, Orders_LC, Players_LC, Players_MS, Players_XX, Restaurants_LC, StudentInCourse, Students, Students_2026, Students_2026_matan, UsersCards_LC, UsersMealsTable.
+Platforms is unknown/unreviewed and must not be used.
+Block requests about users, passwords, authentication, system settings, saved dashboards, sample data, courses, students, meals, restaurants, baseball/cards, players, flights, apartments, or unrelated domains.";
+        }
+
+        private static string ProductionCoreContext()
+        {
+            return @"Approved tables: ItemsInProduction, ProductionItems, WorkOrders, PriorityLevels.
+ItemsInProduction stores current production rows/items. Primary key: SerialNumber + ProductionItemID. Important columns: PlaneID, PriorityLevel, WorkOrderID, PlannedQty, Comments, DueDate, PlaneTypeID, ProjectName.
+ProductionItems is the production item catalog. Primary key: ProductionItemID. Important columns: ProductionItemID, ItemName.
+WorkOrders stores work order IDs. Primary key: WorkOrderID.
+PriorityLevels stores priority labels. Primary key: PriorityID. Important columns: PriorityID, PriorityName.
+Joins: ItemsInProduction.ProductionItemID = ProductionItems.ProductionItemID; ItemsInProduction.WorkOrderID = WorkOrders.WorkOrderID; ItemsInProduction.PriorityLevel = PriorityLevels.PriorityID.
+A current production item is one ItemsInProduction row, uniquely identified by SerialNumber + ProductionItemID. For item counts, count ItemsInProduction rows or COUNT DISTINCT SerialNumber + ProductionItemID.
+Do not use SerialNumber alone as the unique production item key. PlannedQty is planned quantity, not row count. ItemsInProduction.DueDate is item due date, not project due date.";
+        }
+
+        private static string ProductionStageStatusContext()
+        {
+            return @"Approved tables: ProductionItemStage, ProductionStages, ProductionStatuses, ItemsInProduction.
+ProductionItemStage stores workflow stage/status rows. Primary key: SerialNumber + ProductionItemID + ProductionStageID. Important columns: ProductionStatusID, StartTimeStamp, FinishTimeStamp, Comment, ManualPriority.
+ProductionStages stores station/stage lookup. Primary key: ProductionStageID. Important columns: ProductionStageName, TargetDuration, StageOrder.
+ProductionStatuses stores status labels. Primary key: ProductionStatusID. Important column: ProductionStatusName.
+Mandatory parent join: ProductionItemStage.SerialNumber = ItemsInProduction.SerialNumber AND ProductionItemStage.ProductionItemID = ItemsInProduction.ProductionItemID.
+Never join ProductionItemStage to ItemsInProduction on ProductionItemID alone or SerialNumber alone.
+Stage/status joins: ProductionItemStage.ProductionStageID = ProductionStages.ProductionStageID; ProductionItemStage.ProductionStatusID = ProductionStatuses.ProductionStatusID.
+One production item has multiple ProductionItemStage rows. Do not count stage rows as production item counts unless intentionally analyzing stages.
+Completed status is ProductionStatusID = 4. Use ProductionStages.StageOrder for process order; do not assume ProductionStageID is process order.
+Current station is usually the first non-completed stage ordered by StageOrder. For stuck items, only use a clear user-specified delay rule or state the assumption.";
+        }
+
+        private static string ProjectPlaneContext()
+        {
+            return @"Approved tables: Projects, Planes, PlaneTypes, ItemsInProduction.
+Projects stores project metadata. Primary key: ProjectID. Important columns: ProjectName, DueDate, PriorityLevel.
+Planes stores aircraft/tail/plane records. Primary key: PlaneID. Important columns: PlaneTypeID, ProjectID, PriorityLevel.
+PlaneTypes stores plane type lookup. Primary key: PlaneTypeID. Important column: PlaneTypeName.
+Joins: ItemsInProduction.PlaneID = Planes.PlaneID; Planes.ProjectID = Projects.ProjectID; Planes.PlaneTypeID = PlaneTypes.PlaneTypeID.
+ItemsInProduction.PlaneTypeID is a fallback when PlaneID is missing. ItemsInProduction.ProjectName is a fallback when linked plane/project is missing.
+Use COALESCE(Projects.ProjectName, ItemsInProduction.ProjectName) for production project name.
+Use COALESCE(Planes.PlaneTypeID, ItemsInProduction.PlaneTypeID) for production plane type ID.
+When starting from ItemsInProduction, prefer LEFT JOIN to Planes, Projects, and PlaneTypes so production rows without linked plane/project are not dropped.
+Projects.DueDate is project due date. ItemsInProduction.DueDate is item due date. Projects.PriorityLevel and Planes.PriorityLevel are not FK-enforced to PriorityLevels.";
+        }
+
+        private static string InventoryContext()
+        {
+            return @"Approved tables: InventoryItems, Groups, Suppliers.
+InventoryItems stores inventory master and stock. Primary key: InventoryItemID. Important columns: ItemName, ItemGrpID, BuyMethod, Price, SupplierID, Whse01_QTY, Whse03_QTY, Whse90_QTY, OpenPurchaseRequestQty, OpenPurchaseOrderQty, ApprovedOrderQty, UnapprovedOrderQty, BodyPlane, LastPODate, IsActive.
+Groups stores inventory item groups. Primary key: ItemGrpID. Important column: ItemGrpName.
+Suppliers stores suppliers. Primary key: SupplierID. Important column: SupplierName.
+Joins: InventoryItems.ItemGrpID = Groups.ItemGrpID; InventoryItems.SupplierID = Suppliers.SupplierID.
+Stock quantity formula: ISNULL(Whse01_QTY,0) + ISNULL(Whse03_QTY,0) + ISNULL(Whse90_QTY,0).
+Inventory value formula: ISNULL(Price,0) * (ISNULL(Whse01_QTY,0) + ISNULL(Whse03_QTY,0) + ISNULL(Whse90_QTY,0)).
+Warehouse quantities are stock quantities. Procurement columns are not stock. Use IsActive = 1 for current/active inventory. Use LEFT JOIN to keep items with missing group/supplier.";
+        }
+
+        private static string ProcurementContext()
+        {
+            return @"Approved table: InventoryItems.
+OpenPurchaseRequestQty is quantity in open purchase requests.
+OpenPurchaseOrderQty is quantity in open purchase orders.
+ApprovedOrderQty is quantity in approved orders.
+UnapprovedOrderQty is quantity in unapproved orders.
+Procurement quantities are not warehouse stock. Do not add procurement quantities to stock unless the user explicitly asks for expected/combined availability.
+For current stock, use warehouse quantity columns. For procurement analytics, aggregate procurement columns separately or with clear labels. Use IsActive = 1 for current/active items.";
+        }
+
+        private static string BomContext()
+        {
+            return @"Approved tables: BOM, PlaneTypes, InventoryItems.
+BOM stores bill of materials by plane type. Primary key: BomSerialID. Important columns: PlaneTypeID, RowOrder, InventoryItemID, ItemName, Quantity, MeasureUnit, Warehouse, BomLevel, HasChild, BuyMethod, BodyPlane.
+PlaneTypes stores plane type lookup. Primary key: PlaneTypeID. Important column: PlaneTypeName.
+Join: BOM.PlaneTypeID = PlaneTypes.PlaneTypeID.
+Possible logical join, not FK-enforced: BOM.InventoryItemID may match InventoryItems.InventoryItemID.
+BOM.Quantity means required quantity in the BOM, not inventory stock. BomLevel indicates hierarchy level. HasChild indicates child components. RowOrder is BOM row order. BuyMethod indicates buy/make behavior. BodyPlane indicates body/plane classification.
+Avoid overcounting repeated BOM rows. When comparing BOM requirements to stock, aggregate BOM requirements by item first if needed, then join to InventoryItems.";
+        }
+
+        private static string ItemPlatformContext()
+        {
+            return @"Approved tables: ItemPlatforms, InventoryItems, PlaneTypes.
+ItemPlatforms is a many-to-many bridge between inventory items and plane types/platforms. Primary key: InventoryItemID + PlaneTypeID.
+Joins: ItemPlatforms.InventoryItemID = InventoryItems.InventoryItemID; ItemPlatforms.PlaneTypeID = PlaneTypes.PlaneTypeID.
+One inventory item can belong to multiple plane types and one plane type can have many inventory items. Joining InventoryItems through ItemPlatforms can multiply inventory rows.
+When calculating stock/value totals, avoid double-counting the same inventory item across multiple plane types unless the user asks for per-plane-type allocation.";
+        }
+
+        private static string ExampleSqlPatterns(bool production, bool stageStatus, bool projectPlane, bool inventory, bool procurement, bool bom)
+        {
+            var examples = new List<string>();
+
+            if (production && projectPlane)
+            {
+                examples.Add(@"Production items by project:
+SELECT TOP (50) COALESCE(p.ProjectName, iip.ProjectName, N'ללא פרויקט') AS Label, COUNT(*) AS Value
+FROM ItemsInProduction iip
+LEFT JOIN Planes pl ON pl.PlaneID = iip.PlaneID
+LEFT JOIN Projects p ON p.ProjectID = pl.ProjectID
+GROUP BY COALESCE(p.ProjectName, iip.ProjectName, N'ללא פרויקט')
+ORDER BY Value DESC");
+            }
+
+            if (stageStatus)
+            {
+                examples.Add(@"Non-completed items by station:
+SELECT TOP (50) ps.ProductionStageName AS Label, COUNT(DISTINCT CAST(pis.SerialNumber AS varchar(20)) + '|' + pis.ProductionItemID) AS Value
+FROM ProductionItemStage pis
+INNER JOIN ProductionStages ps ON ps.ProductionStageID = pis.ProductionStageID
+WHERE ISNULL(pis.ProductionStatusID, 1) <> 4
+GROUP BY ps.ProductionStageName, ps.StageOrder
+ORDER BY ps.StageOrder");
+
+                examples.Add(@"Table-only current station by production item. Use visualizationType='table' and resultType='table' because CurrentStatus is text, not numeric chart Value:
+SELECT TOP (100) CAST(iip.SerialNumber AS varchar(20)) + ' - ' + iip.ProductionItemID AS ProductionItem, ps.ProductionStageName + ' / ' + ISNULL(pst.ProductionStatusName, N'לא ידוע') AS CurrentStatus
+FROM ItemsInProduction iip
+OUTER APPLY (
+    SELECT TOP (1) pis.ProductionStageID, pis.ProductionStatusID
+    FROM ProductionItemStage pis
+    INNER JOIN ProductionStages ps2 ON ps2.ProductionStageID = pis.ProductionStageID
+    WHERE pis.SerialNumber = iip.SerialNumber AND pis.ProductionItemID = iip.ProductionItemID
+    ORDER BY CASE WHEN ISNULL(pis.ProductionStatusID, 1) <> 4 THEN 0 ELSE 1 END, ps2.StageOrder
+) cur
+LEFT JOIN ProductionStages ps ON ps.ProductionStageID = cur.ProductionStageID
+LEFT JOIN ProductionStatuses pst ON pst.ProductionStatusID = cur.ProductionStatusID
+ORDER BY iip.SerialNumber, iip.ProductionItemID");
+            }
+
+            if (inventory)
+            {
+                examples.Add(@"Inventory value by supplier:
+SELECT TOP (50) ISNULL(s.SupplierName, N'ללא ספק') AS Label, SUM(ISNULL(ii.Price, 0) * (ISNULL(ii.Whse01_QTY, 0) + ISNULL(ii.Whse03_QTY, 0) + ISNULL(ii.Whse90_QTY, 0))) AS Value
+FROM InventoryItems ii
+LEFT JOIN Suppliers s ON s.SupplierID = ii.SupplierID
+WHERE ii.IsActive = 1
+GROUP BY ISNULL(s.SupplierName, N'ללא ספק')
+ORDER BY Value DESC");
+            }
+
+            if (procurement)
+            {
+                examples.Add(@"Procurement quantity by group:
+SELECT TOP (50) ISNULL(g.ItemGrpName, N'ללא קבוצה') AS Label, SUM(ISNULL(ii.OpenPurchaseRequestQty, 0) + ISNULL(ii.OpenPurchaseOrderQty, 0) + ISNULL(ii.ApprovedOrderQty, 0) + ISNULL(ii.UnapprovedOrderQty, 0)) AS Value
+FROM InventoryItems ii
+LEFT JOIN Groups g ON g.ItemGrpID = ii.ItemGrpID
+WHERE ii.IsActive = 1
+GROUP BY ISNULL(g.ItemGrpName, N'ללא קבוצה')
+ORDER BY Value DESC");
+            }
+
+            if (bom)
+            {
+                examples.Add(@"BOM requirements by plane type:
+SELECT TOP (50) pt.PlaneTypeName AS Label, SUM(ISNULL(b.Quantity, 0)) AS Value
+FROM BOM b
+INNER JOIN PlaneTypes pt ON pt.PlaneTypeID = b.PlaneTypeID
+GROUP BY pt.PlaneTypeName
+ORDER BY Value DESC");
+            }
+
+            return examples.Count == 0 ? string.Empty : string.Join("\n\n", examples);
+        }
+
         public SqlValidationResult ValidateSqlForSave(string sqlLogic, string? chartType)
         {
             string viz = NormalizeVisualizationType(chartType);
@@ -269,12 +528,18 @@ namespace Server.Models
         {
             string dbSchema = GetDatabaseSchema();
             string dashboardScopeInstruction = BuildDashboardScopeInstruction(dashboardType);
+            SemanticContextSelection semanticContext = BuildSemanticContext(userPrompt);
+            Debug.WriteLine($"Dashboard AI semantic sections: {string.Join(", ", semanticContext.SectionNames)}");
+            Console.WriteLine($"Dashboard AI semantic sections: {string.Join(", ", semanticContext.SectionNames)}");
 
             string systemInstruction = $@"
     You are an expert SQL Server analyst for the 'BlueVision' drone company.
     Generate exactly one safe SQL Server SELECT query for dashboard analytics.
 
     {dbSchema}
+
+    Semantic database context:
+    {semanticContext.ContextText}
 
     RULES:
     1. Return ONLY a valid JSON object. No markdown, no code fences.
@@ -345,12 +610,22 @@ namespace Server.Models
                 "}";
 
                 var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-                HttpResponseMessage response = await client.PostAsync(url, content);
+                HttpResponseMessage response;
+                try
+                {
+                    response = await client.PostAsync(url, content);
+                }
+                catch (TaskCanceledException ex)
+                {
+                    LogGeminiApiFailure("Gemini API timeout", ex.Message);
+                    throw new AiProviderException("AI_TEMPORARILY_UNAVAILABLE", "המודל עמוס זמנית. נסה שוב בעוד כמה רגעים.");
+                }
+
                 string responseString = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    throw new Exception($"Gemini API Error: {responseString}");
+                    throw BuildGeminiApiException((int)response.StatusCode, responseString);
                 }
 
                 dynamic geminiResponse = JsonConvert.DeserializeObject(responseString);
@@ -369,6 +644,30 @@ namespace Server.Models
                 chartResult.ResultType = NormalizeResultType(chartResult.ResultType);
                 return chartResult;
             }
+        }
+
+        private static AiProviderException BuildGeminiApiException(int statusCode, string responseString)
+        {
+            LogGeminiApiFailure($"Gemini API HTTP {statusCode}", responseString);
+
+            if (statusCode == 429 || ContainsAny(responseString, "RESOURCE_EXHAUSTED", "rate limit", "quota"))
+            {
+                return new AiProviderException("AI_RATE_LIMITED", "המודל קיבל יותר מדי בקשות כרגע. נסה שוב בעוד כמה רגעים.");
+            }
+
+            if (statusCode == 503 || ContainsAny(responseString, "UNAVAILABLE", "high demand", "overloaded", "temporarily unavailable"))
+            {
+                return new AiProviderException("AI_TEMPORARILY_UNAVAILABLE", "המודל עמוס זמנית. נסה שוב בעוד כמה רגעים.");
+            }
+
+            return new AiProviderException("AI_PROVIDER_ERROR", "שירות ה-AI אינו זמין כרגע. נסה שוב מאוחר יותר.");
+        }
+
+        private static void LogGeminiApiFailure(string summary, string detail)
+        {
+            string message = $"{summary}: {detail}";
+            Debug.WriteLine(message);
+            Console.WriteLine(message);
         }
 
         private static string GetGeminiApiKey()
@@ -497,9 +796,10 @@ Return JSON only as specified.";
                 return SqlValidationResult.Fail("SELECT_STAR_BLOCKED", "השאילתה נחסמה: שימוש ב-SELECT * אינו מותר.");
             }
 
-            if (!HasRowLimit(normalizedSql))
+            SqlValidationResult rowLimitValidation = ValidateRowLimit(normalizedSql);
+            if (!rowLimitValidation.IsValid)
             {
-                return SqlValidationResult.Fail("MISSING_ROW_LIMIT", "השאילתה נחסמה: חובה להוסיף TOP או OFFSET/FETCH עם הגבלת שורות.");
+                return rowLimitValidation;
             }
 
             List<string> referencedTables = ExtractReferencedTables(normalizedSql);
@@ -519,12 +819,42 @@ Return JSON only as specified.";
             return SqlValidationResult.Ok(normalizedSql);
         }
 
-        private static bool HasRowLimit(string sql)
+        private static SqlValidationResult ValidateRowLimit(string sql)
         {
-            return Regex.IsMatch(sql, @"\bTOP\s*\(\s*\d+\s*\)", RegexOptions.IgnoreCase)
-                || Regex.IsMatch(sql, @"\bTOP\s+\d+\b", RegexOptions.IgnoreCase)
-                || (Regex.IsMatch(sql, @"\bOFFSET\b", RegexOptions.IgnoreCase)
-                    && Regex.IsMatch(sql, @"\bFETCH\s+NEXT\b", RegexOptions.IgnoreCase));
+            Match topWithParens = Regex.Match(sql, @"\bTOP\s*\(\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+            if (topWithParens.Success)
+            {
+                return ValidateRowLimitValue(topWithParens.Groups[1].Value);
+            }
+
+            Match topWithoutParens = Regex.Match(sql, @"\bTOP\s+(\d+)\b", RegexOptions.IgnoreCase);
+            if (topWithoutParens.Success)
+            {
+                return ValidateRowLimitValue(topWithoutParens.Groups[1].Value);
+            }
+
+            Match fetchNext = Regex.Match(sql, @"\bFETCH\s+NEXT\s+(\d+)\s+ROWS?\b", RegexOptions.IgnoreCase);
+            if (fetchNext.Success)
+            {
+                return ValidateRowLimitValue(fetchNext.Groups[1].Value);
+            }
+
+            return SqlValidationResult.Fail("MISSING_ROW_LIMIT", "השאילתה נחסמה: חובה להוסיף TOP או OFFSET/FETCH עם הגבלת שורות.");
+        }
+
+        private static SqlValidationResult ValidateRowLimitValue(string value)
+        {
+            if (!int.TryParse(value, out int limit) || limit <= 0)
+            {
+                return SqlValidationResult.Fail("INVALID_ROW_LIMIT", "השאילתה נחסמה: הגבלת השורות אינה תקינה.");
+            }
+
+            if (limit > 200)
+            {
+                return SqlValidationResult.Fail("ROW_LIMIT_TOO_HIGH", "השאילתה נחסמה: מותר להחזיר עד 200 שורות בלבד.");
+            }
+
+            return SqlValidationResult.Ok(string.Empty);
         }
 
         private static List<string> ExtractReferencedTables(string sql)
@@ -747,6 +1077,24 @@ Return JSON only as specified.";
                 ErrorMessage = errorMessage
             };
         }
+    }
+
+    public class AiProviderException : Exception
+    {
+        public string ErrorCode { get; }
+        public string UserMessage { get; }
+
+        public AiProviderException(string errorCode, string userMessage) : base(userMessage)
+        {
+            ErrorCode = errorCode;
+            UserMessage = userMessage;
+        }
+    }
+
+    public class SemanticContextSelection
+    {
+        public List<string> SectionNames { get; set; } = new List<string>();
+        public string ContextText { get; set; } = string.Empty;
     }
 
     public class DashboardLayoutItem
