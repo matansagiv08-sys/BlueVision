@@ -589,18 +589,79 @@ ORDER BY Value DESC");
         ""assumptions"": []
     }}";
 
+            string geminiApiKey = GetGeminiApiKey();
+            string geminiModel = GetGeminiModel();
+            string? fallbackModel = GetGeminiFallbackModel();
+            string rawAiText;
+
+            try
+            {
+                rawAiText = await CallGeminiWithRetriesAsync(systemInstruction, userPrompt, geminiModel, geminiApiKey);
+            }
+            catch (AiProviderException ex) when (ex.IsTemporary && !string.IsNullOrWhiteSpace(fallbackModel) && !fallbackModel.Equals(geminiModel, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"Gemini primary model failed temporarily; using fallback model {fallbackModel}.");
+                Debug.WriteLine($"Gemini primary model failed temporarily; using fallback model {fallbackModel}.");
+                rawAiText = await CallGeminiWithRetriesAsync(systemInstruction, userPrompt, fallbackModel, geminiApiKey);
+            }
+
+            // חילוץ ה-JSON למקרה שגוגל החזיר תגיות עיטוף
+            if (rawAiText.Contains("{"))
+            {
+                rawAiText = rawAiText.Substring(rawAiText.IndexOf("{"));
+                rawAiText = rawAiText.Substring(0, rawAiText.LastIndexOf("}") + 1);
+            }
+
+            AiChartResponse chartResult = JsonConvert.DeserializeObject<AiChartResponse>(rawAiText);
+            chartResult.Sql = (chartResult.Sql ?? string.Empty).Trim();
+            chartResult.VisualizationType = NormalizeVisualizationType(chartResult.VisualizationType);
+            chartResult.ResultType = NormalizeResultType(chartResult.ResultType);
+            return chartResult;
+        }
+
+        private static async Task<string> CallGeminiWithRetriesAsync(string systemInstruction, string userPrompt, string model, string apiKey)
+        {
+            int[] retryDelaysMs = { 0, 800, 1800 };
+            AiProviderException? lastTemporaryError = null;
+
+            for (int attempt = 1; attempt <= retryDelaysMs.Length; attempt++)
+            {
+                if (retryDelaysMs[attempt - 1] > 0)
+                {
+                    await Task.Delay(retryDelaysMs[attempt - 1]);
+                }
+
+                try
+                {
+                    Console.WriteLine($"Calling Gemini model {model}, attempt {attempt}.");
+                    Debug.WriteLine($"Calling Gemini model {model}, attempt {attempt}.");
+                    return await CallGeminiOnceAsync(systemInstruction, userPrompt, model, apiKey);
+                }
+                catch (AiProviderException ex) when (ex.IsTemporary)
+                {
+                    lastTemporaryError = ex;
+                    Console.WriteLine($"Temporary Gemini failure for model {model}, attempt {attempt}, code {ex.ErrorCode}, status {ex.StatusCode?.ToString() ?? "n/a"}.");
+                    Debug.WriteLine($"Temporary Gemini failure for model {model}, attempt {attempt}, code {ex.ErrorCode}, status {ex.StatusCode?.ToString() ?? "n/a"}.");
+
+                    if (attempt == retryDelaysMs.Length)
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            throw lastTemporaryError ?? new AiProviderException("AI_PROVIDER_ERROR", "שירות ה-AI אינו זמין כרגע. נסה שוב מאוחר יותר.");
+        }
+
+        private static async Task<string> CallGeminiOnceAsync(string systemInstruction, string userPrompt, string model, string apiKey)
+        {
             using (var client = new HttpClient())
             {
-                string geminiApiKey = GetGeminiApiKey();
-                string geminiModel = GetGeminiModel();
-                // כתובת ה-API הרשמית והיציבה של גוגל
-                string url = $"https://generativelanguage.googleapis.com/v1/models/{geminiModel}:generateContent?key={geminiApiKey}";
+                string url = $"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={apiKey}";
 
-                // ניקוי תווים מיוחדים לפילוד
                 string cleanInstruction = systemInstruction.Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n");
                 string cleanPrompt = userPrompt.Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n");
 
-                // תיקון קריטי: פילוד נקי ללא generationConfig הבעייתי בדפדפן
                 string jsonPayload = "{" +
                     "\"contents\": [{" +
                         "\"parts\": [{" +
@@ -617,8 +678,8 @@ ORDER BY Value DESC");
                 }
                 catch (TaskCanceledException ex)
                 {
-                    LogGeminiApiFailure("Gemini API timeout", ex.Message);
-                    throw new AiProviderException("AI_TEMPORARILY_UNAVAILABLE", "המודל עמוס זמנית. נסה שוב בעוד כמה רגעים.");
+                    LogGeminiApiFailure($"Gemini API timeout for model {model}", ex.Message);
+                    throw new AiProviderException("AI_TEMPORARILY_UNAVAILABLE", "המודל עמוס זמנית. נסה שוב בעוד כמה רגעים.", true);
                 }
 
                 string responseString = await response.Content.ReadAsStringAsync();
@@ -629,20 +690,7 @@ ORDER BY Value DESC");
                 }
 
                 dynamic geminiResponse = JsonConvert.DeserializeObject(responseString);
-                string rawAiText = geminiResponse.candidates[0].content.parts[0].text.ToString().Trim();
-
-                // חילוץ ה-JSON למקרה שגוגל החזיר תגיות עיטוף
-                if (rawAiText.Contains("{"))
-                {
-                    rawAiText = rawAiText.Substring(rawAiText.IndexOf("{"));
-                    rawAiText = rawAiText.Substring(0, rawAiText.LastIndexOf("}") + 1);
-                }
-
-                AiChartResponse chartResult = JsonConvert.DeserializeObject<AiChartResponse>(rawAiText);
-                chartResult.Sql = (chartResult.Sql ?? string.Empty).Trim();
-                chartResult.VisualizationType = NormalizeVisualizationType(chartResult.VisualizationType);
-                chartResult.ResultType = NormalizeResultType(chartResult.ResultType);
-                return chartResult;
+                return geminiResponse.candidates[0].content.parts[0].text.ToString().Trim();
             }
         }
 
@@ -652,15 +700,15 @@ ORDER BY Value DESC");
 
             if (statusCode == 429 || ContainsAny(responseString, "RESOURCE_EXHAUSTED", "rate limit", "quota"))
             {
-                return new AiProviderException("AI_RATE_LIMITED", "המודל קיבל יותר מדי בקשות כרגע. נסה שוב בעוד כמה רגעים.");
+                return new AiProviderException("AI_RATE_LIMITED", "המודל קיבל יותר מדי בקשות כרגע. נסה שוב בעוד כמה רגעים.", true, statusCode);
             }
 
             if (statusCode == 503 || ContainsAny(responseString, "UNAVAILABLE", "high demand", "overloaded", "temporarily unavailable"))
             {
-                return new AiProviderException("AI_TEMPORARILY_UNAVAILABLE", "המודל עמוס זמנית. נסה שוב בעוד כמה רגעים.");
+                return new AiProviderException("AI_TEMPORARILY_UNAVAILABLE", "המודל עמוס זמנית. נסה שוב בעוד כמה רגעים.", true, statusCode);
             }
 
-            return new AiProviderException("AI_PROVIDER_ERROR", "שירות ה-AI אינו זמין כרגע. נסה שוב מאוחר יותר.");
+            return new AiProviderException("AI_PROVIDER_ERROR", "שירות ה-AI אינו זמין כרגע. נסה שוב מאוחר יותר.", false, statusCode);
         }
 
         private static void LogGeminiApiFailure(string summary, string detail)
@@ -718,6 +766,31 @@ ORDER BY Value DESC");
             }
 
             return "gemini-1.5-flash-latest";
+        }
+
+        private static string? GetGeminiFallbackModel()
+        {
+            string? envModel = Environment.GetEnvironmentVariable("GEMINI_FALLBACK_MODEL");
+            if (!string.IsNullOrWhiteSpace(envModel))
+            {
+                return envModel.Trim();
+            }
+
+            string currentDirectory = Directory.GetCurrentDirectory();
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                .SetBasePath(currentDirectory)
+                .AddJsonFile("appsettings.json", optional: true)
+                .AddJsonFile("appsettings.Development.json", optional: true)
+                .AddEnvironmentVariables()
+                .Build();
+
+            string? configModel = configuration["Gemini:FallbackModel"];
+            if (!string.IsNullOrWhiteSpace(configModel))
+            {
+                return configModel.Trim();
+            }
+
+            return null;
         }
 
         private static bool LooksLikeSql(string input)
@@ -1083,11 +1156,15 @@ Return JSON only as specified.";
     {
         public string ErrorCode { get; }
         public string UserMessage { get; }
+        public bool IsTemporary { get; }
+        public int? StatusCode { get; }
 
-        public AiProviderException(string errorCode, string userMessage) : base(userMessage)
+        public AiProviderException(string errorCode, string userMessage, bool isTemporary = false, int? statusCode = null) : base(userMessage)
         {
             ErrorCode = errorCode;
             UserMessage = userMessage;
+            IsTemporary = isTemporary;
+            StatusCode = statusCode;
         }
     }
 
