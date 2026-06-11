@@ -148,7 +148,12 @@
                 layout: { padding: 4 },
                 plugins: {
                     legend: {
-                        display: false
+                        display: chartType === 'pie',
+                        position: 'bottom',
+                        labels: chartType === 'pie' ? {
+                            boxWidth: 12,
+                            padding: 12
+                        } : undefined
                     }
                 },
                 scales: chartType !== 'pie' ? {
@@ -552,7 +557,14 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: { display: false }
+                            legend: {
+                                display: cardState.type === 'pie',
+                                position: 'bottom',
+                                labels: cardState.type === 'pie' ? {
+                                    boxWidth: 12,
+                                    padding: 12
+                                } : undefined
+                            }
                         },
                         scales: cardState.type !== 'pie' ? { y: { beginAtZero: true } } : {}
                     }
