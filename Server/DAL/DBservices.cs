@@ -82,6 +82,61 @@ public class DBservices
         }
     }
 
+    private void LogInventoryImportPreview(SqlConnection con)
+    {
+        try
+        {
+            using SqlCommand cmd = new SqlCommand("dbo.SP_GetInventoryImportPreviewFromTemp", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            using SqlDataReader reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                Console.WriteLine($"Inventory import DB preview: existingMatched={reader["ExistingMatched"]}, newItemsToInsert={reader["NewItemsToInsert"]}, existingItemsToUpdate={reader["ExistingItemsToUpdate"]}");
+                Debug.WriteLine($"Inventory import DB preview: existingMatched={reader["ExistingMatched"]}, newItemsToInsert={reader["NewItemsToInsert"]}, existingItemsToUpdate={reader["ExistingItemsToUpdate"]}");
+            }
+
+            if (reader.NextResult())
+            {
+                while (reader.Read())
+                {
+                    Console.WriteLine($"Inventory import changed row: ItemCode={reader["InventoryItemID"]}, {reader["ChangeSummary"]}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Inventory import preview failed, continuing to upsert: {ex.Message}");
+            Debug.WriteLine($"Inventory import preview failed, continuing to upsert: {ex.Message}");
+        }
+    }
+
+    private void ExecuteInventoryItemsUpsert(SqlConnection con)
+    {
+        Console.WriteLine("Calling SP_UpsertInventoryItemsFromTemp");
+        Debug.WriteLine("Calling SP_UpsertInventoryItemsFromTemp");
+
+        using SqlCommand cmd = new SqlCommand("dbo.SP_UpsertInventoryItemsFromTemp", con);
+        cmd.CommandType = CommandType.StoredProcedure;
+
+        using SqlDataReader reader = cmd.ExecuteReader();
+        if (reader.Read() && ReaderHasColumn(reader, "UpdatedRows"))
+        {
+            Console.WriteLine($"SP_UpsertInventoryItemsFromTemp summary: UpdatedRows={reader["UpdatedRows"]}, InsertedRows={reader["InsertedRows"]}, DeactivatedRows={reader["DeactivatedRows"]}");
+            Debug.WriteLine($"SP_UpsertInventoryItemsFromTemp summary: UpdatedRows={reader["UpdatedRows"]}, InsertedRows={reader["InsertedRows"]}, DeactivatedRows={reader["DeactivatedRows"]}");
+        }
+
+        while (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+            }
+        }
+
+        Console.WriteLine("SP_UpsertInventoryItemsFromTemp completed");
+        Debug.WriteLine("SP_UpsertInventoryItemsFromTemp completed");
+    }
+
     private string ValidateTempItemCode(string itemCode, string tempTableName)
     {
         string normalized = (itemCode ?? string.Empty).Trim();
@@ -636,6 +691,14 @@ public class DBservices
             inventoryItemsImportTable.Columns.Add("InventoryItemID", typeof(string));
             inventoryItemsImportTable.Columns.Add("ItemName", typeof(string));
             inventoryItemsImportTable.Columns.Add("BuyMethod", typeof(string));
+            inventoryItemsImportTable.Columns.Add("Price", typeof(double));
+            inventoryItemsImportTable.Columns.Add("Whse01_QTY", typeof(int));
+            inventoryItemsImportTable.Columns.Add("Whse03_QTY", typeof(int));
+            inventoryItemsImportTable.Columns.Add("Whse90_QTY", typeof(int));
+            inventoryItemsImportTable.Columns.Add("OpenPurchaseRequestQty", typeof(int));
+            inventoryItemsImportTable.Columns.Add("OpenPurchaseOrderQty", typeof(int));
+            inventoryItemsImportTable.Columns.Add("ApprovedOrderQty", typeof(int));
+            inventoryItemsImportTable.Columns.Add("UnapprovedOrderQty", typeof(int));
             inventoryItemsImportTable.Columns.Add("ExcelRowNumber", typeof(int));
 
             foreach (InventoryBaseRow row in importData.InventoryBaseRows)
@@ -644,6 +707,14 @@ public class DBservices
                     ValidateTempItemCode(row.InventoryItemID, "#InventoryItemsImport"),
                     string.IsNullOrWhiteSpace(row.ItemName) ? DBNull.Value : row.ItemName.Trim(),
                     string.IsNullOrWhiteSpace(row.BuyMethod) ? DBNull.Value : row.BuyMethod.Trim(),
+                    row.Price.HasValue ? (object)row.Price.Value : DBNull.Value,
+                    row.Whse01_QTY.HasValue ? (object)row.Whse01_QTY.Value : DBNull.Value,
+                    row.Whse03_QTY.HasValue ? (object)row.Whse03_QTY.Value : DBNull.Value,
+                    row.Whse90_QTY.HasValue ? (object)row.Whse90_QTY.Value : DBNull.Value,
+                    row.OpenPurchaseRequestQty.HasValue ? (object)row.OpenPurchaseRequestQty.Value : DBNull.Value,
+                    row.OpenPurchaseOrderQty.HasValue ? (object)row.OpenPurchaseOrderQty.Value : DBNull.Value,
+                    row.ApprovedOrderQty.HasValue ? (object)row.ApprovedOrderQty.Value : DBNull.Value,
+                    row.UnapprovedOrderQty.HasValue ? (object)row.UnapprovedOrderQty.Value : DBNull.Value,
                     row.ExcelRowNumber > 0 ? row.ExcelRowNumber : 0);
             }
 
@@ -659,11 +730,20 @@ public class DBservices
                     bulkCopy.ColumnMappings.Add("InventoryItemID", "InventoryItemID");
                     bulkCopy.ColumnMappings.Add("ItemName", "ItemName");
                     bulkCopy.ColumnMappings.Add("BuyMethod", "BuyMethod");
+                    bulkCopy.ColumnMappings.Add("Price", "Price");
+                    bulkCopy.ColumnMappings.Add("Whse01_QTY", "Whse01_QTY");
+                    bulkCopy.ColumnMappings.Add("Whse03_QTY", "Whse03_QTY");
+                    bulkCopy.ColumnMappings.Add("Whse90_QTY", "Whse90_QTY");
+                    bulkCopy.ColumnMappings.Add("OpenPurchaseRequestQty", "OpenPurchaseRequestQty");
+                    bulkCopy.ColumnMappings.Add("OpenPurchaseOrderQty", "OpenPurchaseOrderQty");
+                    bulkCopy.ColumnMappings.Add("ApprovedOrderQty", "ApprovedOrderQty");
+                    bulkCopy.ColumnMappings.Add("UnapprovedOrderQty", "UnapprovedOrderQty");
                     bulkCopy.ColumnMappings.Add("ExcelRowNumber", "ExcelRowNumber");
                     bulkCopy.WriteToServer(inventoryItemsImportTable);
                 }
 
-                ExecuteStoredProcedure(con, "dbo.SP_UpsertInventoryItemsFromTemp");
+                LogInventoryImportPreview(con);
+                ExecuteInventoryItemsUpsert(con);
             }
 
             Dictionary<string, int> planeTypeNameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

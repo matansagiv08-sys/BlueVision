@@ -40,17 +40,52 @@ public class InventoryItem
         IXLWorksheet supplierSheet = workbook.Worksheet("ספק אחרון לפריט");
         IXLWorksheet wbBomSheet = workbook.Worksheet("עץ מוצר WB");
         IXLWorksheet tbvBomSheet = workbook.Worksheet("עץ מוצר TBV");
+        IXLWorksheet? openPurchaseRequestSheet = FindWorksheetByHeaders(workbook, "ItemCode", "OpenQty");
+        IXLWorksheet? openPurchaseOrderSheet = FindWorksheetByHeaders(workbook, "ItemCode", "סה\"כ פתוח", "פתוח בהזמנות מאושרות", "פתוח בהזמנות לא מאושרות");
+        IXLWorksheet? priceSheet = FindWorksheetByHeaders(workbook, "ItemCode", "Price", "Currency", "מחיר בשקלים");
 
         Dictionary<string, string> itemToGroupMap = BuildItemToGroupMap(detailsSheet);
         Dictionary<string, string> itemToBuyMethod = BuildItemToBuyMethodMap(detailsSheet);
         List<InventoryBaseRow> inventoryBaseRows = BuildInventoryBaseRows(detailsSheet);
         Dictionary<string, string> itemToSupplierMap = BuildItemToSupplierMap(supplierSheet);
         Dictionary<string, DateTime> itemToLastPODateMap = BuildItemToLastPODateMap(supplierSheet);
+        Dictionary<string, int?> itemToOpenPurchaseRequestQty = openPurchaseRequestSheet == null
+            ? new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase)
+            : BuildItemToOpenPurchaseRequestQtyMap(openPurchaseRequestSheet);
+        Dictionary<string, InventoryPurchaseOrderQtyRow> itemToPurchaseOrderQty = openPurchaseOrderSheet == null
+            ? new Dictionary<string, InventoryPurchaseOrderQtyRow>(StringComparer.OrdinalIgnoreCase)
+            : BuildItemToPurchaseOrderQtyMap(openPurchaseOrderSheet);
+        Dictionary<string, double?> itemToPrice = priceSheet == null
+            ? new Dictionary<string, double?>(StringComparer.OrdinalIgnoreCase)
+            : BuildItemToPriceMap(priceSheet);
         List<BomRow> wbBomRows = BuildBomRowsForSheet(wbBomSheet, "WB");
         List<BomRow> tbvBomRows = BuildBomRowsForSheet(tbvBomSheet, "TBV");
 
         CalculateBodyPlaneForBomRows(wbBomRows);
         CalculateBodyPlaneForBomRows(tbvBomRows);
+
+        foreach (InventoryBaseRow row in inventoryBaseRows)
+        {
+            if (itemToOpenPurchaseRequestQty.TryGetValue(row.InventoryItemID, out int? openRequestQty))
+            {
+                row.OpenPurchaseRequestQty = openRequestQty;
+            }
+
+            if (itemToPurchaseOrderQty.TryGetValue(row.InventoryItemID, out InventoryPurchaseOrderQtyRow orderQty))
+            {
+                row.OpenPurchaseOrderQty = orderQty.OpenPurchaseOrderQty;
+                row.ApprovedOrderQty = orderQty.ApprovedOrderQty;
+                row.UnapprovedOrderQty = orderQty.UnapprovedOrderQty;
+            }
+
+            if (itemToPrice.TryGetValue(row.InventoryItemID, out double? price))
+            {
+                row.Price = price;
+            }
+        }
+
+        Console.WriteLine($"Inventory import worksheet rows: details={CountDataRows(detailsSheet)}, suppliers={CountDataRows(supplierSheet)}, openPurchaseRequests={CountDataRows(openPurchaseRequestSheet)}, openPurchaseOrders={CountDataRows(openPurchaseOrderSheet)}, prices={CountDataRows(priceSheet)}, wbBom={CountDataRows(wbBomSheet, 4)}, tbvBom={CountDataRows(tbvBomSheet, 4)}");
+        Console.WriteLine("Inventory import parsed fields: ItemCode, ItemName, ItmsGrpNam, PrcrmntMtd, Whse01_QTY, Whse03_QTY, Whse90_QTY, Supplier, LastPODate, OpenPurchaseRequestQty, OpenPurchaseOrderQty, ApprovedOrderQty, UnapprovedOrderQty, Price, BOM rows");
 
         List<string> uniqueSuppliers = itemToSupplierMap.Values
             .Select(v => v.Trim())
@@ -297,17 +332,85 @@ public class InventoryItem
             string itemName = GetCellText(row.Cell(2), sheet.Name, row.RowNumber(), "B", "ItemName");
             string buyMethodRaw = GetCellText(row.Cell(4), sheet.Name, row.RowNumber(), "D", "BuyMethod").ToUpperInvariant();
             string? buyMethod = (buyMethodRaw == "B" || buyMethodRaw == "M") ? buyMethodRaw : null;
+            int? whse01Qty = ToNullableInt(row.Cell(5), sheet.Name, row.RowNumber(), "E", "Whse01_QTY");
+            int? whse03Qty = ToNullableInt(row.Cell(6), sheet.Name, row.RowNumber(), "F", "Whse03_QTY");
+            int? whse90Qty = ToNullableInt(row.Cell(7), sheet.Name, row.RowNumber(), "G", "Whse90_QTY");
 
             rowsByItemCode[itemCode] = new InventoryBaseRow
             {
                 InventoryItemID = itemCode,
                 ItemName = NullIfEmpty(itemName),
                 BuyMethod = buyMethod,
+                Whse01_QTY = whse01Qty,
+                Whse03_QTY = whse03Qty,
+                Whse90_QTY = whse90Qty,
                 ExcelRowNumber = row.RowNumber()
             };
         }
 
         return rowsByItemCode.Values.ToList();
+    }
+
+    private static Dictionary<string, int?> BuildItemToOpenPurchaseRequestQtyMap(IXLWorksheet sheet)
+    {
+        Dictionary<string, int?> itemToOpenQty = new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
+        {
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
+            if (string.IsNullOrWhiteSpace(itemCode))
+            {
+                continue;
+            }
+
+            itemToOpenQty[itemCode] = ToNullableInt(row.Cell(2), sheet.Name, row.RowNumber(), "B", "OpenPurchaseRequestQty");
+        }
+
+        return itemToOpenQty;
+    }
+
+    private static Dictionary<string, InventoryPurchaseOrderQtyRow> BuildItemToPurchaseOrderQtyMap(IXLWorksheet sheet)
+    {
+        Dictionary<string, InventoryPurchaseOrderQtyRow> itemToOrderQty = new Dictionary<string, InventoryPurchaseOrderQtyRow>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
+        {
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
+            if (string.IsNullOrWhiteSpace(itemCode))
+            {
+                continue;
+            }
+
+            itemToOrderQty[itemCode] = new InventoryPurchaseOrderQtyRow
+            {
+                OpenPurchaseOrderQty = ToNullableInt(row.Cell(2), sheet.Name, row.RowNumber(), "B", "OpenPurchaseOrderQty"),
+                ApprovedOrderQty = ToNullableInt(row.Cell(3), sheet.Name, row.RowNumber(), "C", "ApprovedOrderQty"),
+                UnapprovedOrderQty = ToNullableInt(row.Cell(4), sheet.Name, row.RowNumber(), "D", "UnapprovedOrderQty")
+            };
+        }
+
+        return itemToOrderQty;
+    }
+
+    private static Dictionary<string, double?> BuildItemToPriceMap(IXLWorksheet sheet)
+    {
+        Dictionary<string, double?> itemToPrice = new Dictionary<string, double?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
+        {
+            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
+            if (string.IsNullOrWhiteSpace(itemCode))
+            {
+                continue;
+            }
+
+            double? price = ToNullableDouble(row.Cell(4), sheet.Name, row.RowNumber(), "D", "PriceNis")
+                ?? ToNullableDouble(row.Cell(2), sheet.Name, row.RowNumber(), "B", "Price");
+
+            itemToPrice[itemCode] = price;
+        }
+
+        return itemToPrice;
     }
 
     private static Dictionary<string, string> BuildItemToSupplierMap(IXLWorksheet sheet)
@@ -499,6 +602,59 @@ public class InventoryItem
         throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid integer value");
     }
 
+    private static int? ToNullableInt(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
+    {
+        if (cell.IsEmpty()) return null;
+        if (cell.DataType == XLDataType.Number)
+        {
+            return Convert.ToInt32(Math.Round(cell.GetDouble(), MidpointRounding.AwayFromZero));
+        }
+
+        string raw = GetCellText(cell, sheetName, rowNumber, columnLetter, fieldName);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        string normalized = raw.Replace(",", "").Trim();
+
+        if (double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out double invariantNumber))
+        {
+            return Convert.ToInt32(Math.Round(invariantNumber, MidpointRounding.AwayFromZero));
+        }
+
+        if (double.TryParse(normalized, NumberStyles.Any, CultureInfo.CurrentCulture, out double currentCultureNumber))
+        {
+            return Convert.ToInt32(Math.Round(currentCultureNumber, MidpointRounding.AwayFromZero));
+        }
+
+        throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid integer value");
+    }
+
+    private static double? ToNullableDouble(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
+    {
+        if (cell.IsEmpty()) return null;
+        if (cell.DataType == XLDataType.Number) return cell.GetDouble();
+
+        string raw = GetCellText(cell, sheetName, rowNumber, columnLetter, fieldName);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        string normalized = raw
+            .Replace("₪", "")
+            .Replace("$", "")
+            .Replace(",", "")
+            .Trim();
+
+        if (double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out double invariantValue))
+        {
+            return invariantValue;
+        }
+
+        if (double.TryParse(normalized, NumberStyles.Any, CultureInfo.CurrentCulture, out double currentCultureValue))
+        {
+            return currentCultureValue;
+        }
+
+        throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid decimal value");
+    }
+
     private static string? NullIfEmpty(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -546,6 +702,28 @@ public class InventoryItem
             throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{rawValue}' - text conversion failed: {ex.Message}", ex);
         }
     }
+
+    private static IXLWorksheet? FindWorksheetByHeaders(XLWorkbook workbook, params string[] headers)
+    {
+        return workbook.Worksheets.FirstOrDefault(sheet =>
+        {
+            for (int i = 0; i < headers.Length; i++)
+            {
+                if (!string.Equals(GetCellText(sheet.Cell(1, i + 1), sheet.Name, 1, string.Empty, "Header"), headers[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }
+
+    private static int CountDataRows(IXLWorksheet? sheet, int firstDataRow = 2)
+    {
+        if (sheet == null) return 0;
+        return sheet.RowsUsed().Count(row => row.RowNumber() >= firstDataRow);
+    }
 }
 
 // Holds detailed results of the inventory import process, including ProductionItems sync statistics
@@ -576,7 +754,22 @@ public class InventoryBaseRow
     public string InventoryItemID { get; set; } = string.Empty;
     public string? ItemName { get; set; }
     public string? BuyMethod { get; set; }
+    public double? Price { get; set; }
+    public int? Whse01_QTY { get; set; }
+    public int? Whse03_QTY { get; set; }
+    public int? Whse90_QTY { get; set; }
+    public int? OpenPurchaseRequestQty { get; set; }
+    public int? OpenPurchaseOrderQty { get; set; }
+    public int? ApprovedOrderQty { get; set; }
+    public int? UnapprovedOrderQty { get; set; }
     public int ExcelRowNumber { get; set; }
+}
+
+public class InventoryPurchaseOrderQtyRow
+{
+    public int? OpenPurchaseOrderQty { get; set; }
+    public int? ApprovedOrderQty { get; set; }
+    public int? UnapprovedOrderQty { get; set; }
 }
 
 public class ExcelLastModifiedInfo
