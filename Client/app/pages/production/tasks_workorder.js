@@ -56,8 +56,8 @@ function renderTasks(tasks) {
     }
 
     activeTasks.forEach(task => {
-        const sn = getTaskValue(task, ["serialNumber", "SerialNumber"], '-');
-        const workOrder = getTaskValue(task, ["workOrderNumber", "workOrderID", "WorkOrderNumber", "WorkOrderID"], '-');
+        const sn = getTaskValue(task, ["serialNumber", "SerialNumber"], '');
+        const workOrder = getTaskValue(task, ["workOrderNumber", "workOrderID", "WorkOrderNumber", "WorkOrderID"], '');
         const itemId = getTaskValue(task, ["inventoryItemID", "InventoryItemID"], '') ||
             task.productionItem?.productionItemID || task.ProductionItem?.ProductionItemID || '';
         const itemName = getTaskValue(task, ["itemName", "ItemName"], '') ||
@@ -93,10 +93,10 @@ function renderTasks(tasks) {
                             onclick="window.resetToAlgo(${sn}, '${safeItemId}', ${currentStageId})" 
                             title="החזר לאלגוריתם">🪄</button>
                 </td>
-                <td>${renderWorkOrderCellWithTooltip(workOrder)}</td>
+                <td>${renderWorkOrderIdentifierCell(workOrder)}</td>
                 <td>${renderWorkOrderCellWithTooltip(itemId)}</td>
                 <td class="item-name-cell">${renderWorkOrderCellWithTooltip(itemName)}</td>
-                <td>${renderWorkOrderCellWithTooltip(sn)}</td>
+                <td>${renderWorkOrderIdentifierCell(sn)}</td>
                 <td>${renderWorkOrderCellWithTooltip(planeType)}</td>
                 <td class="project-name-cell">${renderWorkOrderCellWithTooltip(projectName)}</td>
                 <td>${renderDueDateCell(projectDueDate, isProjectDueDateExpired, "תאריך יעד הפרויקט עבר")}</td>
@@ -174,6 +174,13 @@ function renderWorkOrderCellWithTooltip(value) {
     return `<span class="workorder-cell-tooltip" tabindex="0" data-tooltip="${safeValue}">${safeValue}</span>`;
 }
 
+function renderWorkOrderIdentifierCell(value) {
+    const displayValue = displayWorkOrderIdentifierValue(value);
+    const safeValue = escapeHtml(displayValue);
+    if (displayValue === '-') return safeValue;
+    return `<span class="workorder-cell-tooltip" tabindex="0" data-tooltip="${safeValue}">${safeValue}</span>`;
+}
+
 function renderDueDateCell(value, isExpired, warningTitle) {
     const dateHtml = renderWorkOrderCellWithTooltip(value);
     if (!isExpired) return dateHtml;
@@ -233,6 +240,12 @@ function displayWorkOrderValue(value) {
     if (value === null || value === undefined) return '-';
     const text = String(value).trim();
     return text === '' ? '-' : text;
+}
+
+function displayWorkOrderIdentifierValue(value) {
+    if (value === null || value === undefined) return '-';
+    const text = String(value).trim();
+    return text === '' || text === '0' ? '-' : text;
 }
 
 function escapeHtml(value) {
