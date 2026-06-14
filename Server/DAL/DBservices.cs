@@ -1658,6 +1658,7 @@ END", con);
                                 WorkOrderID = reader["WorkOrderID"] != DBNull.Value ? Convert.ToInt32(reader["WorkOrderID"]) : 0,
                                 PlannedQty = reader["PlannedQty"] != DBNull.Value ? Convert.ToInt32(reader["PlannedQty"]) : 0,
                                 ItemDueDate = ReadNullableDate(reader, "ItemDueDate", "ItemsInProductionDueDate", "IIPDueDate"),
+                                PriorityLevel = ReadNullableInt(reader, "ItemPriorityLevel", "ItemsInProductionPriorityLevel", "PriorityLevel") ?? 0,
                                 Comments = reader["Comments"]?.ToString() ?? "",
                                 ProductionItem = new ProductionItem
                                 {

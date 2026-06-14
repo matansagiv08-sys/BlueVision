@@ -146,6 +146,42 @@ function renderOverdueIndicator(tooltip, variant) {
     return `<span class="${className}" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}">!</span>`;
 }
 
+function formatProjectStatusDate(value) {
+    const date = parseProjectStatusDateOnly(value);
+    if (!date) return "---";
+    return date.toLocaleDateString("he-IL");
+}
+
+function getPriorityOption(priorityID) {
+    const id = parseNullableInt(priorityID);
+    if (!id) return null;
+
+    const option = (projectsStatusState.priorities || []).find(priority => {
+        const optionID = priority.id ?? priority.ID ?? priority.priorityID ?? priority.PriorityID;
+        return String(optionID) === String(id);
+    });
+
+    return {
+        id,
+        label: option ? (option.name ?? option.Name ?? option.priorityName ?? option.PriorityName ?? String(id)) : String(id)
+    };
+}
+
+function getPriorityClass(priorityID) {
+    const id = parseNullableInt(priorityID);
+    if (!id) return "";
+    if (id <= 1) return "high";
+    if (id === 2) return "medium";
+    return "low";
+}
+
+function renderPriorityBadge(priorityID) {
+    const priority = getPriorityOption(priorityID);
+    if (!priority) return "---";
+
+    return `<span class="ps-priority-badge ${getPriorityClass(priority.id)}">${escapeHtml(priority.label)}</span>`;
+}
+
 function renderProjects(projects) {
     let str = "";
 
@@ -159,7 +195,8 @@ function renderProjects(projects) {
         const projectName = project.projectName || project.ProjectName || "";
         const pProgress = Math.round(project.progress || 0);
         const projectDueDate = project.dueDate ?? project.DueDate;
-        const dueDate = projectDueDate ? new Date(projectDueDate).toLocaleDateString('he-IL') : "אין תאריך";
+        const dueDate = projectDueDate ? formatProjectStatusDate(projectDueDate) : "אין תאריך";
+        const projectPriority = project.priorityLevel ?? project.PriorityLevel;
 
         const planesList = project.planes && project.planes.$values ? project.planes.$values : (project.planes || []);
         const planeCount = planesList.length;
@@ -185,6 +222,7 @@ function renderProjects(projects) {
         <div class="ps-project-meta">
             <div class="ps-project-meta-right">
                 <span class="ps-deadline">יעד: ${dueDate}</span>
+                ${renderPriorityBadge(projectPriority)}
             </div>
             <div class="ps-project-meta-left">
                 <div class="ps-progress">
@@ -244,6 +282,8 @@ function renderPlanes(planes) {
                                 <th>מספר פק"ע</th>
                                 <th>תיאור פריט</th>
                                 <th>כמות מתוכננת</th>
+                                <th>תאריך יעד</th>
+                                <th>דחיפות</th>
                                 <th>תחנה נוכחית</th>
                                 <th>סטטוס</th>
                             </tr>
@@ -259,7 +299,7 @@ function renderPlanes(planes) {
 }
 
 function renderItems(itemsArray) {
-    if (!itemsArray || itemsArray.length === 0) return "<tr><td colspan='7' style='text-align:center;'>אין פריטים בייצור</td></tr>";
+    if (!itemsArray || itemsArray.length === 0) return "<tr><td colspan='9' style='text-align:center;'>אין פריטים בייצור</td></tr>";
 
     return itemsArray.map(item => {
         const current = item.currentStage;
@@ -269,6 +309,8 @@ function renderItems(itemsArray) {
         const itemOverdueIndicator = isProductionItemOverdue(item)
             ? renderOverdueIndicator("הפריט עבר את תאריך היעד")
             : "";
+        const itemDueDate = item.itemDueDate ?? item.ItemDueDate;
+        const itemPriority = item.priorityLevel ?? item.PriorityLevel;
 
         const itemDescription = (item.productionItem && item.productionItem.itemName)
             ? item.productionItem.itemName
@@ -283,6 +325,8 @@ function renderItems(itemsArray) {
             <td>${item.workOrderID || '-'}</td>
             <td class="ps-col-desc" title="${escapeHtml(itemDescription)}"><span class="ps-item-desc-wrap"><span>${escapeHtml(itemDescription)}</span>${itemOverdueIndicator}</span></td>
             <td>${item.plannedQty}</td>
+            <td class="ps-col-date">${formatProjectStatusDate(itemDueDate)}</td>
+            <td class="ps-col-priority">${renderPriorityBadge(itemPriority)}</td>
             <td><span class="ps-stage-name">${stageName}</span></td>
             <td><span class="status-pill ${statusClass}">${statusName}</span></td>
         </tr>`;
@@ -326,6 +370,9 @@ function loadProjectStatusOptions(afterLoad) {
             projectsStatusState.planes = data?.planes || [];
             if (Array.isArray(data?.projects)) {
                 projectsStatusState.projectOptions = data.projects;
+            }
+            if ((projectsStatusState.allProjects || []).length > 0) {
+                applyProjectStatusFilters();
             }
             if (typeof afterLoad === "function") afterLoad(data);
         },
