@@ -363,6 +363,13 @@ body:has(.tasks-board-page) .table-container {
     text-overflow: ellipsis;
 }
 
+.tasks-board-page .status-pill.status-5 {
+    background-color: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #c4b5fd;
+    border-radius: 999px;
+}
+
 .tasks-board-page .row-actions-wrap {
     position: relative;
     display: inline-grid;

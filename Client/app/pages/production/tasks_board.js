@@ -325,6 +325,8 @@ function buildProductionRowPayload(row) {
         planeTypeID: planeType.planeTypeID || planeType.PlaneTypeID || row.planeTypeID || row.PlaneTypeID || "",
         planeTypeName: planeType.planeTypeName || planeType.PlaneTypeName || row.planeTypeName || row.PlaneTypeName || "",
         plannedQty: row.plannedQty || row.PlannedQty || 1,
+        itemDueDate: formatTaskDateInput(row.itemDueDate || row.ItemDueDate || ""),
+        priorityLevel: row.priorityLevel || row.PriorityLevel || "",
         comments: row.comments || row.Comments || ""
     };
 }
@@ -629,6 +631,7 @@ window.openEditProductionRowModal = function (payloadKey) {
     document.getElementById("editItemName").value = row.itemName || "";
     document.getElementById("editSerialNumber").value = row.serialNumber || "";
     document.getElementById("editPlannedQty").value = row.plannedQty || 1;
+    document.getElementById("editItemDueDate").value = row.itemDueDate || "";
     document.getElementById("editComments").value = row.comments || "";
 
     document.getElementById("editProductionRowSaveBtn").onclick = saveProductionRowEdit;
@@ -667,6 +670,8 @@ function saveProductionRowEdit() {
         TailNumber: document.getElementById("editTailNumber").value.trim(),
         PlaneTypeID: planeTypeID,
         PlannedQty: parseInt(document.getElementById("editPlannedQty").value),
+        DueDate: document.getElementById("editItemDueDate").value || null,
+        PriorityLevel: parseNullableTaskInt(document.getElementById("editPriorityLevel").value),
         Comments: document.getElementById("editComments").value.trim()
     };
 
@@ -729,6 +734,7 @@ function normalizeTaskBoardEditOptions(data) {
         planeTypes,
         itemPlaneMappings: normalizeTaskItemPlaneMappings(data.itemPlaneMappings || productionItems),
         projects: data.projects || [],
+        priorities: data.priorities || [],
         existingWorkOrders: data.existingWorkOrders || [],
         planes: data.planes || []
     };
@@ -771,6 +777,13 @@ function renderEditProductionRowOptions(row) {
         (options.projects || []).map(project => ({ value: project.projectName || project.ProjectName || "", label: project.projectName || project.ProjectName || "" })),
         "בחר פרויקט...",
         row.projectName || ""
+    );
+
+    renderTaskSelectOptions(
+        document.getElementById("editPriorityLevel"),
+        (options.priorities || []).map(priority => ({ value: priority.id || priority.ID || priority.priorityID || priority.PriorityID, label: priority.name || priority.Name || priority.priorityName || priority.PriorityName })),
+        "בחר עדיפות...",
+        row.priorityLevel || ""
     );
 
     renderEditItemPlaneOptions(row.productionItemID || "", selectedPlaneType || "");
@@ -879,7 +892,7 @@ function renderEditPlaneDatalist() {
 }
 
 function setEditProductionRowFieldsDisabled(disabled) {
-    ["editWorkOrderID", "editProjectName", "editTailNumber", "editProductionItemID", "editPlaneTypeID", "editSerialNumber", "editPlannedQty", "editComments", "editProductionRowSaveBtn", "editProductionRowDeleteBtn"].forEach(id => {
+    ["editWorkOrderID", "editProjectName", "editTailNumber", "editProductionItemID", "editPlaneTypeID", "editSerialNumber", "editPlannedQty", "editItemDueDate", "editPriorityLevel", "editComments", "editProductionRowSaveBtn", "editProductionRowDeleteBtn"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = disabled;
     });
@@ -904,6 +917,19 @@ function hideEditProductionRowMessage() {
 function parseNullableTaskInt(value) {
     const parsed = parseInt(value, 10);
     return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatTaskDateInput(value) {
+    if (!value) return "";
+    const text = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.substring(0, 10);
+
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
 }
 
 function getPlaneTypeIdByName(name) {

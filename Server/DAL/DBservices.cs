@@ -2078,6 +2078,8 @@ SET SerialNumber = @SerialNumber,
     WorkOrderID = @WorkOrderID,
     PlaneID = @TailNumber,
     PlannedQty = @PlannedQty,
+    DueDate = @DueDate,
+    PriorityLevel = @PriorityLevel,
     Comments = @Comments
 WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProductionItemID", con, trans))
             {
@@ -2089,6 +2091,8 @@ WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProdu
                 mainCmd.Parameters.AddWithValue("@WorkOrderID", data.WorkOrderID);
                 mainCmd.Parameters.AddWithValue("@TailNumber", string.IsNullOrWhiteSpace(data.TailNumber) ? DBNull.Value : data.TailNumber);
                 mainCmd.Parameters.AddWithValue("@PlannedQty", data.PlannedQty);
+                mainCmd.Parameters.AddWithValue("@DueDate", data.DueDate.HasValue ? data.DueDate.Value.Date : DBNull.Value);
+                mainCmd.Parameters.AddWithValue("@PriorityLevel", data.PriorityLevel.HasValue && data.PriorityLevel.Value > 0 ? data.PriorityLevel.Value : DBNull.Value);
                 mainCmd.Parameters.AddWithValue("@Comments", string.IsNullOrWhiteSpace(data.Comments) ? DBNull.Value : data.Comments);
                 int affected = mainCmd.ExecuteNonQuery();
                 if (affected == 0)

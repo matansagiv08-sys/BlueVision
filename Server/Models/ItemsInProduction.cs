@@ -440,6 +440,8 @@ namespace Server.Models
         public string? TailNumber { get; set; }
         public int PlaneTypeID { get; set; }
         public int PlannedQty { get; set; }
+        public DateTime? DueDate { get; set; }
+        public int? PriorityLevel { get; set; }
         public string? Comments { get; set; }
     }
-} 
+}
