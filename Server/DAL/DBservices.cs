@@ -1141,6 +1141,7 @@ SELECT
     CAST(pl.PlaneID AS nvarchar(50)) AS PlaneNumber,
     CAST(pl.PlaneID AS nvarchar(50)) AS TailNumber,
     iip.PlannedQty,
+    ISNULL(iip.Comments, N'') AS Comments,
     ISNULL(iip.PriorityLevel, 3) AS ItemPriorityLevel,
     ISNULL(p.PriorityLevel, 3) AS ProjectPriorityLevel,
     iip.DueDate AS ItemDueDate,
@@ -1275,6 +1276,7 @@ ORDER BY
                         WorkOrderID = workOrderId,
                         ProjectName = projectName,
                         TailNumber = planeNumber,
+                        Comments = ReadNullableString(reader, "Comments") ?? string.Empty,
                         ProductionItem = new ProductionItem
                         {
                             ProductionItemID = productionItemId,

@@ -257,7 +257,7 @@ body:has(.tasks-board-page) .table-container {
 }
 
 .tasks-board-page .tb-col-actions {
-    width: 24px;
+    width: 46px;
     text-align: center;
     overflow: visible;
     padding-inline: 0 !important;
@@ -288,6 +288,30 @@ body:has(.tasks-board-page) .table-container {
     text-overflow: ellipsis;
     white-space: nowrap;
     outline: none;
+}
+
+.tasks-board-page .task-notes-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    color: #92400e;
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: help;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+
+.tasks-board-page .task-notes-indicator:hover,
+.tasks-board-page .task-notes-indicator:focus-visible {
+    color: #78350f;
+    background: #fde68a;
+    border-color: #d97706;
 }
 
 .tasks-board-page .tb-col-item-id .task-cell-tooltip,
@@ -341,9 +365,22 @@ body:has(.tasks-board-page) .table-container {
 
 .tasks-board-page .row-actions-wrap {
     position: relative;
+    display: inline-grid;
+    grid-template-columns: 18px 18px;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
+    column-gap: 3px;
+    width: 39px;
+    direction: ltr;
+}
+
+.tasks-board-page .row-notes-slot {
     display: inline-flex;
+    align-items: center;
     justify-content: center;
     width: 18px;
+    height: 18px;
 }
 
 .tasks-board-page .row-actions-btn {

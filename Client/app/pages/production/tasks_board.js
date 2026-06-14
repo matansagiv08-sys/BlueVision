@@ -220,6 +220,7 @@ function renderRow(row, allStages) {
     const tailNumber = row.tailNumber || row.TailNumber || '---';
     const serial = row.serialNumber || row.SerialNumber || '---';
     const qty = row.plannedQty || row.PlannedQty || 0;
+    const comments = row.comments || row.Comments || "";
     const progressValue = Math.round(row.progress || row.Progress || 0);
     const rowPayloadKey = registerTaskPayload(taskBoardRowPayloads, buildProductionRowPayload(row));
     const stagesById = new Map((row.stages || row.Stages || []).map(stageRow => [getStageIdValue(stageRow.stage || stageRow.Stage), stageRow]));
@@ -275,6 +276,7 @@ function renderRow(row, allStages) {
         <tr>
             <td class="tb-col-actions">
                 <div class="row-actions-wrap">
+                    <span class="row-notes-slot">${renderTaskNotesIcon(comments)}</span>
                     <button class="row-actions-btn" type="button" onclick="window.toggleTaskRowMenu(this)" title="פעולות" aria-label="פעולות">
                         <span></span><span></span><span></span>
                     </button>
@@ -334,6 +336,14 @@ function renderTaskCellWithTooltip(value) {
     return `<span class="task-cell-tooltip" tabindex="0" title="${safeValue}" data-tooltip="${safeValue}">${safeValue}</span>`;
 }
 
+function renderTaskNotesIcon(comments) {
+    const noteText = String(comments || "").trim();
+    if (!noteText) return "";
+
+    const safeValue = escapeHtml(noteText);
+    return `<span class="task-notes-indicator task-cell-tooltip" tabindex="0" title="${safeValue}" data-tooltip="${safeValue}" data-tooltip-force="true" aria-label="הערות">!</span>`;
+}
+
 function getTaskBoardCellTooltip() {
     let tooltip = document.getElementById("taskBoardCellTooltip");
     if (tooltip) return tooltip;
@@ -348,7 +358,7 @@ function getTaskBoardCellTooltip() {
 
 function showTaskBoardCellTooltip(target) {
     const text = target?.dataset?.tooltip;
-    if (!text || !isTaskBoardCellTextTruncated(target)) {
+    if (!text || (target.dataset.tooltipForce !== "true" && !isTaskBoardCellTextTruncated(target))) {
         hideTaskBoardCellTooltip();
         return;
     }
