@@ -139,7 +139,7 @@ const routes = {
         js: "./pages/production/monthly_dashboard.js",
         css: "./pages/production/monthly_dashboard.css",
         init: "initMonthlyDashboard",
-        title: "דוח חודשי",
+        title: "דוח ייצור",
         subtitle: "",
         mode: "production"
     },
