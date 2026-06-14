@@ -216,7 +216,7 @@ function renderProjects(projects) {
                 ${projectOverdueIndicator}
                 <span class="ps-counter">${planeCount} כטב"מים</span>
             </div>
-            <span type="button" class="ps-project-action-btn" onclick="event.stopPropagation(); openProjectStatusNewPlaneModal(${projectID});">+ הוספת כלי</span>
+            <span type="button" class="ps-project-action-btn" onclick="event.stopPropagation(); openProjectStatusNewPlaneModal(${projectID});">+ הוספת כטב"מ</span>
         </div>
         
         <div class="ps-project-meta">
@@ -249,7 +249,7 @@ function setProjectStatusListMessage(message) {
 }
 
 function renderPlanes(planes) {
-    if (!planes || planes.length === 0) return "<div class='ps-uav-row'>אין מטוסים רשומים לפרויקט זה</div>";
+    if (!planes || planes.length === 0) return "<div class='ps-uav-row'>אין כטב\"מים רשומים לפרויקט זה</div>";
 
     return planes.map(plane => {
         const plProgress = Math.round(plane.progress || 0);
@@ -262,7 +262,7 @@ function renderPlanes(planes) {
                 <span class="ps-chev">▼</span>
                 <div class="ps-uav-right">
                     <span class="ps-tag">${typeName}</span> 
-                    <span class="ps-uav-id">מטוס ${plane.planeID}</span>
+                    <span class="ps-uav-id">כטב"מ ${plane.planeID}</span>
                 </div>
                 <div class="ps-uav-left">
                     <div class="ps-uav-progress">
@@ -485,7 +485,7 @@ window.saveProjectStatusNewPlane = function () {
     }
 
     if (!planeID) {
-        showProjectStatusModalMessage("#psNewPlaneMessage", "מספר / מזהה כלי הוא שדה חובה.", true);
+        showProjectStatusModalMessage("#psNewPlaneMessage", "מספר / מזהה כטב\"מ הוא שדה חובה.", true);
         return;
     }
 
@@ -495,7 +495,7 @@ window.saveProjectStatusNewPlane = function () {
     }
 
     if (planeExistsForProject(projectID, planeID)) {
-        showProjectStatusModalMessage("#psNewPlaneMessage", "כלי זה כבר קיים בפרויקט הנבחר.", true);
+        showProjectStatusModalMessage("#psNewPlaneMessage", "כטב\"מ זה כבר קיים בפרויקט הנבחר.", true);
         return;
     }
 
@@ -505,13 +505,13 @@ window.saveProjectStatusNewPlane = function () {
             loadProjectStatusOptions(function () {
                 loadFullProjectsStatus();
                 closeProjectStatusNewPlaneModal();
-                showProjectStatusToast("הכלי נוסף לפרויקט בהצלחה.", false);
+                showProjectStatusToast("הכטב\"מ נוסף לפרויקט בהצלחה.", false);
                 setProjectStatusSaving("#psSaveNewPlaneBtn", false);
             });
         },
         function (err) {
             setProjectStatusSaving("#psSaveNewPlaneBtn", false);
-            showProjectStatusModalMessage("#psNewPlaneMessage", getProjectStatusErrorText(err, "שגיאה ביצירת הכלי."), true);
+            showProjectStatusModalMessage("#psNewPlaneMessage", getProjectStatusErrorText(err, "שגיאה ביצירת הכטב\"מ."), true);
         }
     );
 };
