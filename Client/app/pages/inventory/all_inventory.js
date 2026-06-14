@@ -19,14 +19,9 @@ let advancedLastPODate = "";
 
 window.initAllInventory = function () {
     bindInventoryCellTooltips();
-    checkAndRunInventoryImport(function () {
-        loadInventoryFilterOptions();
-        updateAdvancedFiltersBadge();
-        loadInventoryPage(1);
-    }, {
-        onImportStart: showImportSpinner,
-        onImportEnd: hideImportSpinner
-    });
+    loadInventoryFilterOptions();
+    updateAdvancedFiltersBadge();
+    loadInventoryPage(1);
 };
 
 function bindInventoryCellTooltips() {

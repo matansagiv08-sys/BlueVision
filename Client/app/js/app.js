@@ -28,6 +28,7 @@ const USER_STORAGE_KEY = "bluevisionUser";
 let inventoryImportCheckInProgress = false;
 let inventoryImportWaiters = [];
 let inventoryImportRunningWaiters = [];
+let inventoryImportStatusTimer = null;
 window.isInventoryImportRunning = false;
 
 window.showAppMessage = function (message, options = {}) {
@@ -221,9 +222,32 @@ function updateTopMenuVisibility(path) {
 
 function setInventoryImportStatus(message, state) {
     const wrap = document.getElementById("inventoryImportStatusWrap");
-    if (wrap) {
-        wrap.hidden = true;
+    const textEl = document.getElementById("inventoryImportStatusText");
+    if (!wrap || !textEl) {
+        return;
     }
+
+    if (inventoryImportStatusTimer) {
+        window.clearTimeout(inventoryImportStatusTimer);
+        inventoryImportStatusTimer = null;
+    }
+
+    textEl.textContent = message || "";
+    textEl.classList.remove("success", "error", "loading");
+    if (state) {
+        textEl.classList.add(state);
+    }
+    wrap.hidden = !message;
+}
+
+function hideInventoryImportStatusAfterDelay(delayMs) {
+    if (inventoryImportStatusTimer) {
+        window.clearTimeout(inventoryImportStatusTimer);
+    }
+
+    inventoryImportStatusTimer = window.setTimeout(function () {
+        setInventoryImportStatus("", "");
+    }, delayMs || 4500);
 }
 
 function parseApiDate(dateValue) {
@@ -281,6 +305,87 @@ function waitForInventoryImportToFinish(callback) {
 
 function notifyInventoryImportState(detail) {
     document.dispatchEvent(new CustomEvent("inventory-import-state", { detail }));
+}
+
+function getInventorySectionImportTarget() {
+    const currentPath = location.hash.replace("#", "");
+    if (currentPath === "/inventory/inventory_check/results") {
+        return document.querySelector(".inventory-results-page");
+    }
+
+    if (currentPath === "/inventory/all_inventory" || currentPath === "/inventory/uav_BOM") {
+        return document.querySelector("#stockChildContent");
+    }
+
+    if (currentPath === "/inventory/inventory_dashboard") {
+        return document.querySelector(".dashboard-container");
+    }
+
+    if (currentPath === "/inventory/inventory_check") {
+        return document.querySelector(".inventory-check-page");
+    }
+
+    const selectors = [
+        "#stockChildContent",
+        ".dashboard-container",
+        ".inventory-check-page",
+        ".all-inventory-content",
+        ".uav-bom-page"
+    ];
+
+    for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el) {
+            return el;
+        }
+    }
+
+    return null;
+}
+
+function showInventorySectionImportLoader() {
+    const currentPath = location.hash.replace("#", "");
+    if (!currentPath.startsWith("/inventory/")) {
+        return;
+    }
+
+    const target = getInventorySectionImportTarget();
+    if (!target) {
+        return;
+    }
+
+    if (!target.dataset.inventoryImportPreviousHidden) {
+        target.dataset.inventoryImportPreviousHidden = target.hidden === true ? "true" : "false";
+    }
+    target.dataset.inventoryImportHiddenByLoader = "true";
+    target.hidden = true;
+
+    let loader = target.nextElementSibling;
+    if (!loader || !loader.classList.contains("inventory-section-import-loader")) {
+        loader = document.createElement("div");
+        loader.className = "inventory-section-import-loader";
+        loader.innerHTML = `
+            <div class="inventory-section-import-card" role="status" aria-live="polite">
+                <div class="stock-child-spinner" aria-hidden="true"></div>
+                <div class="inventory-section-import-title">מעדכן נתונים מקובץ Excel...</div>
+                <div class="inventory-section-import-subtitle">הנתונים יוצגו לאחר סיום העדכון</div>
+            </div>`;
+        target.insertAdjacentElement("afterend", loader);
+    }
+
+    loader.hidden = false;
+}
+
+function hideInventorySectionImportLoader() {
+    document.querySelectorAll(".inventory-section-import-loader").forEach(loader => {
+        loader.remove();
+    });
+
+    document.querySelectorAll("[data-inventory-import-hidden-by-loader='true']").forEach(target => {
+        target.hidden = target.dataset.inventoryImportPreviousHidden === "true";
+        delete target.dataset.inventoryImportHiddenByLoader;
+        delete target.dataset.inventoryImportPreviousHidden;
+    });
 }
 
 function showImportSpinner() {
@@ -354,7 +459,8 @@ function checkAndRunInventoryImport(callback, options) {
                         return;
                     }
 
-                    setInventoryImportStatus("מעדכן נתוני מלאי...", "loading");
+                    setInventoryImportStatus("", "");
+                    showInventorySectionImportLoader();
                     setInventoryImportRunning(true);
                     notifyImportWaiters("onImportStart");
                     notifyInventoryImportState({ phase: "importing" });
@@ -365,14 +471,18 @@ function checkAndRunInventoryImport(callback, options) {
                         "",
                         function () {
                             setInventoryImportRunning(false);
-                            setInventoryImportStatus("", "");
+                            hideInventorySectionImportLoader();
+                            setInventoryImportStatus("הנתונים עודכנו בהצלחה", "success");
+                            hideInventoryImportStatusAfterDelay(4500);
                             notifyImportWaiters("onImportEnd");
                             notifyInventoryImportState({ phase: "imported" });
                             finishInventoryImportCheck({ imported: true, shouldImport: true, error: null });
                         },
                         function () {
                             setInventoryImportRunning(false);
-                            setInventoryImportStatus("עדכון נתוני מלאי נכשל", "error");
+                            hideInventorySectionImportLoader();
+                            setInventoryImportStatus("עדכון הנתונים מקובץ Excel נכשל", "error");
+                            hideInventoryImportStatusAfterDelay(6500);
                             notifyImportWaiters("onImportEnd");
                             notifyInventoryImportState({ phase: "error" });
                             finishInventoryImportCheck({ imported: false, shouldImport: true, error: "import_failed" });
@@ -392,6 +502,30 @@ function checkAndRunInventoryImport(callback, options) {
             finishInventoryImportCheck({ imported: false, shouldImport: false, error: "excel_timestamp_failed" });
         }
     );
+}
+
+function startInventoryExcelSyncForRoute(path) {
+    if (!path.startsWith("/inventory/")) {
+        hideInventorySectionImportLoader();
+        return;
+    }
+
+    if (window.isInventoryImportRunning === true) {
+        showInventorySectionImportLoader();
+    }
+
+    checkAndRunInventoryImport(function (result) {
+        if (!result?.imported) {
+            return;
+        }
+
+        const currentPath = location.hash.replace("#", "") || path;
+        if (!currentPath.startsWith("/inventory/")) {
+            return;
+        }
+
+        loadRoute();
+    });
 }
 
 function formatExcelLastModified(dateValue) {
@@ -814,6 +948,7 @@ async function loadRoute() {
         setActiveMenu(path);
         updateTopMenuVisibility(path);
         updateInventoryExcelLastModified(path);
+        startInventoryExcelSyncForRoute(path);
 
         } catch (err) {
             console.error("שגיאה בטעינת הדף:", err);

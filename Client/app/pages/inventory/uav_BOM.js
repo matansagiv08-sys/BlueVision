@@ -20,12 +20,7 @@ let currentBomBodyPlane = "";
 
 window.initUavBOM = function () {
     bindBomCellTooltips();
-    checkAndRunInventoryImport(function () {
-        loadBomPlaneOptions();
-    }, {
-        onImportStart: showImportSpinner,
-        onImportEnd: hideImportSpinner
-    });
+    loadBomPlaneOptions();
 };
 
 function loadBomPlaneOptions() {
