@@ -103,6 +103,49 @@ function getCollection(value) {
     return [];
 }
 
+function isProjectOverdue(project) {
+    return !isProjectCompleted(project) && isDateBeforeToday(project?.dueDate ?? project?.DueDate);
+}
+
+function projectHasOverdueItems(project) {
+    const planesList = getCollection(project?.planes ?? project?.Planes);
+    return planesList.some(plane => getCollection(plane?.items ?? plane?.Items).some(isProductionItemOverdue));
+}
+
+function isProductionItemOverdue(item) {
+    return !isProductionItemCompleted(item) && isDateBeforeToday(item?.itemDueDate ?? item?.ItemDueDate);
+}
+
+function isDateBeforeToday(value) {
+    const date = parseProjectStatusDateOnly(value);
+    if (!date) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date.getTime() < today.getTime();
+}
+
+function parseProjectStatusDateOnly(value) {
+    if (!value) return null;
+
+    const text = String(value);
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+        const year = Number(match[1]);
+        if (year <= 1901) return null;
+        return new Date(year, Number(match[2]) - 1, Number(match[3]));
+    }
+
+    const parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime()) || parsed.getFullYear() <= 1901) return null;
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function renderOverdueIndicator(tooltip, variant) {
+    const className = variant === "subtle" ? "ps-overdue-indicator subtle" : "ps-overdue-indicator";
+    return `<span class="${className}" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}">!</span>`;
+}
+
 function renderProjects(projects) {
     let str = "";
 
@@ -115,10 +158,16 @@ function renderProjects(projects) {
         const projectID = project.projectID || project.ProjectID;
         const projectName = project.projectName || project.ProjectName || "";
         const pProgress = Math.round(project.progress || 0);
-        const dueDate = project.dueDate ? new Date(project.dueDate).toLocaleDateString('he-IL') : "אין תאריך";
+        const projectDueDate = project.dueDate ?? project.DueDate;
+        const dueDate = projectDueDate ? new Date(projectDueDate).toLocaleDateString('he-IL') : "אין תאריך";
 
         const planesList = project.planes && project.planes.$values ? project.planes.$values : (project.planes || []);
         const planeCount = planesList.length;
+        const projectOverdue = isProjectOverdue(project);
+        const hasOverdueItems = !projectOverdue && projectHasOverdueItems(project);
+        const projectOverdueIndicator = projectOverdue
+            ? renderOverdueIndicator("הפרויקט עבר את תאריך היעד")
+            : (hasOverdueItems ? renderOverdueIndicator("קיימים פריטים שעברו את תאריך היעד", "subtle") : "");
 
         str += `
 <div class="ps-project-card" id="project-${projectID}">
@@ -127,6 +176,7 @@ function renderProjects(projects) {
         <div class="ps-project-topline">
             <div class="ps-project-title">
                 <span class="ps-project-name">${escapeHtml(projectName)}</span>
+                ${projectOverdueIndicator}
                 <span class="ps-counter">${planeCount} כטב"מים</span>
             </div>
             <span type="button" class="ps-project-action-btn" onclick="event.stopPropagation(); openProjectStatusNewPlaneModal(${projectID});">+ הוספת כלי</span>
@@ -216,6 +266,9 @@ function renderItems(itemsArray) {
         const stageName = (current && current.stage) ? current.stage.productionStageName : "-";
         const statusName = (current && current.status) ? current.status.productionStatusName : "-";
         const statusID = (current && current.status) ? current.status.productionStatusID : 0;
+        const itemOverdueIndicator = isProductionItemOverdue(item)
+            ? renderOverdueIndicator("הפריט עבר את תאריך היעד")
+            : "";
 
         const itemDescription = (item.productionItem && item.productionItem.itemName)
             ? item.productionItem.itemName
@@ -228,7 +281,7 @@ function renderItems(itemsArray) {
             <td class="ps-col-sn">${item.serialNumber}</td>
             <td>${item.productionItem ? item.productionItem.productionItemID : '-'}</td>
             <td>${item.workOrderID || '-'}</td>
-            <td class="ps-col-desc" title="${itemDescription}">${itemDescription}</td>
+            <td class="ps-col-desc" title="${escapeHtml(itemDescription)}"><span class="ps-item-desc-wrap"><span>${escapeHtml(itemDescription)}</span>${itemOverdueIndicator}</span></td>
             <td>${item.plannedQty}</td>
             <td><span class="ps-stage-name">${stageName}</span></td>
             <td><span class="status-pill ${statusClass}">${statusName}</span></td>
