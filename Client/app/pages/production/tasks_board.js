@@ -1071,11 +1071,13 @@ window.applyFilters = function () {
             const itemName = (item.itemName || item.ItemName || item.productionItemDescription || "").toLowerCase();
             const itemID = (item.productionItemID || "").toString().toLowerCase();
             const workOrder = (row.workOrderID || row.WorkOrderID || "").toString().toLowerCase();
+            const tailNumber = (row.tailNumber || row.TailNumber || "").toString().toLowerCase();
             const project = row.projectName || row.ProjectName || "ללא פרויקט";
 
             const matchesSearch = itemName.includes(searchTerm) ||
                 itemID.includes(searchTerm) ||
-                workOrder.includes(searchTerm);
+                workOrder.includes(searchTerm) ||
+                tailNumber.includes(searchTerm);
 
             const matchesProject = !selectedProject || project === selectedProject;
 
