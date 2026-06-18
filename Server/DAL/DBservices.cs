@@ -217,13 +217,13 @@ public class DBservices
                     Price = reader["Price"] == DBNull.Value ? null : Convert.ToDouble(reader["Price"]),
                     SupplierID = reader["SupplierID"] == DBNull.Value ? null : Convert.ToInt32(reader["SupplierID"]),
                     SupplierName = reader["SupplierName"] == DBNull.Value ? string.Empty : reader["SupplierName"].ToString() ?? string.Empty,
-                    Whse01_QTY = reader["Whse01_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse01_QTY"]),
-                    Whse03_QTY = reader["Whse03_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse03_QTY"]),
-                    Whse90_QTY = reader["Whse90_QTY"] == DBNull.Value ? null : Convert.ToInt32(reader["Whse90_QTY"]),
-                    OpenPurchaseRequestQty = reader["OpenPurchaseRequestQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseRequestQty"]),
-                    OpenPurchaseOrderQty = reader["OpenPurchaseOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["OpenPurchaseOrderQty"]),
-                    ApprovedOrderQty = reader["ApprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["ApprovedOrderQty"]),
-                    UnapprovedOrderQty = reader["UnapprovedOrderQty"] == DBNull.Value ? null : Convert.ToInt32(reader["UnapprovedOrderQty"]),
+                    Whse01_QTY = reader["Whse01_QTY"] == DBNull.Value ? null : Convert.ToDecimal(reader["Whse01_QTY"]),
+                    Whse03_QTY = reader["Whse03_QTY"] == DBNull.Value ? null : Convert.ToDecimal(reader["Whse03_QTY"]),
+                    Whse90_QTY = reader["Whse90_QTY"] == DBNull.Value ? null : Convert.ToDecimal(reader["Whse90_QTY"]),
+                    OpenPurchaseRequestQty = reader["OpenPurchaseRequestQty"] == DBNull.Value ? null : Convert.ToDecimal(reader["OpenPurchaseRequestQty"]),
+                    OpenPurchaseOrderQty = reader["OpenPurchaseOrderQty"] == DBNull.Value ? null : Convert.ToDecimal(reader["OpenPurchaseOrderQty"]),
+                    ApprovedOrderQty = reader["ApprovedOrderQty"] == DBNull.Value ? null : Convert.ToDecimal(reader["ApprovedOrderQty"]),
+                    UnapprovedOrderQty = reader["UnapprovedOrderQty"] == DBNull.Value ? null : Convert.ToDecimal(reader["UnapprovedOrderQty"]),
                     BodyPlane = reader["BodyPlane"] == DBNull.Value ? null : reader["BodyPlane"].ToString(),
                     LastPODate = reader["LastPODate"] == DBNull.Value ? null : Convert.ToDateTime(reader["LastPODate"])
                 };
@@ -563,10 +563,10 @@ public class DBservices
                                + (reader["Whse90_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse90_QTY"])),
                     SupplierName = string.Empty,
                     Price = null,
-                    OpenPurchaseRequestQty = hasOpenPurchaseRequestQty && reader["OpenPurchaseRequestQty"] != DBNull.Value ? Convert.ToInt32(reader["OpenPurchaseRequestQty"]) : 0,
-                    OpenPurchaseOrderQty = hasOpenPurchaseOrderQty && reader["OpenPurchaseOrderQty"] != DBNull.Value ? Convert.ToInt32(reader["OpenPurchaseOrderQty"]) : 0,
-                    ApprovedOrderQty = hasApprovedOrderQty && reader["ApprovedOrderQty"] != DBNull.Value ? Convert.ToInt32(reader["ApprovedOrderQty"]) : 0,
-                    UnapprovedOrderQty = hasUnapprovedOrderQty && reader["UnapprovedOrderQty"] != DBNull.Value ? Convert.ToInt32(reader["UnapprovedOrderQty"]) : 0
+                    OpenPurchaseRequestQty = hasOpenPurchaseRequestQty && reader["OpenPurchaseRequestQty"] != DBNull.Value ? Convert.ToDecimal(reader["OpenPurchaseRequestQty"]) : 0m,
+                    OpenPurchaseOrderQty = hasOpenPurchaseOrderQty && reader["OpenPurchaseOrderQty"] != DBNull.Value ? Convert.ToDecimal(reader["OpenPurchaseOrderQty"]) : 0m,
+                    ApprovedOrderQty = hasApprovedOrderQty && reader["ApprovedOrderQty"] != DBNull.Value ? Convert.ToDecimal(reader["ApprovedOrderQty"]) : 0m,
+                    UnapprovedOrderQty = hasUnapprovedOrderQty && reader["UnapprovedOrderQty"] != DBNull.Value ? Convert.ToDecimal(reader["UnapprovedOrderQty"]) : 0m
                 };
             }
 
@@ -712,13 +712,13 @@ public class DBservices
             inventoryItemsImportTable.Columns.Add("ItemName", typeof(string));
             inventoryItemsImportTable.Columns.Add("BuyMethod", typeof(string));
             inventoryItemsImportTable.Columns.Add("Price", typeof(double));
-            inventoryItemsImportTable.Columns.Add("Whse01_QTY", typeof(int));
-            inventoryItemsImportTable.Columns.Add("Whse03_QTY", typeof(int));
-            inventoryItemsImportTable.Columns.Add("Whse90_QTY", typeof(int));
-            inventoryItemsImportTable.Columns.Add("OpenPurchaseRequestQty", typeof(int));
-            inventoryItemsImportTable.Columns.Add("OpenPurchaseOrderQty", typeof(int));
-            inventoryItemsImportTable.Columns.Add("ApprovedOrderQty", typeof(int));
-            inventoryItemsImportTable.Columns.Add("UnapprovedOrderQty", typeof(int));
+            inventoryItemsImportTable.Columns.Add("Whse01_QTY", typeof(decimal));
+            inventoryItemsImportTable.Columns.Add("Whse03_QTY", typeof(decimal));
+            inventoryItemsImportTable.Columns.Add("Whse90_QTY", typeof(decimal));
+            inventoryItemsImportTable.Columns.Add("OpenPurchaseRequestQty", typeof(decimal));
+            inventoryItemsImportTable.Columns.Add("OpenPurchaseOrderQty", typeof(decimal));
+            inventoryItemsImportTable.Columns.Add("ApprovedOrderQty", typeof(decimal));
+            inventoryItemsImportTable.Columns.Add("UnapprovedOrderQty", typeof(decimal));
             inventoryItemsImportTable.Columns.Add("ExcelRowNumber", typeof(int));
 
             foreach (InventoryBaseRow row in importData.InventoryBaseRows)

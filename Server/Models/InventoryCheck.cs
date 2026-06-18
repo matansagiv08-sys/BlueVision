@@ -560,10 +560,10 @@ public class InventoryCheck
         public decimal TotalStock { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public double? Price { get; set; }
-        public int OpenPurchaseRequestQty { get; set; }
-        public int OpenPurchaseOrderQty { get; set; }
-        public int ApprovedOrderQty { get; set; }
-        public int UnapprovedOrderQty { get; set; }
+        public decimal OpenPurchaseRequestQty { get; set; }
+        public decimal OpenPurchaseOrderQty { get; set; }
+        public decimal ApprovedOrderQty { get; set; }
+        public decimal UnapprovedOrderQty { get; set; }
     }
 }
 
@@ -608,10 +608,10 @@ public class InventoryCheckShortageItem
     public decimal ShortageQty { get; set; }
     public string SupplierName { get; set; } = string.Empty;
     public double? Price { get; set; }
-    public int OpenPurchaseRequestQty { get; set; }
-    public int OpenPurchaseOrderQty { get; set; }
-    public int ApprovedOrderQty { get; set; }
-    public int UnapprovedOrderQty { get; set; }
+    public decimal OpenPurchaseRequestQty { get; set; }
+    public decimal OpenPurchaseOrderQty { get; set; }
+    public decimal ApprovedOrderQty { get; set; }
+    public decimal UnapprovedOrderQty { get; set; }
     public bool IsSharedAcrossPlanes { get; set; }
     public string ContributingPlaneTypes { get; set; } = string.Empty;
     public Dictionary<string, decimal> ShortageByPlane { get; set; } = new Dictionary<string, decimal>();

@@ -169,6 +169,16 @@ body:has(.inventory-results-page) #app,
     width: 14%;
 }
 
+.inventory-results-page .generic-data-table td:nth-child(2) {
+    position: relative;
+    overflow: visible;
+    z-index: 1;
+}
+
+.inventory-results-page .generic-data-table tr:hover td:nth-child(2) {
+    z-index: 1000;
+}
+
 .inventory-results-page .generic-data-table th:nth-child(3),
 .inventory-results-page .generic-data-table td:nth-child(3),
 .inventory-results-page .generic-data-table th:nth-child(4),
@@ -249,6 +259,7 @@ body:has(.inventory-results-page) #app,
     position: relative;
     display: inline-flex;
     align-items: center;
+    z-index: 1;
 }
 
 .inventory-results-page .shared-breakdown-tooltip {
@@ -271,7 +282,7 @@ body:has(.inventory-results-page) #app,
     transform: translateY(4px);
     transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
     pointer-events: none;
-    z-index: 20;
+    z-index: 10000;
     white-space: normal;
 }
 
@@ -279,6 +290,10 @@ body:has(.inventory-results-page) #app,
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+}
+
+.inventory-results-page .shared-breakdown-wrapper:hover {
+    z-index: 10000;
 }
 
 .inventory-results-page .shared-breakdown-line + .shared-breakdown-line {

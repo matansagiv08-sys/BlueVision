@@ -15,13 +15,13 @@ public class InventoryItem
     public double? Price { get; set; }
     public int? SupplierID { get; set; }
     public string SupplierName { get; set; } = string.Empty;
-    public int? Whse01_QTY { get; set; }
-    public int? Whse03_QTY { get; set; }
-    public int? Whse90_QTY { get; set; }
-    public int? OpenPurchaseRequestQty { get; set; }
-    public int? OpenPurchaseOrderQty { get; set; }
-    public int? ApprovedOrderQty { get; set; }
-    public int? UnapprovedOrderQty { get; set; }
+    public decimal? Whse01_QTY { get; set; }
+    public decimal? Whse03_QTY { get; set; }
+    public decimal? Whse90_QTY { get; set; }
+    public decimal? OpenPurchaseRequestQty { get; set; }
+    public decimal? OpenPurchaseOrderQty { get; set; }
+    public decimal? ApprovedOrderQty { get; set; }
+    public decimal? UnapprovedOrderQty { get; set; }
     public string? BodyPlane { get; set; }
     public DateTime? LastPODate { get; set; }
 
@@ -49,8 +49,8 @@ public class InventoryItem
         List<InventoryBaseRow> inventoryBaseRows = BuildInventoryBaseRows(detailsSheet);
         Dictionary<string, string> itemToSupplierMap = BuildItemToSupplierMap(supplierSheet);
         Dictionary<string, DateTime> itemToLastPODateMap = BuildItemToLastPODateMap(supplierSheet);
-        Dictionary<string, int?> itemToOpenPurchaseRequestQty = openPurchaseRequestSheet == null
-            ? new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase)
+        Dictionary<string, decimal?> itemToOpenPurchaseRequestQty = openPurchaseRequestSheet == null
+            ? new Dictionary<string, decimal?>(StringComparer.OrdinalIgnoreCase)
             : BuildItemToOpenPurchaseRequestQtyMap(openPurchaseRequestSheet);
         Dictionary<string, InventoryPurchaseOrderQtyRow> itemToPurchaseOrderQty = openPurchaseOrderSheet == null
             ? new Dictionary<string, InventoryPurchaseOrderQtyRow>(StringComparer.OrdinalIgnoreCase)
@@ -66,7 +66,7 @@ public class InventoryItem
 
         foreach (InventoryBaseRow row in inventoryBaseRows)
         {
-            if (itemToOpenPurchaseRequestQty.TryGetValue(row.InventoryItemID, out int? openRequestQty))
+            if (itemToOpenPurchaseRequestQty.TryGetValue(row.InventoryItemID, out decimal? openRequestQty))
             {
                 row.OpenPurchaseRequestQty = openRequestQty;
             }
@@ -334,9 +334,9 @@ public class InventoryItem
             string itemName = GetCellText(row.Cell(2), sheet.Name, row.RowNumber(), "B", "ItemName");
             string buyMethodRaw = GetCellText(row.Cell(4), sheet.Name, row.RowNumber(), "D", "BuyMethod").ToUpperInvariant();
             string? buyMethod = (buyMethodRaw == "B" || buyMethodRaw == "M") ? buyMethodRaw : null;
-            int? whse01Qty = ToNullableInt(row.Cell(5), sheet.Name, row.RowNumber(), "E", "Whse01_QTY");
-            int? whse03Qty = ToNullableInt(row.Cell(6), sheet.Name, row.RowNumber(), "F", "Whse03_QTY");
-            int? whse90Qty = ToNullableInt(row.Cell(7), sheet.Name, row.RowNumber(), "G", "Whse90_QTY");
+            decimal? whse01Qty = ToNullableDecimal(row.Cell(5), sheet.Name, row.RowNumber(), "E", "Whse01_QTY");
+            decimal? whse03Qty = ToNullableDecimal(row.Cell(6), sheet.Name, row.RowNumber(), "F", "Whse03_QTY");
+            decimal? whse90Qty = ToNullableDecimal(row.Cell(7), sheet.Name, row.RowNumber(), "G", "Whse90_QTY");
 
             rowsByItemCode[itemCode] = new InventoryBaseRow
             {
@@ -353,9 +353,9 @@ public class InventoryItem
         return rowsByItemCode.Values.ToList();
     }
 
-    private static Dictionary<string, int?> BuildItemToOpenPurchaseRequestQtyMap(IXLWorksheet sheet)
+    private static Dictionary<string, decimal?> BuildItemToOpenPurchaseRequestQtyMap(IXLWorksheet sheet)
     {
-        Dictionary<string, int?> itemToOpenQty = new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, decimal?> itemToOpenQty = new Dictionary<string, decimal?>(StringComparer.OrdinalIgnoreCase);
 
         foreach (IXLRow row in sheet.RowsUsed().Skip(1))
         {
@@ -365,7 +365,7 @@ public class InventoryItem
                 continue;
             }
 
-            itemToOpenQty[itemCode] = ToNullableInt(row.Cell(2), sheet.Name, row.RowNumber(), "B", "OpenPurchaseRequestQty");
+            itemToOpenQty[itemCode] = ToNullableDecimal(row.Cell(2), sheet.Name, row.RowNumber(), "B", "OpenPurchaseRequestQty");
         }
 
         return itemToOpenQty;
@@ -385,9 +385,9 @@ public class InventoryItem
 
             itemToOrderQty[itemCode] = new InventoryPurchaseOrderQtyRow
             {
-                OpenPurchaseOrderQty = ToNullableInt(row.Cell(2), sheet.Name, row.RowNumber(), "B", "OpenPurchaseOrderQty"),
-                ApprovedOrderQty = ToNullableInt(row.Cell(3), sheet.Name, row.RowNumber(), "C", "ApprovedOrderQty"),
-                UnapprovedOrderQty = ToNullableInt(row.Cell(4), sheet.Name, row.RowNumber(), "D", "UnapprovedOrderQty")
+                OpenPurchaseOrderQty = ToNullableDecimal(row.Cell(2), sheet.Name, row.RowNumber(), "B", "OpenPurchaseOrderQty"),
+                ApprovedOrderQty = ToNullableDecimal(row.Cell(3), sheet.Name, row.RowNumber(), "C", "ApprovedOrderQty"),
+                UnapprovedOrderQty = ToNullableDecimal(row.Cell(4), sheet.Name, row.RowNumber(), "D", "UnapprovedOrderQty")
             };
         }
 
@@ -562,7 +562,11 @@ public class InventoryItem
     private static decimal ToSafeDecimal(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
     {
         if (cell.IsEmpty()) return 0;
-        if (cell.DataType == XLDataType.Number) return Convert.ToDecimal(cell.GetDouble());
+        if (cell.DataType == XLDataType.Number)
+        {
+            if (cell.TryGetValue<decimal>(out decimal numeric)) return numeric;
+            return Convert.ToDecimal(cell.GetDouble());
+        }
 
         string raw = GetCellText(cell, sheetName, rowNumber, columnLetter, fieldName);
         if (string.IsNullOrWhiteSpace(raw)) return 0;
@@ -628,6 +632,33 @@ public class InventoryItem
         }
 
         throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid integer value");
+    }
+
+    private static decimal? ToNullableDecimal(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
+    {
+        if (cell.IsEmpty()) return null;
+        if (cell.DataType == XLDataType.Number)
+        {
+            if (cell.TryGetValue<decimal>(out decimal numeric)) return numeric;
+            return Convert.ToDecimal(cell.GetDouble());
+        }
+
+        string raw = GetCellText(cell, sheetName, rowNumber, columnLetter, fieldName);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        string normalized = raw.Replace(",", "").Trim();
+
+        if (decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal invariantNumber))
+        {
+            return invariantNumber;
+        }
+
+        if (decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal currentCultureNumber))
+        {
+            return currentCultureNumber;
+        }
+
+        throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid decimal value");
     }
 
     private static double? ToNullableDouble(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
@@ -757,21 +788,21 @@ public class InventoryBaseRow
     public string? ItemName { get; set; }
     public string? BuyMethod { get; set; }
     public double? Price { get; set; }
-    public int? Whse01_QTY { get; set; }
-    public int? Whse03_QTY { get; set; }
-    public int? Whse90_QTY { get; set; }
-    public int? OpenPurchaseRequestQty { get; set; }
-    public int? OpenPurchaseOrderQty { get; set; }
-    public int? ApprovedOrderQty { get; set; }
-    public int? UnapprovedOrderQty { get; set; }
+    public decimal? Whse01_QTY { get; set; }
+    public decimal? Whse03_QTY { get; set; }
+    public decimal? Whse90_QTY { get; set; }
+    public decimal? OpenPurchaseRequestQty { get; set; }
+    public decimal? OpenPurchaseOrderQty { get; set; }
+    public decimal? ApprovedOrderQty { get; set; }
+    public decimal? UnapprovedOrderQty { get; set; }
     public int ExcelRowNumber { get; set; }
 }
 
 public class InventoryPurchaseOrderQtyRow
 {
-    public int? OpenPurchaseOrderQty { get; set; }
-    public int? ApprovedOrderQty { get; set; }
-    public int? UnapprovedOrderQty { get; set; }
+    public decimal? OpenPurchaseOrderQty { get; set; }
+    public decimal? ApprovedOrderQty { get; set; }
+    public decimal? UnapprovedOrderQty { get; set; }
 }
 
 public class ExcelLastModifiedInfo
