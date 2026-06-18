@@ -11,7 +11,7 @@
         <button class="btn-secondary" onclick="window.backToCheck()">
             <span>←</span> חזור לעריכת בדיקה
         </button>
-        <button class="btn-primary" onclick="window.exportToExcel()">
+        <button class="btn-primary" id="inventoryResultsExportBtn" onclick="window.exportToExcel()">
             <span>📄</span> ייצא דו"ח (Excel)
         </button>
     </div>
@@ -42,7 +42,15 @@
         </div>
     </div>
 
-    <div class="global-toolbar">
+    <div class="inventory-success-state" id="inventorySuccessState" hidden>
+        <div class="inventory-success-icon" aria-hidden="true">✓</div>
+        <div>
+            <div class="inventory-success-title">המלאי מספיק לייצור כל הכמות המבוקשת</div>
+            <div class="inventory-success-subtitle">לא נמצאו חוסרים עבור הדרישה הנוכחית</div>
+        </div>
+    </div>
+
+    <div class="global-toolbar" id="shortageFiltersSection">
         <div class="results-filter-group">
             <div class="search-container">
                 <input type="text" id="resultsSearch" class="standard-input" placeholder="חפש מק״ט או תיאור..." oninput="window.filterResults()">
@@ -59,7 +67,7 @@
         </div>
     </div>
 
-    <div class="table-container">
+    <div class="table-container" id="shortageTableSection">
         <table class="generic-data-table clickable-table">
             <thead>
                 <tr>

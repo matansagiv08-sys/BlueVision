@@ -41,6 +41,52 @@ body:has(.inventory-results-page) #app,
     margin-bottom: 16px;
 }
 
+.inventory-results-page .inventory-results-hidden {
+    display: none !important;
+}
+
+.inventory-results-page .inventory-success-state {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    direction: rtl;
+    margin: 0 0 20px;
+    padding: 18px 20px;
+    border: 1px solid #bbf7d0;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+    box-shadow: 0 6px 18px rgba(15, 118, 110, 0.08);
+}
+
+.inventory-results-page .inventory-success-state[hidden] {
+    display: none;
+}
+
+.inventory-results-page .inventory-success-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    color: #047857;
+    background: #dcfce7;
+    font-weight: 800;
+}
+
+.inventory-results-page .inventory-success-title {
+    color: #065f46;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.inventory-results-page .inventory-success-subtitle {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 13px;
+}
+
 
 /* עיצוב ספציפי לטבלה בדף התוצאות */
 .shortage-cell {
@@ -107,13 +153,67 @@ body:has(.inventory-results-page) #app,
 .inventory-results-page #ready-to-prod {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    font-size: 18px;
+    gap: 6px;
+    font-size: 14px;
     line-height: 1.35;
 }
 
 .inventory-results-page .ready-to-prod-line {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     white-space: nowrap;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.inventory-results-page .ready-to-prod-text {
+    color: inherit;
+}
+
+.inventory-results-page .ready-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.inventory-results-page .ready-status-full {
+    color: #047857;
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+.inventory-results-page .ready-status-full .ready-status-badge {
+    color: #065f46;
+    background: #dcfce7;
+}
+
+.inventory-results-page .ready-status-partial {
+    color: #b45309;
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.inventory-results-page .ready-status-partial .ready-status-badge {
+    color: #9a3412;
+    background: #ffedd5;
+}
+
+.inventory-results-page .ready-status-blocked {
+    color: #b91c1c;
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.inventory-results-page .ready-status-blocked .ready-status-badge {
+    color: #991b1b;
+    background: #fee2e2;
 }
 
 .inventory-results-page .table-container {

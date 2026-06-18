@@ -1,5 +1,6 @@
 let currentResultsData = [];
 let currentReadyToProduceRows = [];
+let hasInventoryCalculationResult = false;
 
 window.initInventoryResults = function () {
     setInventoryResultsLoading(true);
@@ -8,9 +9,11 @@ window.initInventoryResults = function () {
     const payloadText = sessionStorage.getItem("inventoryCheckPayload");
     if (!payloadText) {
         currentReadyToProduceRows = [];
+        hasInventoryCalculationResult = false;
         renderResultsTable([]);
         updateSummaryCards([]);
         populatePlatformFilter([]);
+        updateShortageSectionsVisibility();
         setInventoryResultsLoading(false);
         return;
     }
@@ -24,9 +27,11 @@ window.initInventoryResults = function () {
 
     if (!payload || !Array.isArray(payload.requests) || payload.requests.length === 0) {
         currentReadyToProduceRows = [];
+        hasInventoryCalculationResult = false;
         renderResultsTable([]);
         updateSummaryCards([]);
         populatePlatformFilter([]);
+        updateShortageSectionsVisibility();
         setInventoryResultsLoading(false);
         return;
     }
@@ -42,6 +47,7 @@ window.initInventoryResults = function () {
             currentReadyToProduceRows = Array.isArray(data?.readyToProduceRows)
                 ? data.readyToProduceRows
                 : (Array.isArray(data?.ReadyToProduceRows) ? data.ReadyToProduceRows : []);
+            hasInventoryCalculationResult = true;
 
             const totalShortageItems = data?.totalShortageItems ?? data?.TotalShortageItems ?? currentResultsData.length;
             const totalShortageUnits = data?.totalShortageUnits ?? data?.TotalShortageUnits ?? currentResultsData.reduce((sum, item) => sum + Number(item.shortageQty ?? item.ShortageQty ?? 0), 0);
@@ -54,6 +60,7 @@ window.initInventoryResults = function () {
             populatePlatformFilter(currentResultsData);
             const sortSelect = document.getElementById("shortageSortFilter");
             if (sortSelect) sortSelect.value = "default";
+            updateShortageSectionsVisibility();
             applyResultsView(totalShortageItems, totalShortageUnits, totalEstimatedCost);
             setInventoryResultsLoading(false);
         },
@@ -61,9 +68,11 @@ window.initInventoryResults = function () {
             console.error("Failed to calculate inventory shortages", xhr);
             currentResultsData = [];
             currentReadyToProduceRows = [];
+            hasInventoryCalculationResult = false;
             renderResultsTable([]);
             updateSummaryCards([]);
             populatePlatformFilter([]);
+            updateShortageSectionsVisibility();
             setInventoryResultsInlineError("חישוב המלאי נכשל, נסה שוב.");
             setInventoryResultsLoading(false);
         }
@@ -154,11 +163,54 @@ function renderReadyToProduceRows(target, rows) {
     }
 
     target.innerHTML = readyRows.map(row => {
-        const readyQty = displayWholeNumber(row.readyQty ?? row.ReadyQty ?? 0);
-        const requestedQty = displayWholeNumber(row.requestedQty ?? row.RequestedQty ?? 0);
+        const readyQtyValue = Number(row.readyQty ?? row.ReadyQty ?? 0);
+        const requestedQtyValue = Number(row.requestedQty ?? row.RequestedQty ?? 0);
+        const readyQty = displayWholeNumber(readyQtyValue);
+        const requestedQty = displayWholeNumber(requestedQtyValue);
         const planeName = row.planeTypeName ?? row.PlaneTypeName ?? row.planeTypeID ?? row.PlaneTypeID ?? "-";
-        return `<div class="ready-to-prod-line">${readyQty}/${requestedQty} ${escapeHtml(displayOrDash(planeName))}</div>`;
+        const status = getReadyStatus(readyQtyValue, requestedQtyValue);
+        return `
+            <div class="ready-to-prod-line ready-status-${status.key}">
+                <span class="ready-to-prod-text">${readyQty}/${requestedQty} ${escapeHtml(displayOrDash(planeName))}</span>
+                <span class="ready-status-badge">${status.label}</span>
+            </div>
+        `;
     }).join("");
+}
+
+function getReadyStatus(readyQty, requestedQty) {
+    if (requestedQty > 0 && readyQty >= requestedQty) {
+        return { key: "full", label: "מוכן" };
+    }
+
+    if (readyQty > 0 && readyQty < requestedQty) {
+        return { key: "partial", label: "חלקי" };
+    }
+
+    return { key: "blocked", label: "לא מוכן" };
+}
+
+function updateShortageSectionsVisibility() {
+    const hasShortages = Array.isArray(currentResultsData) && currentResultsData.length > 0;
+    const filtersSection = document.getElementById("shortageFiltersSection");
+    const tableSection = document.getElementById("shortageTableSection");
+    const successState = document.getElementById("inventorySuccessState");
+    const exportBtn = document.getElementById("inventoryResultsExportBtn");
+
+    setSectionVisible(filtersSection, hasShortages);
+    setSectionVisible(tableSection, hasShortages);
+    if (successState) successState.hidden = hasShortages || !hasInventoryCalculationResult;
+    if (exportBtn) {
+        setSectionVisible(exportBtn, hasShortages);
+        exportBtn.disabled = !hasShortages;
+        exportBtn.title = hasShortages ? "" : "אין חוסרים לייצוא";
+    }
+}
+
+function setSectionVisible(element, isVisible) {
+    if (!element) return;
+    element.hidden = !isVisible;
+    element.classList.toggle("inventory-results-hidden", !isVisible);
 }
 
 function populatePlatformFilter(data) {
