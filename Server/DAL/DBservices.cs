@@ -71,12 +71,12 @@ public class DBservices
 
     private void EnsureTempTableExists(SqlConnection con, string tempTableName)
     {
-        using SqlCommand cmd = new SqlCommand("SELECT OBJECT_ID(@TempTableName)", con);
-        cmd.CommandType = CommandType.Text;
-        cmd.Parameters.AddWithValue("@TempTableName", $"tempdb..{tempTableName}");
+        using SqlCommand cmd = new SqlCommand("dbo.SP_CheckTempTableExists", con);
+        cmd.CommandType = CommandType.StoredProcedure;
+        cmd.Parameters.AddWithValue("@TempTableName", tempTableName);
 
         object? result = cmd.ExecuteScalar();
-        if (result == null || result == DBNull.Value)
+        if (result == null || result == DBNull.Value || Convert.ToInt32(result) == 0)
         {
             throw new Exception($"{tempTableName} was not created on active connection");
         }
@@ -245,16 +245,12 @@ public class DBservices
 
     private static bool StoredProcedureHasParameter(SqlConnection con, string procedureName, string parameterName)
     {
-        using SqlCommand cmd = new SqlCommand(@"
-SELECT 1
-FROM sys.parameters p
-INNER JOIN sys.objects o ON o.object_id = p.object_id
-WHERE o.type = 'P'
-  AND o.name = @ProcedureName
-  AND p.name = @ParameterName;", con);
+        using SqlCommand cmd = new SqlCommand("dbo.SP_StoredProcedureHasParameter", con);
+        cmd.CommandType = CommandType.StoredProcedure;
         cmd.Parameters.AddWithValue("@ProcedureName", procedureName);
         cmd.Parameters.AddWithValue("@ParameterName", parameterName);
-        return cmd.ExecuteScalar() != null;
+        object? result = cmd.ExecuteScalar();
+        return result != null && result != DBNull.Value && Convert.ToInt32(result) == 1;
     }
 
     public List<object> GetBomPlaneOptions()
@@ -1146,75 +1142,8 @@ WHERE o.type = 'P'
     //שליפת כל הנתונים של פרטי הייצור עבור עמודי לוח משימות וניהול לוז
     private SqlCommand CreateProductionBoardDataCommand(SqlConnection con)
     {
-        string? startColumn = GetExistingColumnName(con, "ProductionItemStage", "StartTimeStamp", "StartTimestamp", "StartTime");
-        string? finishColumn = GetExistingColumnName(con, "ProductionItemStage", "FinishTimeStamp", "FinishTimestamp", "FinishTime", "EndTime");
-        string startSelect = startColumn == null ? "CAST(NULL AS datetime) AS StartTimeStamp" : $"pis.{startColumn} AS StartTimeStamp";
-        string finishSelect = finishColumn == null ? "CAST(NULL AS datetime) AS FinishTimeStamp" : $"pis.{finishColumn} AS FinishTimeStamp";
-
-        SqlCommand cmd = new SqlCommand(@"
-SELECT
-    iip.SerialNumber,
-    iip.WorkOrderID AS WorkOrderNumber,
-    iip.WorkOrderID,
-    iip.ProductionItemID AS InventoryItemID,
-    iip.ProductionItemID,
-    pi.ItemName,
-    pt.PlaneTypeName,
-    COALESCE(pl.PlaneTypeID, iip.PlaneTypeID) AS PlaneTypeID,
-    COALESCE(p.ProjectName, iip.ProjectName) AS ProjectName,
-    CAST(pl.PlaneID AS nvarchar(50)) AS PlaneNumber,
-    CAST(pl.PlaneID AS nvarchar(50)) AS TailNumber,
-    iip.PlannedQty,
-    ISNULL(iip.Comments, N'') AS Comments,
-    ISNULL(iip.PriorityLevel, 3) AS ItemPriorityLevel,
-    ISNULL(p.PriorityLevel, 3) AS ProjectPriorityLevel,
-    iip.DueDate AS ItemDueDate,
-    p.DueDate AS ProjectDueDate,
-    p.DueDate AS DueDate,
-    pis.ProductionStageID,
-    ps.ProductionStageName,
-    ps.StageOrder,
-    ISNULL(ps.TargetDuration, CAST('01:00:00' AS time)) AS TargetDuration,
-    ISNULL(pis.ProductionStatusID, 1) AS ProductionStatusID,
-    ISNULL(pst.ProductionStatusName, N'לא ידוע') AS StatusName,
-    ISNULL(pis.Comment, N'') AS Comment,
-    " + startSelect + @",
-    " + finishSelect + @",
-    pis.ManualPriority,
-    cur.CurrentStationName
-FROM dbo.ItemsInProduction iip
-INNER JOIN dbo.ProductionItems pi
-    ON pi.ProductionItemID = iip.ProductionItemID
-LEFT JOIN dbo.Planes pl
-    ON pl.PlaneID = iip.PlaneID
-LEFT JOIN dbo.PlaneTypes pt
-    ON pt.PlaneTypeID = COALESCE(pl.PlaneTypeID, iip.PlaneTypeID)
-LEFT JOIN dbo.Projects p
-    ON p.ProjectID = pl.ProjectID
-INNER JOIN dbo.ProductionItemStage pis
-    ON pis.SerialNumber = iip.SerialNumber
-   AND pis.ProductionItemID = iip.ProductionItemID
-INNER JOIN dbo.ProductionStages ps
-    ON ps.ProductionStageID = pis.ProductionStageID
-LEFT JOIN dbo.ProductionStatuses pst
-    ON pst.ProductionStatusID = pis.ProductionStatusID
-OUTER APPLY
-(
-    SELECT TOP (1)
-        ps2.ProductionStageName AS CurrentStationName
-    FROM dbo.ProductionItemStage pis2
-    INNER JOIN dbo.ProductionStages ps2
-        ON ps2.ProductionStageID = pis2.ProductionStageID
-    WHERE pis2.SerialNumber = iip.SerialNumber
-      AND pis2.ProductionItemID = iip.ProductionItemID
-    ORDER BY
-        CASE WHEN ISNULL(pis2.ProductionStatusID, 1) <> 4 THEN 0 ELSE 1 END,
-        ps2.StageOrder
-) cur
-ORDER BY
-    iip.SerialNumber,
-    ps.StageOrder;", con);
-        cmd.CommandType = CommandType.Text;
+        SqlCommand cmd = new SqlCommand("dbo.SP_GetProductionBoardData", con);
+        cmd.CommandType = CommandType.StoredProcedure;
         return cmd;
     }
 
@@ -1434,16 +1363,8 @@ ORDER BY
 
     private void EnsureItemsInProductionPlaneTypeColumn(SqlConnection con)
     {
-        using SqlCommand cmd = new SqlCommand(@"
-IF COL_LENGTH('dbo.ItemsInProduction', 'PlaneTypeID') IS NULL
-BEGIN
-    ALTER TABLE dbo.ItemsInProduction ADD PlaneTypeID INT NULL;
-END
-IF COL_LENGTH('dbo.ItemsInProduction', 'ProjectName') IS NULL
-BEGIN
-    ALTER TABLE dbo.ItemsInProduction ADD ProjectName NVARCHAR(255) NULL;
-END", con);
-        cmd.CommandType = CommandType.Text;
+        using SqlCommand cmd = new SqlCommand("dbo.SP_EnsureItemsInProductionOptionalColumns", con);
+        cmd.CommandType = CommandType.StoredProcedure;
         cmd.ExecuteNonQuery();
     }
 
@@ -1882,8 +1803,16 @@ END", con);
                 mainCmd.ExecuteNonQuery();
             }
 
-            UpdateOptionalItemsInProductionColumn(con, trans, serialNumber, productionItemID, "PlaneTypeID", planeTypeID);
-            UpdateOptionalItemsInProductionColumn(con, trans, serialNumber, productionItemID, "ProjectName", projectName);
+            using (SqlCommand optionalCmd = new SqlCommand("dbo.SP_UpdateItemInProductionOptionalFields", con, trans))
+            {
+                optionalCmd.CommandType = CommandType.StoredProcedure;
+                optionalCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
+                optionalCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
+                optionalCmd.Parameters.AddWithValue("@ItemName", DBNull.Value);
+                optionalCmd.Parameters.AddWithValue("@ProjectName", string.IsNullOrWhiteSpace(projectName) ? DBNull.Value : projectName);
+                optionalCmd.Parameters.AddWithValue("@PlaneTypeID", planeTypeID);
+                optionalCmd.ExecuteNonQuery();
+            }
 
             //קריאה לפונקציה שמוסיפה תחנות עבודה לפריט החדש שהוכנס
             InsertStagesForProduct(con, trans, serialNumber, productionItemID);
@@ -2006,43 +1935,23 @@ END", con);
             }
 
             con = connect("myProjDB");
-
-            using SqlCommand cmd = new SqlCommand(@"
-UPDATE ProductionItemStage
-SET ProductionStatusID = @NewStatusID,
-    Comment = @Comment,
-    StartTimeStamp = CASE WHEN @NewStatusID IN (2,3,4,5) THEN @StartTime ELSE NULL END,
-    FinishTimeStamp = CASE WHEN @NewStatusID = 4 THEN @FinishTime ELSE NULL END
-WHERE SerialNumber = @Serial AND ProductionItemID = @ItemID AND ProductionStageID = @StageID;
-
-IF @ResetFuture = 1
-BEGIN
-    UPDATE futureStage
-    SET ProductionStatusID = 1,
-        Comment = NULL,
-        StartTimeStamp = NULL,
-        FinishTimeStamp = NULL
-    FROM ProductionItemStage futureStage
-    INNER JOIN ProductionStages currentStage ON currentStage.ProductionStageID = @StageID
-    INNER JOIN ProductionStages nextStage ON nextStage.ProductionStageID = futureStage.ProductionStageID
-    WHERE futureStage.SerialNumber = @Serial
-      AND futureStage.ProductionItemID = @ItemID
-      AND nextStage.StageOrder > currentStage.StageOrder;
-END", con);
-
-            cmd.CommandType = CommandType.Text;
-            cmd.Parameters.AddWithValue("@Serial", serial);
-            cmd.Parameters.AddWithValue("@ItemID", itemID);
-            cmd.Parameters.AddWithValue("@StageID", stageID);
-            cmd.Parameters.AddWithValue("@NewStatusID", newStatusID);
-            cmd.Parameters.AddWithValue("@Comment", (object?)comment ?? DBNull.Value);
             DateTime? effectiveStartTime = startTime ?? userTime;
             DateTime? effectiveFinishTime = finishTime ?? (newStatusID == 4 ? userTime : null);
-            cmd.Parameters.AddWithValue("@StartTime", effectiveStartTime.HasValue ? effectiveStartTime.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@FinishTime", effectiveFinishTime.HasValue ? effectiveFinishTime.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@ResetFuture", resetFuture);
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@Serial", serial },
+                { "@ItemID", itemID },
+                { "@StageID", stageID },
+                { "@NewStatusID", newStatusID },
+                { "@Comment", (object?)comment ?? DBNull.Value },
+                { "@StartTime", effectiveStartTime.HasValue ? effectiveStartTime.Value : DBNull.Value },
+                { "@FinishTime", effectiveFinishTime.HasValue ? effectiveFinishTime.Value : DBNull.Value },
+                { "@ResetFuture", resetFuture }
+            };
 
-            return cmd.ExecuteNonQuery();
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("SP_UpdateProductionStageStatus", con, paramDic);
+            object result = cmd.ExecuteScalar();
+            return result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
         }
         catch (Exception)
         {
@@ -2097,19 +2006,9 @@ END", con);
                 HandleProjectAndPlane(con, trans, data.ProjectName, data.TailNumber, data.PlaneTypeID, DateTime.Today, 2);
             }
 
-            using (SqlCommand mainCmd = new SqlCommand(@"
-UPDATE ItemsInProduction
-SET SerialNumber = @SerialNumber,
-    ProductionItemID = @ProductionItemID,
-    WorkOrderID = @WorkOrderID,
-    PlaneID = @TailNumber,
-    PlannedQty = @PlannedQty,
-    DueDate = @DueDate,
-    PriorityLevel = @PriorityLevel,
-    Comments = @Comments
-WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProductionItemID", con, trans))
+            using (SqlCommand mainCmd = new SqlCommand("dbo.SP_UpdateItemInProductionRow", con, trans))
             {
-                mainCmd.CommandType = CommandType.Text;
+                mainCmd.CommandType = CommandType.StoredProcedure;
                 mainCmd.Parameters.AddWithValue("@OriginalSerialNumber", data.OriginalSerialNumber);
                 mainCmd.Parameters.AddWithValue("@OriginalProductionItemID", data.OriginalProductionItemID);
                 mainCmd.Parameters.AddWithValue("@SerialNumber", data.SerialNumber);
@@ -2120,31 +2019,16 @@ WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProdu
                 mainCmd.Parameters.AddWithValue("@DueDate", data.DueDate.HasValue ? data.DueDate.Value.Date : DBNull.Value);
                 mainCmd.Parameters.AddWithValue("@PriorityLevel", data.PriorityLevel.HasValue && data.PriorityLevel.Value > 0 ? data.PriorityLevel.Value : DBNull.Value);
                 mainCmd.Parameters.AddWithValue("@Comments", string.IsNullOrWhiteSpace(data.Comments) ? DBNull.Value : data.Comments);
-                int affected = mainCmd.ExecuteNonQuery();
+                mainCmd.Parameters.AddWithValue("@ItemName", string.IsNullOrWhiteSpace(data.ItemName) ? DBNull.Value : data.ItemName);
+                mainCmd.Parameters.AddWithValue("@ProjectName", string.IsNullOrWhiteSpace(data.ProjectName) ? DBNull.Value : data.ProjectName);
+                mainCmd.Parameters.AddWithValue("@PlaneTypeID", data.PlaneTypeID);
+                object result = mainCmd.ExecuteScalar();
+                int affected = result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
                 if (affected == 0)
                 {
                     trans.Rollback();
                     return 0;
                 }
-            }
-
-            UpdateOptionalItemsInProductionColumn(con, trans, data.SerialNumber, data.ProductionItemID, "ItemName", data.ItemName);
-            UpdateOptionalItemsInProductionColumn(con, trans, data.SerialNumber, data.ProductionItemID, "ProjectName", data.ProjectName);
-            UpdateOptionalItemsInProductionColumn(con, trans, data.SerialNumber, data.ProductionItemID, "PlaneTypeID", data.PlaneTypeID);
-
-            if (data.SerialNumber != data.OriginalSerialNumber || !string.Equals(data.ProductionItemID, data.OriginalProductionItemID, StringComparison.OrdinalIgnoreCase))
-            {
-                using SqlCommand stagesCmd = new SqlCommand(@"
-UPDATE ProductionItemStage
-SET SerialNumber = @SerialNumber,
-    ProductionItemID = @ProductionItemID
-WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProductionItemID", con, trans);
-                stagesCmd.CommandType = CommandType.Text;
-                stagesCmd.Parameters.AddWithValue("@OriginalSerialNumber", data.OriginalSerialNumber);
-                stagesCmd.Parameters.AddWithValue("@OriginalProductionItemID", data.OriginalProductionItemID);
-                stagesCmd.Parameters.AddWithValue("@SerialNumber", data.SerialNumber);
-                stagesCmd.Parameters.AddWithValue("@ProductionItemID", data.ProductionItemID);
-                stagesCmd.ExecuteNonQuery();
             }
 
             trans.Commit();
@@ -2158,148 +2042,30 @@ WHERE SerialNumber = @OriginalSerialNumber AND ProductionItemID = @OriginalProdu
         finally { if (con != null) con.Close(); }
     }
 
-    private static void UpdateOptionalItemsInProductionColumn(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID, string columnName, string? value)
-    {
-        using SqlCommand checkCmd = new SqlCommand("SELECT COL_LENGTH('ItemsInProduction', @ColumnName)", con, trans);
-        checkCmd.Parameters.AddWithValue("@ColumnName", columnName);
-        object exists = checkCmd.ExecuteScalar();
-        if (exists == DBNull.Value || exists == null) return;
-
-        using SqlCommand updateCmd = new SqlCommand($"UPDATE ItemsInProduction SET {columnName} = @Value WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans);
-        updateCmd.Parameters.AddWithValue("@Value", string.IsNullOrWhiteSpace(value) ? DBNull.Value : value);
-        updateCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
-        updateCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
-        updateCmd.ExecuteNonQuery();
-    }
-
-    private static void UpdateOptionalItemsInProductionColumn(SqlConnection con, SqlTransaction trans, int serialNumber, string productionItemID, string columnName, int value)
-    {
-        using SqlCommand checkCmd = new SqlCommand("SELECT COL_LENGTH('ItemsInProduction', @ColumnName)", con, trans);
-        checkCmd.Parameters.AddWithValue("@ColumnName", columnName);
-        object exists = checkCmd.ExecuteScalar();
-        if (exists == DBNull.Value || exists == null) return;
-
-        using SqlCommand updateCmd = new SqlCommand($"UPDATE ItemsInProduction SET {columnName} = @Value WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans);
-        updateCmd.Parameters.AddWithValue("@Value", value);
-        updateCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
-        updateCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
-        updateCmd.ExecuteNonQuery();
-    }
-
     public int DeleteItemInProductionRow(int serialNumber, string productionItemID)
     {
         productionItemID = productionItemID?.Trim() ?? string.Empty;
         if (serialNumber < 0 || string.IsNullOrWhiteSpace(productionItemID)) return 0;
 
         SqlConnection con = null;
-        SqlTransaction trans = null;
         try
         {
             con = connect("myProjDB");
-            trans = con.BeginTransaction();
-
-            using (SqlCommand stagesCmd = new SqlCommand("DELETE FROM ProductionItemStage WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans))
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
             {
-                stagesCmd.CommandType = CommandType.Text;
-                stagesCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
-                stagesCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
-                stagesCmd.ExecuteNonQuery();
-            }
+                { "@SerialNumber", serialNumber },
+                { "@ProductionItemID", productionItemID }
+            };
 
-            int affected;
-            using (SqlCommand mainCmd = new SqlCommand("DELETE FROM ItemsInProduction WHERE SerialNumber = @SerialNumber AND ProductionItemID = @ProductionItemID", con, trans))
-            {
-                mainCmd.CommandType = CommandType.Text;
-                mainCmd.Parameters.AddWithValue("@SerialNumber", serialNumber);
-                mainCmd.Parameters.AddWithValue("@ProductionItemID", productionItemID);
-                affected = mainCmd.ExecuteNonQuery();
-            }
-
-            trans.Commit();
-            return affected;
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("SP_DeleteItemInProductionRow", con, paramDic);
+            object result = cmd.ExecuteScalar();
+            return result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
         }
         catch
         {
-            trans?.Rollback();
             throw;
         }
         finally { if (con != null) con.Close(); }
-    }
-
-    private static void ApplyStageTimestamps(SqlConnection con, Dictionary<string, ItemInProduction> itemsMap)
-    {
-        if (itemsMap.Count == 0) return;
-
-        string? startColumn = GetExistingColumnName(con, "ProductionItemStage", "StartTimeStamp", "StartTimestamp", "StartTime");
-        string? finishColumn = GetExistingColumnName(con, "ProductionItemStage", "FinishTimeStamp", "FinishTimestamp", "FinishTime", "EndTime");
-        if (startColumn == null && finishColumn == null) return;
-
-        string startSelect = startColumn == null ? "CAST(NULL AS datetime) AS StartValue" : $"{startColumn} AS StartValue";
-        string finishSelect = finishColumn == null ? "CAST(NULL AS datetime) AS FinishValue" : $"{finishColumn} AS FinishValue";
-        string qualifiedStartSelect = startColumn == null ? "CAST(NULL AS datetime) AS StartValue" : $"pis.{startColumn} AS StartValue";
-        string qualifiedFinishSelect = finishColumn == null ? "CAST(NULL AS datetime) AS FinishValue" : $"pis.{finishColumn} AS FinishValue";
-
-        List<string> rowKeys = itemsMap.Keys.ToList();
-        string sourceSql = "ProductionItemStage";
-        SqlCommand cmd;
-
-        if (rowKeys.Count <= 900)
-        {
-            List<string> values = new List<string>();
-            cmd = new SqlCommand();
-            cmd.Connection = con;
-
-            for (int i = 0; i < rowKeys.Count; i++)
-            {
-                string[] parts = rowKeys[i].Split('|', 2);
-                values.Add($"(@Serial{i}, @Item{i})");
-                cmd.Parameters.AddWithValue($"@Serial{i}", Convert.ToInt32(parts[0], CultureInfo.InvariantCulture));
-                cmd.Parameters.AddWithValue($"@Item{i}", parts.Length > 1 ? parts[1] : string.Empty);
-            }
-
-            sourceSql = $@"ProductionItemStage pis
-INNER JOIN (VALUES {string.Join(",", values)}) wanted(SerialNumber, ProductionItemID)
-    ON wanted.SerialNumber = pis.SerialNumber AND wanted.ProductionItemID = pis.ProductionItemID";
-            cmd.CommandText = $"SELECT pis.SerialNumber, pis.ProductionItemID, pis.ProductionStageID, {qualifiedStartSelect}, {qualifiedFinishSelect} FROM {sourceSql}";
-        }
-        else
-        {
-            cmd = new SqlCommand($@"
-SELECT SerialNumber, ProductionItemID, ProductionStageID, {startSelect}, {finishSelect}
-FROM {sourceSql}", con);
-        }
-        cmd.CommandType = CommandType.Text;
-
-        using SqlDataReader reader = cmd.ExecuteReader();
-        while (reader.Read())
-        {
-            int serial = Convert.ToInt32(reader["SerialNumber"]);
-            string itemId = Convert.ToString(reader["ProductionItemID"], CultureInfo.InvariantCulture) ?? string.Empty;
-            int stageId = Convert.ToInt32(reader["ProductionStageID"]);
-            string key = $"{serial}|{itemId}";
-
-            if (!itemsMap.TryGetValue(key, out ItemInProduction? row)) continue;
-
-            ProductionItemStage? stage = row.Stages.FirstOrDefault(s => s.Stage?.ProductionStageID == stageId);
-            if (stage == null) continue;
-
-            stage.StartTimeStamp = reader["StartValue"] == DBNull.Value ? null : Convert.ToDateTime(reader["StartValue"]);
-            stage.FinishTimeStamp = reader["FinishValue"] == DBNull.Value ? null : Convert.ToDateTime(reader["FinishValue"]);
-        }
-    }
-
-    private static string? GetExistingColumnName(SqlConnection con, string tableName, params string[] candidates)
-    {
-        foreach (string candidate in candidates)
-        {
-            using SqlCommand cmd = new SqlCommand("SELECT COL_LENGTH(@TableName, @ColumnName)", con);
-            cmd.Parameters.AddWithValue("@TableName", tableName);
-            cmd.Parameters.AddWithValue("@ColumnName", candidate);
-            object result = cmd.ExecuteScalar();
-            if (result != null && result != DBNull.Value) return candidate;
-        }
-
-        return null;
     }
 
     private static int? ReadNullableInt(SqlDataReader reader, params string[] columnNames)
