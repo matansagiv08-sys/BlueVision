@@ -43,12 +43,14 @@
 
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px;">מה ברצונך לבדוק במערכת המלאי?</label>
-                    <textarea id="aiPromptInput" class="standard-input" rows="3" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: none;" placeholder="לדוגמה: כמה פריטים יש מכל דגם של כטב''ם במלאי?"></textarea>
+                    <textarea id="aiPromptInput" class="standard-input" rows="5" style="width: 100%; min-height: 110px; max-height: 220px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: vertical; overflow-y: auto;" placeholder="לדוגמה: כמה פריטים יש מכל דגם של כטב''ם במלאי?"></textarea>
                 </div>
 
-                <button class="standard-button" style="width: 100%; background-color: #0c2340; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;" onclick="generateAiChart()">
-                    ייצר גרף בהתאמה אישית
+                <button id="generateAiChartBtn" class="standard-button" style="width: 100%; background-color: #0c2340; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;" onclick="generateAiChart()">
+                    <span class="ai-create-spinner" hidden></span>
+                    <span class="ai-create-button-text">ייצר גרף בהתאמה אישית</span>
                 </button>
+                <div id="aiCreateLoadingText" class="ai-create-loading-text" hidden>המערכת יוצרת את הגרף, זה עשוי לקחת כמה שניות...</div>
 
                 <div id="previewChartContainer" class="preview-chart-box" style="display: none; margin-top: 20px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px;">
                     <h4 style="margin-top: 0; color: #0c2340; font-size: 14px; margin-bottom: 10px;">תצוגה מקדימה של הגרף:</h4>
@@ -66,12 +68,6 @@
                     <button class="standard-button" style="width: 100%; background-color: #10b981; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;" onclick="saveGeneratedChart()">
                         💾 שמור גרף והוסף לדשבורד
                     </button>
-                </div>
-            </div>
-
-            <div class="modal-section existing-charts-section" style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
-                <h3 style="margin-top: 0; color: #0c2340; font-size: 16px; margin-bottom: 15px;">📊 הגרפים הקיימים בדשבורד שלך</h3>
-                <div class="manage-charts-list" id="manageChartsList" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;">
                 </div>
             </div>
 

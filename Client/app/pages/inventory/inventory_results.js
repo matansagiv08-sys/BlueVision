@@ -100,8 +100,7 @@ function renderResultsTable(data) {
         const shortage = item.shortageQty ?? item.ShortageQty ?? 0;
         const supplier = item.supplierName ?? item.SupplierName ?? "";
         const price = item.price ?? item.Price;
-        const measureUnitRaw = item.measureUnit ?? item.MeasureUnit ?? "";
-        const measureUnit = String(measureUnitRaw).trim() === "" ? "each" : measureUnitRaw;
+        const measureUnit = formatUnitOfMeasure(item.measureUnit ?? item.MeasureUnit);
         const platforms = item.contributingPlaneTypes ?? item.ContributingPlaneTypes ?? "";
         const shared = (item.isSharedAcrossPlanes ?? item.IsSharedAcrossPlanes) === true;
         const sharedClass = shared ? " shared-shortage-row" : "";
@@ -114,7 +113,7 @@ function renderResultsTable(data) {
                 <td>${displayNumber(current)}</td>
                 <td>${displayNumber(req)}</td>
                 <td class="shortage-cell">${displayNumber(shortage)}</td>
-                <td>${escapeHtml(displayOrDash(measureUnit))}</td>
+                <td>${escapeHtml(measureUnit)}</td>
                 <td>${displayNumber(openPurchaseRequestQty)}</td>
                 <td>${displayNumber(openPurchaseOrderQty)}</td>
                 <td>${displayNumber(approvedOrderQty)}</td>

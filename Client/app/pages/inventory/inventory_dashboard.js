@@ -29,20 +29,32 @@ function loadSavedCharts() {
 window.openEditDashboardModal = function () {
     const modal = document.getElementById("dashboardEditModal");
     if (modal) {
+        resetAiGraphModalState();
         modal.style.display = "flex";
-        canSaveGeneratedResult = false;
-        setSaveButtonEnabled(false);
         console.log("מודל עריכה נפתח");
     }
 };
 
 // 2. סגירת חלונית העריכה של ה-AI
-window.closeEditDashboardModal = function () {
+window.closeEditDashboardModal = function (skipUnsavedConfirm = false) {
     const modal = document.getElementById("dashboardEditModal");
-    if (modal) {
-        modal.style.display = "none";
-        console.log("מודל עריכה נסגר");
+    if (!modal) return;
+
+    if (!skipUnsavedConfirm && hasUnsavedGeneratedAiGraph()) {
+        showAppConfirm({
+            title: "יציאה ללא שמירה?",
+            message: "הגרף שנוצר עדיין לא נשמר בדשבורד. אם תצא עכשיו, הוא יימחק.",
+            confirmText: "צא ללא שמירה",
+            cancelText: "חזור לעריכה",
+            destructive: true,
+            onConfirm: function () {
+                closeAndResetAiGraphModal(modal);
+            }
+        });
+        return;
     }
+
+    closeAndResetAiGraphModal(modal);
 };
 
 // משתנים גלובליים לשמירת נתוני הגרף הנוכחי שנוצר ב-AI
@@ -57,6 +69,7 @@ let draggedChartId = null;
 let lastGeneratedSql = "";
 let lastGeneratedChartType = "bar";
 let canSaveGeneratedResult = false;
+let aiGenerationRequestId = 0;
 
 const DASHBOARD_TYPE = "Inventory";
 const DASHBOARD_NAME = "דוח מלאי";
@@ -109,12 +122,57 @@ function clearPreview() {
     }
 }
 
+function resetAiGraphModalState() {
+    aiGenerationRequestId++;
+    lastGeneratedSql = "";
+    lastGeneratedChartType = "bar";
+    canSaveGeneratedResult = false;
+
+    const promptInput = document.getElementById("aiPromptInput");
+    const titleInput = document.getElementById("newChartTitleInput");
+    const previewContainer = document.getElementById("previewChartContainer");
+
+    if (promptInput) promptInput.value = "";
+    if (titleInput) titleInput.value = "";
+    if (previewContainer) previewContainer.style.display = "none";
+
+    clearPreview();
+    setGenerateButtonLoading(false);
+    setSaveButtonEnabled(false);
+}
+
+function hasUnsavedGeneratedAiGraph() {
+    return canSaveGeneratedResult && !!lastGeneratedSql;
+}
+
+function closeAndResetAiGraphModal(modal) {
+    resetAiGraphModalState();
+    modal.style.display = "none";
+    console.log("מודל עריכה נסגר");
+}
+
 function setSaveButtonEnabled(enabled) {
     const saveBtn = document.querySelector('#previewChartContainer button[onclick="saveGeneratedChart()"]');
     if (!saveBtn) return;
     saveBtn.disabled = !enabled;
     saveBtn.style.opacity = enabled ? "1" : "0.6";
     saveBtn.style.cursor = enabled ? "pointer" : "not-allowed";
+}
+
+function setGenerateButtonLoading(isLoading) {
+    const button = document.getElementById("generateAiChartBtn");
+    const spinner = button?.querySelector(".ai-create-spinner");
+    const text = button?.querySelector(".ai-create-button-text");
+    const loadingText = document.getElementById("aiCreateLoadingText");
+
+    if (button) {
+        button.disabled = isLoading;
+        button.style.opacity = isLoading ? "0.75" : "1";
+        button.style.cursor = isLoading ? "not-allowed" : "pointer";
+    }
+    if (spinner) spinner.hidden = !isLoading;
+    if (text) text.textContent = isLoading ? "יוצר גרף..." : "ייצר גרף בהתאמה אישית";
+    if (loadingText) loadingText.hidden = !isLoading;
 }
 
 function renderHtmlTable(containerId, rows) {
@@ -350,11 +408,9 @@ function resizeDashboardCharts() {
 
 function renderSavedCharts() {
     const grid = document.getElementById("chartsGrid");
-    const manageList = document.getElementById("manageChartsList");
     if (!grid) return;
 
     grid.innerHTML = "";
-    if (manageList) manageList.innerHTML = "";
 
     if (!savedChartsState.length) {
         grid.innerHTML = `<div class="dashboard-empty-state">
@@ -384,6 +440,7 @@ function renderSavedCharts() {
                         <button class="card-menu-btn" onclick='toggleCardMenu(${chartIDArg})' title="פעולות">⋯</button>
                         <div class="card-menu-panel" id="menu_${chartID}" style="display:none;">
                             <button onclick='openVisualizationModal(${chartIDArg})'>הגדל תצוגה</button>
+                            <button onclick='openRenameVisualizationModal(${chartIDArg})'>שינוי שם</button>
                             <button onclick='showVisualizationQuery(${chartIDArg})'>הצג שאילתה</button>
                             <button onclick='exportVisualizationToExcel(${chartIDArg})'>ייצוא לאקסל</button>
                             <div class="card-size-menu">
@@ -406,15 +463,6 @@ function renderSavedCharts() {
                 <div id="msg_${chartID}" class="dashboard-preview-message" style="display:none;"></div>
             </div>`;
         grid.insertAdjacentHTML('beforeend', cardHtml);
-
-        if (manageList) {
-            const itemHtml = `
-                <div class="manage-chart-item" id="manageItem_${chartID}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border: 1px solid #e2e8f0; border-radius: 6px;">
-                    <span>📊 ${escapeHtml(chartTitle)} (${escapeHtml(chartType)})</span>
-                    <button class="btn-delete-chart" onclick='deleteChart(${chartIDArg})' style="background: none; border: none; cursor: pointer; font-size: 16px;">🗑️</button>
-                </div>`;
-            manageList.insertAdjacentHTML('beforeend', itemHtml);
-        }
 
         renderVisualizationFromStateOrFetch(chart);
     });
@@ -768,10 +816,108 @@ window.closeDashboardCardModal = function () {
     }
 };
 
+window.openRenameVisualizationModal = function (chartID) {
+    closeAllCardMenus();
+    const chart = savedChartsState.find(item => String(getChartId(item)) === String(chartID));
+    if (!chart) return;
+
+    const modal = getRenameVisualizationModal();
+    const input = modal.querySelector("#renameVisualizationInput");
+    const error = modal.querySelector("#renameVisualizationError");
+    const currentTitle = chart.chartTitle || chart.ChartTitle || "";
+
+    modal.dataset.chartId = String(chartID);
+    input.value = currentTitle;
+    error.textContent = "";
+    error.hidden = true;
+    modal.style.display = "flex";
+    input.focus();
+    input.select();
+};
+
+window.closeRenameVisualizationModal = function () {
+    const modal = document.getElementById("renameVisualizationModal");
+    if (modal) modal.style.display = "none";
+};
+
+window.saveRenamedVisualization = function () {
+    const modal = document.getElementById("renameVisualizationModal");
+    const input = modal?.querySelector("#renameVisualizationInput");
+    const error = modal?.querySelector("#renameVisualizationError");
+    const chartID = modal?.dataset.chartId;
+    const title = String(input?.value || "").trim();
+
+    if (!title) {
+        if (error) {
+            error.textContent = "שם הגרף לא יכול להיות ריק";
+            error.hidden = false;
+        }
+        return;
+    }
+
+    $.ajax({
+        url: server + `api/dashboard/rename/${encodeURIComponent(chartID)}`,
+        type: "PUT",
+        contentType: "application/json",
+        data: JSON.stringify({ ChartTitle: title, DashboardType: DASHBOARD_TYPE }),
+        success: function () {
+            const chart = savedChartsState.find(item => String(getChartId(item)) === String(chartID));
+            if (chart) {
+                chart.ChartTitle = title;
+                chart.chartTitle = title;
+            }
+
+            const card = document.getElementById(`chartCard_${chartID}`);
+            const titleEl = card?.querySelector(".chart-card-title");
+            if (titleEl) titleEl.textContent = title;
+
+            const visualization = savedVisualizationsState[chartID];
+            if (visualization) visualization.title = title;
+
+            closeRenameVisualizationModal();
+        },
+        error: function (xhr) {
+            if (error) {
+                error.textContent = xhr.responseJSON?.error || "שמירת שם הגרף נכשלה";
+                error.hidden = false;
+            }
+        }
+    });
+};
+
+function getRenameVisualizationModal() {
+    let modal = document.getElementById("renameVisualizationModal");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "renameVisualizationModal";
+    modal.className = "confirm-modal-overlay";
+    modal.style.display = "none";
+    modal.innerHTML = `
+        <div class="confirm-modal-content" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+            <div class="confirm-modal-header">שינוי שם גרף</div>
+            <div class="confirm-modal-body">
+                <label style="display:block; margin-bottom:6px; font-weight:600;">שם הגרף</label>
+                <input id="renameVisualizationInput" class="standard-input" type="text" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;" placeholder="שם הגרף">
+                <div id="renameVisualizationError" style="color:#b91c1c; font-size:13px; margin-top:8px;" hidden></div>
+            </div>
+            <div class="confirm-modal-footer">
+                <button type="button" class="btn-confirm btn-confirm-no" onclick="closeRenameVisualizationModal()">ביטול</button>
+                <button type="button" class="dashboard-action-btn dashboard-action-primary" onclick="saveRenamedVisualization()">שמור</button>
+            </div>
+        </div>`;
+    modal.addEventListener("click", window.closeRenameVisualizationModal);
+    document.body.appendChild(modal);
+    return modal;
+}
+
 // פונקציה השולחת את הפרומפט ל-AI ומציירת תצוגה מקדימה
 window.generateAiChart = function () {
     const promptInput = document.getElementById("aiPromptInput");
     const previewContainer = document.getElementById("previewChartContainer");
+    const generateButton = document.getElementById("generateAiChartBtn");
+
+    if (generateButton?.disabled) return;
 
     if (!promptInput || !promptInput.value.trim()) {
         showAppMessage("נא להזין שאלה או בקשה עבור ה-AI");
@@ -787,6 +933,8 @@ window.generateAiChart = function () {
     const userObj = JSON.parse(userRaw);
 
     console.log("שולח בקשה ל-AI עבור: " + promptInput.value);
+    setGenerateButtonLoading(true);
+    const requestId = ++aiGenerationRequestId;
 
     $.ajax({
         url: server + "api/dashboard/generate",
@@ -797,6 +945,7 @@ window.generateAiChart = function () {
             DashboardType: DASHBOARD_TYPE
         }),
         success: function (data) {
+            if (requestId !== aiGenerationRequestId) return;
             console.log("נתונים חזרו מה-AI בהצלחה!", data);
 
             clearPreview();
@@ -835,6 +984,7 @@ window.generateAiChart = function () {
             setSaveButtonEnabled(canSaveGeneratedResult);
         },
         error: function (xhr) {
+            if (requestId !== aiGenerationRequestId) return;
             console.error("שגיאה ביצירת הגרף:", xhr);
             if (xhr?.responseJSON?.errorCode) {
                 console.error("Dashboard validation error code:", xhr.responseJSON.errorCode);
@@ -845,6 +995,9 @@ window.generateAiChart = function () {
             canSaveGeneratedResult = false;
             setSaveButtonEnabled(false);
             showAppMessage("ה-AI לא הצליח לייצר גרף. שגיאה: " + (xhr.responseJSON?.error || xhr.statusText), { title: "שגיאה" });
+        },
+        complete: function () {
+            if (requestId === aiGenerationRequestId) setGenerateButtonLoading(false);
         }
     });
 };
@@ -883,14 +1036,7 @@ window.saveGeneratedChart = function () {
         data: JSON.stringify(saveData),
         success: function (res) {
             showAppMessage("הגרף נשמר בהצלחה והתווסף לדשבורד!", { title: "בוצע" });
-            closeEditDashboardModal();
-
-            titleInput.value = "";
-            document.getElementById("aiPromptInput").value = "";
-            document.getElementById("previewChartContainer").style.display = "none";
-            clearPreview();
-            canSaveGeneratedResult = false;
-            setSaveButtonEnabled(false);
+            closeEditDashboardModal(true);
 
             loadSavedCharts();
         },

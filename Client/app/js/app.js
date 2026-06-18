@@ -203,6 +203,13 @@ const routes = {
 /* =========================
    GLOBAL HELPERS
 ========================= */
+function formatUnitOfMeasure(value) {
+    if (value === null || value === undefined) return "-";
+    const text = String(value).trim();
+    if (text === "") return "-";
+    return text.toLowerCase() === "each" ? "unit" : text;
+}
+
 function setActiveMenu(path) {
     const activePath = path === "/inventory/inventory_check/results"
         ? "/inventory/inventory_check"

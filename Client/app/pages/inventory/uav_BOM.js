@@ -280,7 +280,7 @@ function renderBomTreeTable() {
         const childCount = nodeHasChildren ? `<span class="bom-tree-child-count">${node.children.length}</span>` : "";
         const itemId = displayOrDash(readValue(item, "InventoryItemID"));
         const qty = displayOrDash(readValue(item, "Quantity"));
-        const unit = displayOrDash(readValue(item, "MeasureUnit"));
+        const unit = formatUnitOfMeasure(readValue(item, "MeasureUnit"));
         const buyMethod = displayOrDash(readValue(item, "BuyMethod"));
         const warehouse = displayOrDash(readValue(item, "Warehouse"));
         const level = displayOrDash(readValue(item, "BomLevel"));
@@ -310,8 +310,8 @@ function renderBomTreeTable() {
                         ${childCount}
                     </div>
                 </td>
-                <td class="bom-tree-chip-cell bom-col-qty"><span class="bom-tree-chip">כמות ${qty}</span></td>
-                <td class="bom-tree-chip-cell bom-col-unit"><span class="bom-tree-chip">${unit}</span></td>
+                <td class="bom-tree-chip-cell bom-col-qty"><span class="bom-tree-chip">${qty}</span></td>
+                <td class="bom-tree-chip-cell bom-col-unit"><span class="bom-tree-chip">${escapeHtml(unit)}</span></td>
                 <td class="bom-tree-chip-cell bom-col-warehouse"><span class="bom-tree-chip">${warehouse}</span></td>
                 <td class="bom-tree-chip-cell bom-col-buy-method"><span class="bom-tree-chip">${buyMethod}</span></td>
                 <td class="bom-tree-chip-cell bom-col-body-plane"><span class="bom-tree-chip">${displayOrDash(readValue(item, "BodyPlane"))}</span></td>
@@ -530,7 +530,7 @@ function renderBomTable(data) {
                 <td class="col-sku bom-col-sku">${displayOrDash(readValue(item, "InventoryItemID"))}</td>
                 <td class="bom-col-name">${displayOrDash(readValue(item, "ItemName"))}</td>
                 <td class="bom-col-qty">${displayOrDash(readValue(item, "Quantity"))}</td>
-                <td class="bom-col-unit">${displayOrDash(readValue(item, "MeasureUnit"))}</td>
+                <td class="bom-col-unit">${escapeHtml(formatUnitOfMeasure(readValue(item, "MeasureUnit")))}</td>
                 <td class="bom-col-warehouse">${displayOrDash(readValue(item, "Warehouse"))}</td>
                 <td class="bom-col-buy-method">${displayOrDash(readValue(item, "BuyMethod"))}</td>
                 <td class="bom-col-body-plane">${displayOrDash(readValue(item, "BodyPlane"))}</td>

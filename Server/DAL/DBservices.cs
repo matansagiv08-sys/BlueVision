@@ -2724,6 +2724,26 @@ FROM {sourceSql}", con);
         finally { if (con != null) con.Close(); }
     }
 
+    public int RenameUserDashboardChart(int chartID, string dashboardType, string chartTitle)
+    {
+        SqlConnection con = null;
+        try
+        {
+            con = connect("myProjDB");
+            Dictionary<string, object> paramDic = new Dictionary<string, object>
+            {
+                { "@ChartID", chartID },
+                { "@DashboardType", dashboardType },
+                { "@ChartTitle", chartTitle }
+            };
+
+            SqlCommand cmd = CreateCommandWithStoredProcedureGeneral("SP_RenameUserDashboardChart", con, paramDic);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception) { throw; }
+        finally { if (con != null) con.Close(); }
+    }
+
     // 4. הרצת השאילתה הדינמית שה-AI ייצר (כאן חובה טקסט חופשי מבוקר ולא SP)
     public DataTable ExecuteDynamicQuery(string sqlQuery)
     {

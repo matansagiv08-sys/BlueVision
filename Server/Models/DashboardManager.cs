@@ -103,6 +103,11 @@ namespace Server.Models
             return _dbs.DeleteUserDashboardChart(chartId);
         }
 
+        public int RenameChart(int chartId, string dashboardType, string chartTitle)
+        {
+            return _dbs.RenameUserDashboardChart(chartId, dashboardType, chartTitle);
+        }
+
         public async Task<DashboardGenerateResult> GenerateChartAsync(string prompt, string? visualizationType = null, string? resultType = null, string? dashboardType = null)
         {
             string safePrompt = (prompt ?? string.Empty).Trim();

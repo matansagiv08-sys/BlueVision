@@ -123,6 +123,36 @@ namespace Server.Controllers
             }
         }
 
+        [HttpPut("rename/{id}")]
+        public IActionResult RenameChart(int id, [FromBody] RenameChartRequest request)
+        {
+            try
+            {
+                string title = (request.ChartTitle ?? string.Empty).Trim();
+                string dashboardType = (request.DashboardType ?? string.Empty).Trim();
+
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    return BadRequest(new { error = "שם הגרף לא יכול להיות ריק" });
+                }
+
+                if (string.IsNullOrWhiteSpace(dashboardType))
+                {
+                    return BadRequest(new { error = "סוג דשבורד חסר" });
+                }
+
+                int rowsAffected = _manager.RenameChart(id, dashboardType, title);
+                if (rowsAffected > 0 || rowsAffected == -1)
+                    return Ok(new { success = true, chartTitle = title });
+
+                return BadRequest(new { error = "הגרף לא נמצא או שלא ניתן לעדכן את שמו" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpGet("inventory-charts")]
         public IActionResult GetInventoryCharts()
         {
@@ -168,6 +198,12 @@ namespace Server.Controllers
         public int UserID { get; set; }
         public string ChartType { get; set; } = string.Empty;
         public string SqlLogic { get; set; } = string.Empty;
+    }
+
+    public class RenameChartRequest
+    {
+        public string ChartTitle { get; set; } = string.Empty;
+        public string DashboardType { get; set; } = string.Empty;
     }
 
     public class SaveDashboardLayoutRequest

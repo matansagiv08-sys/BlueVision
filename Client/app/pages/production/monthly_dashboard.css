@@ -1,3 +1,31 @@
+.ai-create-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-left: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    vertical-align: -2px;
+    animation: aiCreateSpin 0.8s linear infinite;
+}
+
+.ai-create-spinner[hidden],
+.ai-create-loading-text[hidden] {
+    display: none;
+}
+
+.ai-create-loading-text {
+    margin-top: 8px;
+    color: #475569;
+    font-size: 13px;
+    text-align: center;
+}
+
+@keyframes aiCreateSpin {
+    to { transform: rotate(360deg); }
+}
+
 .dashboard-container {
     direction: rtl;
 }

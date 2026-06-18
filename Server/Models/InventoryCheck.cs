@@ -99,7 +99,7 @@ public class InventoryCheck
                     {
                         InventoryItemID = itemId,
                         ItemName = row.ItemName ?? string.Empty,
-                        MeasureUnit = string.IsNullOrWhiteSpace(row.MeasureUnit) ? "each" : row.MeasureUnit.Trim()
+                        MeasureUnit = string.IsNullOrWhiteSpace(row.MeasureUnit) ? null : row.MeasureUnit.Trim()
                     };
                     needsByItem[itemId] = existing;
                 }
@@ -176,11 +176,11 @@ public class InventoryCheck
                 planeTypeNames);
 
             //for each item that has a shortage, we create an InventoryCheckShortageItem object with all the relevant information and add it to the response list
-            InventoryCheckShortageItem item = new InventoryCheckShortageItem
-            {
-                InventoryItemID = need.InventoryItemID,
-                ItemName = itemName,
-                MeasureUnit = string.IsNullOrWhiteSpace(need.MeasureUnit) ? "each" : need.MeasureUnit,
+                InventoryCheckShortageItem item = new InventoryCheckShortageItem
+                {
+                    InventoryItemID = need.InventoryItemID,
+                    ItemName = itemName,
+                    MeasureUnit = string.IsNullOrWhiteSpace(need.MeasureUnit) ? null : need.MeasureUnit,
                 RequiredQty = Decimal.Round(need.RequiredQty, 4),
                 TotalStock = Decimal.Round(totalStock, 4),
                 ShortageQty = Decimal.Round(shortage, 4),
@@ -567,7 +567,7 @@ public class InventoryCheck
     {
         public string InventoryItemID { get; set; } = string.Empty;
         public string ItemName { get; set; } = string.Empty;
-        public string MeasureUnit { get; set; } = "each";
+        public string? MeasureUnit { get; set; }
         public decimal RequiredQty { get; set; }
         public HashSet<int> PlaneTypeIDs { get; set; } = new HashSet<int>();
         public Dictionary<int, decimal> RequiredQtyByPlaneTypeID { get; set; } = new Dictionary<int, decimal>();
@@ -639,7 +639,7 @@ public class InventoryCheckShortageItem
 {
     public string InventoryItemID { get; set; } = string.Empty;
     public string ItemName { get; set; } = string.Empty;
-    public string MeasureUnit { get; set; } = "each";
+    public string? MeasureUnit { get; set; }
     public decimal RequiredQty { get; set; }
     public decimal TotalStock { get; set; }
     public decimal ShortageQty { get; set; }
