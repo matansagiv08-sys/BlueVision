@@ -1,3 +1,4 @@
+(() => {
 let currentResultsData = [];
 let currentReadyToProduceRows = [];
 let hasInventoryCalculationResult = false;
@@ -386,3 +387,4 @@ function getSharedBreakdownLines(item) {
 
     return entries.map(([planeName, shortage]) => `${planeName}: חסר ${displayNumber(shortage)}`);
 }
+})();

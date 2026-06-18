@@ -1929,7 +1929,7 @@ public class DBservices
         SqlConnection con = null;
         try
         {
-            if (serial <= 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || newStatusID <= 0)
+            if (serial < 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || newStatusID <= 0)
             {
                 return 0;
             }

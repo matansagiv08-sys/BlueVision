@@ -307,7 +307,7 @@ namespace Server.Models
             DateTime? finishTime = data?.FinishTime;
             bool resetFuture = data?.ResetFuture ?? false;
 
-            if (serial <= 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || statusID <= 0)
+            if (serial < 0 || string.IsNullOrWhiteSpace(itemID) || stageID <= 0 || statusID <= 0)
             {
                 return 0;
             }

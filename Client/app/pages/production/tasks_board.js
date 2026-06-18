@@ -218,7 +218,7 @@ function renderRow(row, allStages) {
     const workOrder = row.workOrderID || row.WorkOrderID || '---';
     const projectName = row.projectName || row.ProjectName || row.planeID?.project?.projectName || row.PlaneID?.Project?.ProjectName || '---';
     const tailNumber = row.tailNumber || row.TailNumber || '---';
-    const serial = row.serialNumber || row.SerialNumber || '---';
+    const serial = row.serialNumber ?? row.SerialNumber ?? '---';
     const qty = row.plannedQty || row.PlannedQty || 0;
     const comments = row.comments || row.Comments || "";
     const progressValue = Math.round(row.progress || row.Progress || 0);
@@ -314,9 +314,9 @@ function buildProductionRowPayload(row) {
     const planeType = plane.type || plane.Type || {};
     const productionItemID = item.productionItemID || item.ProductionItemID || row.inventoryItemID || row.InventoryItemID || row.productionItemID || row.ProductionItemID || "";
     return {
-        originalSerialNumber: row.serialNumber || row.SerialNumber || 0,
+        originalSerialNumber: row.serialNumber ?? row.SerialNumber ?? 0,
         originalProductionItemID: productionItemID,
-        serialNumber: row.serialNumber || row.SerialNumber || 0,
+        serialNumber: row.serialNumber ?? row.SerialNumber ?? 0,
         productionItemID: productionItemID,
         itemName: item.itemName || item.ItemName || item.productionItemDescription || item.ProductionItemDescription || "",
         workOrderID: row.workOrderID || row.WorkOrderID || "",
@@ -499,11 +499,14 @@ window.openStatusModal = function (payloadKey, pillEl) {
         const comment = document.getElementById("statusCommentInput").value;
         const startTimeVal = startTimeInput.value;
         const finishTimeVal = finishTimeInput.value;
-        const serialNumberValue = parseInt(payload.serialNumber);
+        const rawSerialNumberValue = payload.serialNumber;
+        const serialNumberValue = Number(rawSerialNumberValue);
         const stageIdValue = parseInt(payload.stageID);
         const itemIdValue = (payload.itemID || "").toString().trim();
 
-        if (!statusId || !serialNumberValue || !stageIdValue || !itemIdValue || itemIdValue === "---") {
+        console.log("status update validation v2 - serial:", serialNumberValue, typeof serialNumberValue);
+
+        if (rawSerialNumberValue === null || rawSerialNumberValue === undefined || rawSerialNumberValue === "" || Number.isNaN(serialNumberValue) || serialNumberValue < 0 || !stageIdValue || !itemIdValue || itemIdValue === "---") {
             showAppMessage("נתוני שורה לא תקינים לעדכון סטטוס", { title: "שגיאה" });
             return;
         }
@@ -523,6 +526,8 @@ window.openStatusModal = function (payloadKey, pillEl) {
                 FinishTime: statusId === 4 && finishTimeVal ? finishTimeVal : null,
                 ResetFuture: shouldResetFuture
             };
+
+            console.log("update status payload:", updateData);
 
             ajaxCall("PUT", server + "api/ItemsInProduction/updateStatus", JSON.stringify(updateData),
                 function (res) {
@@ -624,12 +629,12 @@ window.openEditProductionRowModal = function (payloadKey) {
     showEditProductionRowMessage("טוען אפשרויות...", false);
     setEditProductionRowFieldsDisabled(true);
 
-    document.getElementById("editOriginalSerialNumber").value = row.originalSerialNumber || row.serialNumber || "";
+    document.getElementById("editOriginalSerialNumber").value = row.originalSerialNumber ?? row.serialNumber ?? "";
     document.getElementById("editOriginalProductionItemID").value = row.originalProductionItemID || row.productionItemID || "";
     document.getElementById("editWorkOrderID").value = row.workOrderID || "";
     document.getElementById("editTailNumber").value = row.tailNumber || "";
     document.getElementById("editItemName").value = row.itemName || "";
-    document.getElementById("editSerialNumber").value = row.serialNumber || "";
+    document.getElementById("editSerialNumber").value = row.serialNumber ?? "";
     document.getElementById("editPlannedQty").value = row.plannedQty || 1;
     document.getElementById("editItemDueDate").value = row.itemDueDate || "";
     document.getElementById("editComments").value = row.comments || "";
@@ -675,7 +680,7 @@ function saveProductionRowEdit() {
         Comments: document.getElementById("editComments").value.trim()
     };
 
-    if (!payload.OriginalSerialNumber || !payload.OriginalProductionItemID || !payload.SerialNumber || !payload.ProductionItemID || !payload.WorkOrderID || !payload.PlannedQty || !payload.PlaneTypeID || !payload.ProjectName) {
+    if (Number.isNaN(payload.OriginalSerialNumber) || payload.OriginalSerialNumber < 0 || !payload.OriginalProductionItemID || Number.isNaN(payload.SerialNumber) || payload.SerialNumber < 0 || !payload.ProductionItemID || !payload.WorkOrderID || !payload.PlannedQty || !payload.PlaneTypeID || !payload.ProjectName) {
         showAppMessage("נא למלא את שדות החובה בצורה תקינה", { title: "שגיאה" });
         return;
     }
