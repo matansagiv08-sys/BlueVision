@@ -18,13 +18,7 @@ public class InventoryCheck
         response.Mode = mode;
         string targetBodyPlane = mode == "body" ? "B" : "P";
 
-        //Aggregates and cleans the input by grouping requests per plane type and summing their quantities into a dictionary.
-        Dictionary<int, int> planeRequests = request.Requests
-            .Where(r => r != null && r.PlaneTypeID > 0 && r.Quantity > 0)
-            .GroupBy(r => r.PlaneTypeID)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
-
-        List<RequestDemandInput> requestDemandRows = request.Requests
+        List<RequestDemandInput> validRequestRows = request.Requests
             .Where(r => r != null && r.PlaneTypeID > 0 && r.Quantity > 0)
             .Select((r, idx) => new RequestDemandInput
             {
@@ -35,12 +29,27 @@ public class InventoryCheck
             })
             .ToList();
 
+        //Identical UAV/body requests with the same priority are one demand group for allocation.
+        List<RequestDemandInput> requestDemandRows = validRequestRows
+            .GroupBy(r => new { r.PlaneTypeID, r.IsHighPriority })
+            .Select(g => new RequestDemandInput
+            {
+                RequestIndex = g.Min(x => x.RequestIndex),
+                PlaneTypeID = g.Key.PlaneTypeID,
+                Quantity = g.Sum(x => x.Quantity),
+                IsHighPriority = g.Key.IsHighPriority
+            })
+            .OrderBy(r => r.RequestIndex)
+            .ToList();
+
+        //Aggregates and cleans the input by grouping requests per plane type and summing their quantities into a dictionary.
+        Dictionary<int, int> planeRequests = requestDemandRows
+            .GroupBy(r => r.PlaneTypeID)
+            .ToDictionary(g => g.Key, g => Convert.ToInt32(g.Sum(x => x.Quantity)));
+
         Dictionary<int, List<RequestDemandInput>> requestDemandRowsByPlaneType = requestDemandRows
             .GroupBy(r => r.PlaneTypeID)
             .ToDictionary(g => g.Key, g => g.ToList());
-
-        Dictionary<int, decimal> requestQtyByPlaneType = planeRequests
-            .ToDictionary(kvp => kvp.Key, kvp => Convert.ToDecimal(kvp.Value));
 
         if (planeRequests.Count == 0)
         {
@@ -144,14 +153,18 @@ public class InventoryCheck
 
         //gets current stock for all items in the needs list with a single query to the database and stores it in a dictionary for quick access
         Dictionary<string, InventorySnapshot> stockByItem = dbs.GetInventorySnapshotsForItems(needsByItem.Keys.ToList());
+        ProductionAllocation productionAllocation = BuildProductionAllocation(requestDemandRows, needsByItem.Values, stockByItem);
 
-        //compares required quantity vs stock
+        //compares unfulfilled required quantity vs remaining stock after complete UAV/body allocation
         foreach (AggregatedBomNeed need in needsByItem.Values)
         {
             stockByItem.TryGetValue(need.InventoryItemID, out InventorySnapshot? stock);
 
-            decimal totalStock = stock?.TotalStock ?? 0m;
-            decimal shortage = need.RequiredQty - totalStock;
+            decimal totalStock = productionAllocation.RemainingStockByItem.TryGetValue(need.InventoryItemID, out decimal remainingStock)
+                ? remainingStock
+                : 0m;
+            decimal requiredQty = CalculateUnfulfilledRequiredQty(need, requestDemandRows, productionAllocation);
+            decimal shortage = requiredQty - totalStock;
 
             if (shortage <= 0)
             {
@@ -172,7 +185,8 @@ public class InventoryCheck
             Dictionary<string, decimal> shortageByPlane = BuildShortageByPlane(
                 need,
                 totalStock,
-                requestQtyByPlaneType,
+                requestDemandRows,
+                productionAllocation,
                 planeTypeNames);
 
             //for each item that has a shortage, we create an InventoryCheckShortageItem object with all the relevant information and add it to the response list
@@ -181,7 +195,7 @@ public class InventoryCheck
                     InventoryItemID = need.InventoryItemID,
                     ItemName = itemName,
                     MeasureUnit = string.IsNullOrWhiteSpace(need.MeasureUnit) ? null : need.MeasureUnit,
-                RequiredQty = Decimal.Round(need.RequiredQty, 4),
+                RequiredQty = Decimal.Round(requiredQty, 4),
                 TotalStock = Decimal.Round(totalStock, 4),
                 ShortageQty = Decimal.Round(shortage, 4),
                 SupplierName = stock?.SupplierName ?? string.Empty,
@@ -200,8 +214,7 @@ public class InventoryCheck
 
         response.ReadyToProduceRows = BuildReadyToProduceRows(
             requestDemandRows,
-            needsByItem.Values,
-            stockByItem,
+            productionAllocation,
             planeTypeNames);
 
         //sort the response items by shortage quantity desc, then by item id asc
@@ -220,8 +233,7 @@ public class InventoryCheck
 
     private static List<InventoryCheckReadyToProduceItem> BuildReadyToProduceRows(
         List<RequestDemandInput> requestRows,
-        IEnumerable<AggregatedBomNeed> needs,
-        Dictionary<string, InventorySnapshot> stockByItem,
+        ProductionAllocation productionAllocation,
         Dictionary<int, string> planeTypeNames)
     {
         List<InventoryCheckReadyToProduceItem> readyRows = new List<InventoryCheckReadyToProduceItem>();
@@ -231,69 +243,17 @@ public class InventoryCheck
             return readyRows;
         }
 
-        Dictionary<int, RequestDemandInput> requestByIndex = requestRows.ToDictionary(r => r.RequestIndex);
-        Dictionary<int, decimal> readyByRequestIndex = requestRows.ToDictionary(r => r.RequestIndex, r => r.Quantity);
-        HashSet<int> requestsWithRequirements = new HashSet<int>();
-
-        foreach (AggregatedBomNeed need in needs)
-        {
-            List<RequestDemandAllocation> allocations = need.RequiredQtyByRequestIndex.Values
-                .Where(v => v.RequiredQty > 0 && requestByIndex.ContainsKey(v.RequestIndex))
-                .Select(v => new RequestDemandAllocation
-                {
-                    RequestIndex = v.RequestIndex,
-                    PlaneTypeID = v.PlaneTypeID,
-                    IsHighPriority = v.IsHighPriority,
-                    RequiredQty = Decimal.Round(v.RequiredQty, 6),
-                    AllocatedQty = 0m
-                })
-                .ToList();
-
-            if (allocations.Count == 0)
-            {
-                continue;
-            }
-
-            decimal totalStock = stockByItem.TryGetValue(need.InventoryItemID, out InventorySnapshot? stock)
-                ? stock.TotalStock
-                : 0m;
-
-            List<RequestDemandAllocation> highPriorityDemands = allocations.Where(d => d.IsHighPriority).ToList();
-            List<RequestDemandAllocation> normalDemands = allocations.Where(d => !d.IsHighPriority).ToList();
-            decimal remainingStock = totalStock;
-
-            AllocateStockForDemandGroup(highPriorityDemands, ref remainingStock);
-            AllocateStockForDemandGroup(normalDemands, ref remainingStock);
-
-            foreach (RequestDemandAllocation allocation in allocations)
-            {
-                RequestDemandInput request = requestByIndex[allocation.RequestIndex];
-                if (request.Quantity <= 0 || allocation.RequiredQty <= 0)
-                {
-                    continue;
-                }
-
-                requestsWithRequirements.Add(allocation.RequestIndex);
-                decimal requiredPerUnit = allocation.RequiredQty / request.Quantity;
-                if (requiredPerUnit <= 0)
-                {
-                    continue;
-                }
-
-                decimal possibleByItem = Math.Floor(allocation.AllocatedQty / requiredPerUnit);
-                readyByRequestIndex[allocation.RequestIndex] = Math.Min(readyByRequestIndex[allocation.RequestIndex], possibleByItem);
-            }
-        }
-
         foreach (RequestDemandInput request in requestRows.OrderBy(r => r.RequestIndex))
         {
             string planeName = planeTypeNames.TryGetValue(request.PlaneTypeID, out string? name) && !string.IsNullOrWhiteSpace(name)
                 ? name
                 : request.PlaneTypeID.ToString();
 
-            int readyQty = requestsWithRequirements.Contains(request.RequestIndex)
-                ? Convert.ToInt32(Math.Max(0m, Math.Min(request.Quantity, readyByRequestIndex[request.RequestIndex])))
-                : 0;
+            decimal readyQtyValue = productionAllocation.FulfilledQtyByRequestIndex.TryGetValue(request.RequestIndex, out decimal fulfilledQty)
+                ? fulfilledQty
+                : 0m;
+
+            int readyQty = Convert.ToInt32(Math.Max(0m, Math.Min(request.Quantity, readyQtyValue)));
 
             readyRows.Add(new InventoryCheckReadyToProduceItem
             {
@@ -307,141 +267,180 @@ public class InventoryCheck
         return readyRows;
     }
 
+    private static ProductionAllocation BuildProductionAllocation(
+        List<RequestDemandInput> requestRows,
+        IEnumerable<AggregatedBomNeed> needs,
+        Dictionary<string, InventorySnapshot> stockByItem)
+    {
+        ProductionAllocation result = new ProductionAllocation();
+        Dictionary<int, RequestDemandInput> requestByIndex = requestRows.ToDictionary(r => r.RequestIndex);
+        Dictionary<int, List<RequestDemandAllocation>> requirementsByRequestIndex = new Dictionary<int, List<RequestDemandAllocation>>();
+
+        foreach (AggregatedBomNeed need in needs)
+        {
+            decimal stock = stockByItem.TryGetValue(need.InventoryItemID, out InventorySnapshot? snapshot)
+                ? snapshot.TotalStock
+                : 0m;
+            result.RemainingStockByItem[need.InventoryItemID] = stock;
+
+            foreach (RequestDemandAllocation allocation in need.RequiredQtyByRequestIndex.Values)
+            {
+                if (!requestByIndex.ContainsKey(allocation.RequestIndex) || allocation.RequiredQty <= 0)
+                {
+                    continue;
+                }
+
+                if (!requirementsByRequestIndex.TryGetValue(allocation.RequestIndex, out List<RequestDemandAllocation>? requestRequirements))
+                {
+                    requestRequirements = new List<RequestDemandAllocation>();
+                    requirementsByRequestIndex[allocation.RequestIndex] = requestRequirements;
+                }
+
+                requestRequirements.Add(new RequestDemandAllocation
+                {
+                    RequestIndex = allocation.RequestIndex,
+                    PlaneTypeID = allocation.PlaneTypeID,
+                    IsHighPriority = allocation.IsHighPriority,
+                    InventoryItemID = need.InventoryItemID,
+                    RequiredQty = allocation.RequiredQty
+                });
+            }
+        }
+
+        foreach (RequestDemandInput request in requestRows)
+        {
+            result.FulfilledQtyByRequestIndex[request.RequestIndex] = 0m;
+        }
+
+        IEnumerable<RequestDemandInput> orderedRequests = requestRows
+            .OrderByDescending(r => r.IsHighPriority)
+            .ThenBy(r => r.RequestIndex);
+
+        foreach (RequestDemandInput request in orderedRequests)
+        {
+            if (!requirementsByRequestIndex.TryGetValue(request.RequestIndex, out List<RequestDemandAllocation>? requirements)
+                || requirements.Count == 0
+                || request.Quantity <= 0)
+            {
+                continue;
+            }
+
+            decimal producibleQty = request.Quantity;
+            foreach (RequestDemandAllocation requirement in requirements)
+            {
+                decimal requiredPerUnit = requirement.RequiredQty / request.Quantity;
+                if (requiredPerUnit <= 0)
+                {
+                    continue;
+                }
+
+                decimal stock = result.RemainingStockByItem.TryGetValue(requirement.InventoryItemID, out decimal remainingStock)
+                    ? remainingStock
+                    : 0m;
+                producibleQty = Math.Min(producibleQty, Math.Floor(stock / requiredPerUnit));
+            }
+
+            producibleQty = Math.Max(0m, Math.Min(request.Quantity, producibleQty));
+            result.FulfilledQtyByRequestIndex[request.RequestIndex] = producibleQty;
+
+            if (producibleQty <= 0)
+            {
+                continue;
+            }
+
+            foreach (RequestDemandAllocation requirement in requirements)
+            {
+                decimal requiredPerUnit = requirement.RequiredQty / request.Quantity;
+                decimal consumedQty = requiredPerUnit * producibleQty;
+                result.RemainingStockByItem[requirement.InventoryItemID] = Math.Max(0m, result.RemainingStockByItem[requirement.InventoryItemID] - consumedQty);
+            }
+        }
+
+        return result;
+    }
+
+    private static decimal CalculateUnfulfilledRequiredQty(
+        AggregatedBomNeed need,
+        List<RequestDemandInput> requestRows,
+        ProductionAllocation productionAllocation)
+    {
+        Dictionary<int, RequestDemandInput> requestByIndex = requestRows.ToDictionary(r => r.RequestIndex);
+        decimal requiredQty = 0m;
+
+        foreach (RequestDemandAllocation allocation in need.RequiredQtyByRequestIndex.Values)
+        {
+            if (!requestByIndex.TryGetValue(allocation.RequestIndex, out RequestDemandInput? request) || request.Quantity <= 0)
+            {
+                continue;
+            }
+
+            decimal fulfilledQty = productionAllocation.FulfilledQtyByRequestIndex.TryGetValue(allocation.RequestIndex, out decimal value)
+                ? value
+                : 0m;
+            decimal unfulfilledQty = Math.Max(0m, request.Quantity - fulfilledQty);
+            requiredQty += (allocation.RequiredQty / request.Quantity) * unfulfilledQty;
+        }
+
+        return requiredQty;
+    }
+
     private static Dictionary<string, decimal> BuildShortageByPlane(
         AggregatedBomNeed need,
         decimal totalStock,
-        Dictionary<int, decimal> requestQtyByPlaneType,
+        List<RequestDemandInput> requestRows,
+        ProductionAllocation productionAllocation,
         Dictionary<int, string> planeTypeNames)
     {
         Dictionary<string, decimal> shortageByPlane = new Dictionary<string, decimal>();
+        Dictionary<int, RequestDemandInput> requestByIndex = requestRows.ToDictionary(r => r.RequestIndex);
+        List<RequestDemandAllocation> unfulfilledDemands = new List<RequestDemandAllocation>();
 
-        List<int> contributingPlaneIds = need.PlaneTypeIDs
-            .Distinct()
-            .OrderBy(id => id)
-            .ToList();
-
-        if (contributingPlaneIds.Count == 0 || need.RequiredQty <= 0)
+        foreach (RequestDemandAllocation allocation in need.RequiredQtyByRequestIndex.Values)
         {
-            return shortageByPlane;
-        }
-
-        Dictionary<int, decimal> requestWeights = new Dictionary<int, decimal>();
-        decimal totalRequestWeight = 0m;
-        foreach (int planeId in contributingPlaneIds)
-        {
-            decimal weight = requestQtyByPlaneType.TryGetValue(planeId, out decimal reqQty) ? reqQty : 0m;
-            requestWeights[planeId] = weight;
-            totalRequestWeight += weight;
-        }
-
-        if (totalRequestWeight <= 0)
-        {
-            foreach (int planeId in contributingPlaneIds)
+            if (!requestByIndex.TryGetValue(allocation.RequestIndex, out RequestDemandInput? request) || request.Quantity <= 0)
             {
-                decimal fallbackWeight = need.RequiredQtyByPlaneTypeID.TryGetValue(planeId, out decimal reqQty)
-                    ? reqQty
-                    : 0m;
-                requestWeights[planeId] = fallbackWeight;
-            }
-            totalRequestWeight = requestWeights.Values.Sum();
-        }
-
-        if (totalRequestWeight <= 0)
-        {
-            decimal evenWeight = 1m;
-            foreach (int planeId in contributingPlaneIds)
-            {
-                requestWeights[planeId] = evenWeight;
-            }
-            totalRequestWeight = contributingPlaneIds.Count;
-        }
-
-        Dictionary<int, decimal> requiredByPlane = new Dictionary<int, decimal>();
-        foreach (int planeId in contributingPlaneIds)
-        {
-            decimal ratio = requestWeights[planeId] / totalRequestWeight;
-            requiredByPlane[planeId] = Decimal.Round(need.RequiredQty * ratio, 6);
-        }
-
-        int maxRequiredPlane = contributingPlaneIds
-            .OrderByDescending(id => requiredByPlane[id])
-            .ThenBy(id => id)
-            .First();
-
-        decimal requiredDelta = need.RequiredQty - requiredByPlane.Values.Sum();
-        requiredByPlane[maxRequiredPlane] = Decimal.Round(requiredByPlane[maxRequiredPlane] + requiredDelta, 6);
-
-        if (need.RequiredQtyByRequestIndex.Count > 0)
-        {
-            List<RequestDemandAllocation> demandAllocations = need.RequiredQtyByRequestIndex.Values
-                .Where(v => v.RequiredQty > 0)
-                .Select(v => new RequestDemandAllocation
-                {
-                    RequestIndex = v.RequestIndex,
-                    PlaneTypeID = v.PlaneTypeID,
-                    IsHighPriority = v.IsHighPriority,
-                    RequiredQty = Decimal.Round(v.RequiredQty, 6),
-                    AllocatedQty = 0m
-                })
-                .ToList();
-
-            List<RequestDemandAllocation> highPriorityDemands = demandAllocations.Where(d => d.IsHighPriority).ToList();
-            List<RequestDemandAllocation> normalDemands = demandAllocations.Where(d => !d.IsHighPriority).ToList();
-
-            decimal remainingStock = totalStock;
-
-            AllocateStockForDemandGroup(highPriorityDemands, ref remainingStock);
-            AllocateStockForDemandGroup(normalDemands, ref remainingStock);
-
-            foreach (RequestDemandAllocation demand in demandAllocations)
-            {
-                decimal shortage = demand.RequiredQty - demand.AllocatedQty;
-                if (shortage < 0)
-                {
-                    shortage = 0;
-                }
-
-                string planeName = planeTypeNames.TryGetValue(demand.PlaneTypeID, out string? name)
-                    ? name
-                    : demand.PlaneTypeID.ToString();
-
-                if (!shortageByPlane.ContainsKey(planeName))
-                {
-                    shortageByPlane[planeName] = 0m;
-                }
-
-                shortageByPlane[planeName] += shortage;
-            }
-        }
-        else
-        {
-            Dictionary<int, decimal> allocatedByPlane = new Dictionary<int, decimal>();
-            foreach (int planeId in contributingPlaneIds)
-            {
-                decimal proportionalAllocation = (requiredByPlane[planeId] / need.RequiredQty) * totalStock;
-                allocatedByPlane[planeId] = Math.Floor(proportionalAllocation);
+                continue;
             }
 
-            decimal leftoverStock = totalStock - allocatedByPlane.Values.Sum();
-            if (leftoverStock > 0)
+            decimal fulfilledQty = productionAllocation.FulfilledQtyByRequestIndex.TryGetValue(allocation.RequestIndex, out decimal value)
+                ? value
+                : 0m;
+            decimal unfulfilledQty = Math.Max(0m, request.Quantity - fulfilledQty);
+            decimal requiredQty = (allocation.RequiredQty / request.Quantity) * unfulfilledQty;
+            if (requiredQty <= 0)
             {
-                allocatedByPlane[maxRequiredPlane] += leftoverStock;
+                continue;
             }
 
-            foreach (int planeId in contributingPlaneIds)
+            unfulfilledDemands.Add(new RequestDemandAllocation
             {
-                decimal shortage = requiredByPlane[planeId] - allocatedByPlane[planeId];
-                if (shortage < 0)
-                {
-                    shortage = 0;
-                }
+                RequestIndex = allocation.RequestIndex,
+                PlaneTypeID = allocation.PlaneTypeID,
+                IsHighPriority = allocation.IsHighPriority,
+                RequiredQty = requiredQty,
+                AllocatedQty = 0m
+            });
+        }
 
-                string planeName = planeTypeNames.TryGetValue(planeId, out string? name)
-                    ? name
-                    : planeId.ToString();
+        decimal remainingStock = totalStock;
+        foreach (RequestDemandAllocation demand in unfulfilledDemands
+            .OrderByDescending(d => d.IsHighPriority)
+            .ThenBy(d => d.RequestIndex))
+        {
+            decimal allocatedQty = Math.Min(demand.RequiredQty, remainingStock);
+            remainingStock -= allocatedQty;
+            decimal shortage = Math.Max(0m, demand.RequiredQty - allocatedQty);
 
-                shortageByPlane[planeName] = shortage;
+            string planeName = planeTypeNames.TryGetValue(demand.PlaneTypeID, out string? name)
+                ? name
+                : demand.PlaneTypeID.ToString();
+
+            if (!shortageByPlane.ContainsKey(planeName))
+            {
+                shortageByPlane[planeName] = 0m;
             }
+
+            shortageByPlane[planeName] += shortage;
         }
 
         List<string> keys = shortageByPlane.Keys.ToList();
@@ -451,49 +450,6 @@ public class InventoryCheck
         }
 
         return shortageByPlane;
-    }
-
-    private static void AllocateStockForDemandGroup(List<RequestDemandAllocation> demands, ref decimal remainingStock)
-    {
-        if (demands.Count == 0 || remainingStock <= 0)
-        {
-            return;
-        }
-
-        decimal totalRequired = demands.Sum(d => d.RequiredQty);
-        if (totalRequired <= 0)
-        {
-            return;
-        }
-
-        if (remainingStock >= totalRequired)
-        {
-            foreach (RequestDemandAllocation demand in demands)
-            {
-                demand.AllocatedQty = demand.RequiredQty;
-            }
-            remainingStock -= totalRequired;
-            return;
-        }
-
-        foreach (RequestDemandAllocation demand in demands)
-        {
-            decimal proportional = (demand.RequiredQty / totalRequired) * remainingStock;
-            demand.AllocatedQty = Math.Floor(proportional);
-        }
-
-        decimal allocatedTotal = demands.Sum(d => d.AllocatedQty);
-        decimal leftover = remainingStock - allocatedTotal;
-        if (leftover > 0)
-        {
-            RequestDemandAllocation maxDemand = demands
-                .OrderByDescending(d => d.RequiredQty)
-                .ThenBy(d => d.PlaneTypeID)
-                .First();
-            maxDemand.AllocatedQty += leftover;
-        }
-
-        remainingStock = 0;
     }
 
     //How many units of this buy item are needed for the requested number of planes, based on the BOM hierarchy and the quantities specified at each level.
@@ -587,8 +543,15 @@ public class InventoryCheck
         public int RequestIndex { get; set; }
         public int PlaneTypeID { get; set; }
         public bool IsHighPriority { get; set; }
+        public string InventoryItemID { get; set; } = string.Empty;
         public decimal RequiredQty { get; set; }
         public decimal AllocatedQty { get; set; }
+    }
+
+    private class ProductionAllocation
+    {
+        public Dictionary<int, decimal> FulfilledQtyByRequestIndex { get; set; } = new Dictionary<int, decimal>();
+        public Dictionary<string, decimal> RemainingStockByItem { get; set; } = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
     }
 
     public class InventorySnapshot
