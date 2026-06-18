@@ -461,6 +461,22 @@ body:has(.all-inventory-page) #app,
     gap: 6px;
 }
 
+.all-inventory-page .inventory-modal-field-range {
+    grid-column: 1 / -1;
+}
+
+.all-inventory-page .inventory-date-range {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.all-inventory-page .inventory-date-range label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
 .all-inventory-page .inventory-modal-field label {
     font-size: 12px;
     color: #475569;
@@ -519,4 +535,11 @@ body:has(.all-inventory-page) #app,
 
 .all-inventory-page .inventory-modal-btn-apply:hover {
     background: #14345a;
+}
+
+@media (max-width: 560px) {
+    .all-inventory-page .inventory-modal-body,
+    .all-inventory-page .inventory-date-range {
+        grid-template-columns: 1fr;
+    }
 }

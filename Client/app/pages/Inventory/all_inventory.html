@@ -74,7 +74,7 @@
             </div>
             <div class="inventory-modal-body">
                 <div class="inventory-modal-field">
-                    <label>BuyMethod</label>
+                    <label>שיטת רכש</label>
                     <select id="advBuyMethod">
                         <option value="all">הכל</option>
                         <option value="B">B</option>
@@ -82,19 +82,19 @@
                     </select>
                 </div>
                 <div class="inventory-modal-field">
-                    <label>ItemGrpID</label>
+                    <label>קבוצת פריט</label>
                     <select id="advItemGrpID">
                         <option value="all">הכל</option>
                     </select>
                 </div>
                 <div class="inventory-modal-field">
-                    <label>SupplierID</label>
+                    <label>ספק</label>
                     <select id="advSupplierID">
                         <option value="all">הכל</option>
                     </select>
                 </div>
                 <div class="inventory-modal-field">
-                    <label>BodyPlane</label>
+                    <label>גוף מטוס</label>
                     <select id="advBodyPlane">
                         <option value="all">הכל</option>
                         <option value="B">B</option>
@@ -102,9 +102,18 @@
                         <option value="-">-</option>
                     </select>
                 </div>
-                <div class="inventory-modal-field">
-                    <label>LastPODate</label>
-                    <input id="advLastPODate" type="date">
+                <div class="inventory-modal-field inventory-modal-field-range">
+                    <label>תאריך הזמנה אחרון</label>
+                    <div class="inventory-date-range">
+                        <label>
+                            <span>מתאריך</span>
+                            <input id="advLastPODateFrom" type="date">
+                        </label>
+                        <label>
+                            <span>עד תאריך</span>
+                            <input id="advLastPODateTo" type="date">
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="inventory-modal-footer">

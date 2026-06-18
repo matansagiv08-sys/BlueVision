@@ -163,7 +163,9 @@ public class DBservices
         string? buyMethod = null,
         int? supplierID = null,
         string? bodyPlane = null,
-        DateTime? lastPODate = null)
+        DateTime? lastPODate = null,
+        DateTime? lastPODateFrom = null,
+        DateTime? lastPODateTo = null)
     {
         List<InventoryItem> items = new List<InventoryItem>();
 
@@ -176,6 +178,8 @@ public class DBservices
         try
         {
             con = connect("myProjDB");
+            bool supportsLastPODateRange = StoredProcedureHasParameter(con, "spInventoryItems_GetPaged", "@LastPODateFrom")
+                && StoredProcedureHasParameter(con, "spInventoryItems_GetPaged", "@LastPODateTo");
             Dictionary<string, object> paramDic = new Dictionary<string, object>
             {
                 { "@Page", page },
@@ -190,6 +194,12 @@ public class DBservices
                 { "@LastPODate", lastPODate.HasValue ? lastPODate.Value.Date : DBNull.Value },
                 { "@OnlyActive", true }
             };
+
+            if (supportsLastPODateRange)
+            {
+                paramDic.Add("@LastPODateFrom", lastPODateFrom.HasValue ? lastPODateFrom.Value.Date : DBNull.Value);
+                paramDic.Add("@LastPODateTo", lastPODateTo.HasValue ? lastPODateTo.Value.Date : DBNull.Value);
+            }
 
             cmd = CreateCommandWithStoredProcedureGeneral("spInventoryItems_GetPaged", con, paramDic);
             cmd.CommandType = CommandType.StoredProcedure;
@@ -231,6 +241,20 @@ public class DBservices
         {
             if (con != null) con.Close();
         }
+    }
+
+    private static bool StoredProcedureHasParameter(SqlConnection con, string procedureName, string parameterName)
+    {
+        using SqlCommand cmd = new SqlCommand(@"
+SELECT 1
+FROM sys.parameters p
+INNER JOIN sys.objects o ON o.object_id = p.object_id
+WHERE o.type = 'P'
+  AND o.name = @ProcedureName
+  AND p.name = @ParameterName;", con);
+        cmd.Parameters.AddWithValue("@ProcedureName", procedureName);
+        cmd.Parameters.AddWithValue("@ParameterName", parameterName);
+        return cmd.ExecuteScalar() != null;
     }
 
     public List<object> GetBomPlaneOptions()

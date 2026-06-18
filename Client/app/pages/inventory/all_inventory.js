@@ -15,7 +15,8 @@ let advancedBuyMethod = "all";
 let advancedItemGrpID = "all";
 let advancedSupplierID = "all";
 let advancedBodyPlane = "all";
-let advancedLastPODate = "";
+let advancedLastPODateFrom = "";
+let advancedLastPODateTo = "";
 
 window.initAllInventory = function () {
     bindInventoryCellTooltips();
@@ -90,7 +91,8 @@ function loadInventoryPage(page, done) {
     if (advancedItemGrpID && advancedItemGrpID !== "all") params.set("itemGrpID", advancedItemGrpID);
     if (advancedSupplierID && advancedSupplierID !== "all") params.set("supplierID", advancedSupplierID);
     if (advancedBodyPlane && advancedBodyPlane !== "all") params.set("bodyPlane", advancedBodyPlane);
-    if (advancedLastPODate) params.set("lastPODate", advancedLastPODate);
+    if (advancedLastPODateFrom) params.set("lastPODateFrom", advancedLastPODateFrom);
+    if (advancedLastPODateTo) params.set("lastPODateTo", advancedLastPODateTo);
     //example for what params might look like: page=1&pageSize=100&buyMethod=B&supplierID=5
 
     const apiUrl = `https://localhost:7296/api/InventoryItems?${params.toString()}`;
@@ -418,7 +420,8 @@ window.applyAdvancedInventoryFilters = function () {
     advancedItemGrpID = document.getElementById("advItemGrpID")?.value || "all";
     advancedSupplierID = document.getElementById("advSupplierID")?.value || "all";
     advancedBodyPlane = document.getElementById("advBodyPlane")?.value || "all";
-    advancedLastPODate = document.getElementById("advLastPODate")?.value || "";
+    advancedLastPODateFrom = document.getElementById("advLastPODateFrom")?.value || "";
+    advancedLastPODateTo = document.getElementById("advLastPODateTo")?.value || "";
 
     updateAdvancedFiltersBadge();
     knownLastInventoryPage = null;
@@ -431,7 +434,8 @@ window.resetAdvancedInventoryFilters = function () {
     advancedItemGrpID = "all";
     advancedSupplierID = "all";
     advancedBodyPlane = "all";
-    advancedLastPODate = "";
+    advancedLastPODateFrom = "";
+    advancedLastPODateTo = "";
 
     syncAdvancedFilterControls();
     updateAdvancedFiltersBadge();
@@ -447,7 +451,8 @@ window.clearAllInventoryFilters = function () {
     advancedItemGrpID = "all";
     advancedSupplierID = "all";
     advancedBodyPlane = "all";
-    advancedLastPODate = "";
+    advancedLastPODateFrom = "";
+    advancedLastPODateTo = "";
     knownLastInventoryPage = null;
 
     const searchEl = document.getElementById("inventorySearch");
@@ -535,7 +540,7 @@ function getAdvancedFiltersCount() {
     if (advancedItemGrpID !== "all") count++;
     if (advancedSupplierID !== "all") count++;
     if (advancedBodyPlane !== "all") count++;
-    if (advancedLastPODate) count++;
+    if (advancedLastPODateFrom || advancedLastPODateTo) count++;
     return count;
 }
 
@@ -555,13 +560,15 @@ function syncAdvancedFilterControls() {
     const itemGrpEl = document.getElementById("advItemGrpID");
     const supplierEl = document.getElementById("advSupplierID");
     const bodyPlaneEl = document.getElementById("advBodyPlane");
-    const lastPOEl = document.getElementById("advLastPODate");
+    const lastPOFromEl = document.getElementById("advLastPODateFrom");
+    const lastPOToEl = document.getElementById("advLastPODateTo");
 
     if (buyMethodEl) buyMethodEl.value = advancedBuyMethod;
     if (itemGrpEl) itemGrpEl.value = advancedItemGrpID;
     if (supplierEl) supplierEl.value = advancedSupplierID;
     if (bodyPlaneEl) bodyPlaneEl.value = advancedBodyPlane;
-    if (lastPOEl) lastPOEl.value = advancedLastPODate;
+    if (lastPOFromEl) lastPOFromEl.value = advancedLastPODateFrom;
+    if (lastPOToEl) lastPOToEl.value = advancedLastPODateTo;
 }
 
 window.showItemDetails = function () {

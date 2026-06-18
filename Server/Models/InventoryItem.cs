@@ -128,10 +128,12 @@ public class InventoryItem
         string? buyMethod = null,
         int? supplierID = null,
         string? bodyPlane = null,
-        DateTime? lastPODate = null)
+        DateTime? lastPODate = null,
+        DateTime? lastPODateFrom = null,
+        DateTime? lastPODateTo = null)
     {
         DBservices dbs = new DBservices();
-        return dbs.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate);
+        return dbs.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate, lastPODateFrom, lastPODateTo);
     }
 
     public InventoryFilterOptions GetInventoryFilterOptions()

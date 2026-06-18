@@ -19,10 +19,12 @@ public class InventoryController : ControllerBase
         [FromQuery] string? buyMethod = null,
         [FromQuery] int? supplierID = null,
         [FromQuery] string? bodyPlane = null,
-        [FromQuery] DateTime? lastPODate = null)
+        [FromQuery] DateTime? lastPODate = null,
+        [FromQuery] DateTime? lastPODateFrom = null,
+        [FromQuery] DateTime? lastPODateTo = null)
     {
         InventoryItem inventoryItem = new InventoryItem();
-        return inventoryItem.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate);
+        return inventoryItem.GetInventoryItems(page, pageSize, search, stockStatus, planeTypeId, itemGrpID, buyMethod, supplierID, bodyPlane, lastPODate, lastPODateFrom, lastPODateTo);
     }
 
     [HttpGet("filter-options")]
