@@ -42,7 +42,6 @@ public class InventoryItem
         IXLWorksheet tbvBomSheet = workbook.Worksheet("עץ מוצר TBV");
         IXLWorksheet? openPurchaseRequestSheet = FindWorksheetByHeaders(workbook, "ItemCode", "OpenQty");
         IXLWorksheet? openPurchaseOrderSheet = FindWorksheetByHeaders(workbook, "ItemCode", "סה\"כ פתוח", "פתוח בהזמנות מאושרות", "פתוח בהזמנות לא מאושרות");
-        IXLWorksheet? priceSheet = FindWorksheetByHeaders(workbook, "ItemCode", "Price", "Currency", "מחיר בשקלים");
 
         Dictionary<string, string> itemToGroupMap = BuildItemToGroupMap(detailsSheet);
         Dictionary<string, string> itemToBuyMethod = BuildItemToBuyMethodMap(detailsSheet);
@@ -55,9 +54,6 @@ public class InventoryItem
         Dictionary<string, InventoryPurchaseOrderQtyRow> itemToPurchaseOrderQty = openPurchaseOrderSheet == null
             ? new Dictionary<string, InventoryPurchaseOrderQtyRow>(StringComparer.OrdinalIgnoreCase)
             : BuildItemToPurchaseOrderQtyMap(openPurchaseOrderSheet);
-        Dictionary<string, double?> itemToPrice = priceSheet == null
-            ? new Dictionary<string, double?>(StringComparer.OrdinalIgnoreCase)
-            : BuildItemToPriceMap(priceSheet);
         List<BomRow> wbBomRows = BuildBomRowsForSheet(wbBomSheet, "WB");
         List<BomRow> tbvBomRows = BuildBomRowsForSheet(tbvBomSheet, "TBV");
 
@@ -78,13 +74,9 @@ public class InventoryItem
                 row.UnapprovedOrderQty = orderQty.UnapprovedOrderQty;
             }
 
-            if (itemToPrice.TryGetValue(row.InventoryItemID, out double? price))
-            {
-                row.Price = price;
-            }
         }
 
-        Console.WriteLine($"Inventory import worksheet rows: details={CountDataRows(detailsSheet)}, suppliers={CountDataRows(supplierSheet)}, openPurchaseRequests={CountDataRows(openPurchaseRequestSheet)}, openPurchaseOrders={CountDataRows(openPurchaseOrderSheet)}, prices={CountDataRows(priceSheet)}, wbBom={CountDataRows(wbBomSheet, 4)}, tbvBom={CountDataRows(tbvBomSheet, 4)}");
+        Console.WriteLine($"Inventory import worksheet rows: details={CountDataRows(detailsSheet)}, suppliers={CountDataRows(supplierSheet)}, openPurchaseRequests={CountDataRows(openPurchaseRequestSheet)}, openPurchaseOrders={CountDataRows(openPurchaseOrderSheet)}, wbBom={CountDataRows(wbBomSheet, 4)}, tbvBom={CountDataRows(tbvBomSheet, 4)}");
         Console.WriteLine("Inventory import parsed fields: ItemCode, ItemName, ItmsGrpNam, PrcrmntMtd, Whse01_QTY, Whse03_QTY, Whse90_QTY, Supplier, LastPODate, OpenPurchaseRequestQty, OpenPurchaseOrderQty, ApprovedOrderQty, UnapprovedOrderQty, Price, BOM rows");
 
         List<string> uniqueSuppliers = itemToSupplierMap.Values
@@ -322,6 +314,12 @@ public class InventoryItem
     private static List<InventoryBaseRow> BuildInventoryBaseRows(IXLWorksheet sheet)
     {
         Dictionary<string, InventoryBaseRow> rowsByItemCode = new Dictionary<string, InventoryBaseRow>(StringComparer.OrdinalIgnoreCase);
+        int? priceColumnNumber = FindHeaderColumnNumber(sheet, "מחיר");
+        int loggedPriceRows = 0;
+
+        Console.WriteLine(priceColumnNumber.HasValue
+            ? $"Inventory import price header found: sheet={sheet.Name}, header=מחיר, column={GetExcelColumnLetter(priceColumnNumber.Value)}"
+            : $"Inventory import price header not found: sheet={sheet.Name}, header=מחיר");
 
         foreach (IXLRow row in sheet.RowsUsed().Skip(1))
         {
@@ -337,12 +335,23 @@ public class InventoryItem
             decimal? whse01Qty = ToNullableDecimal(row.Cell(5), sheet.Name, row.RowNumber(), "E", "Whse01_QTY");
             decimal? whse03Qty = ToNullableDecimal(row.Cell(6), sheet.Name, row.RowNumber(), "F", "Whse03_QTY");
             decimal? whse90Qty = ToNullableDecimal(row.Cell(7), sheet.Name, row.RowNumber(), "G", "Whse90_QTY");
+            double? price = priceColumnNumber.HasValue
+                ? ToNullableDoubleOrNull(row.Cell(priceColumnNumber.Value), sheet.Name, row.RowNumber(), GetExcelColumnLetter(priceColumnNumber.Value), "Price")
+                : null;
+
+            if (priceColumnNumber.HasValue && loggedPriceRows < 5)
+            {
+                IXLCell priceCell = row.Cell(priceColumnNumber.Value);
+                Console.WriteLine($"Inventory import price sample: item={itemCode}, excelRow={row.RowNumber()}, raw='{GetCellTextSafe(priceCell)}', parsed={(price.HasValue ? price.Value.ToString(CultureInfo.InvariantCulture) : "NULL")}");
+                loggedPriceRows++;
+            }
 
             rowsByItemCode[itemCode] = new InventoryBaseRow
             {
                 InventoryItemID = itemCode,
                 ItemName = NullIfEmpty(itemName),
                 BuyMethod = buyMethod,
+                Price = price,
                 Whse01_QTY = whse01Qty,
                 Whse03_QTY = whse03Qty,
                 Whse90_QTY = whse90Qty,
@@ -392,27 +401,6 @@ public class InventoryItem
         }
 
         return itemToOrderQty;
-    }
-
-    private static Dictionary<string, double?> BuildItemToPriceMap(IXLWorksheet sheet)
-    {
-        Dictionary<string, double?> itemToPrice = new Dictionary<string, double?>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (IXLRow row in sheet.RowsUsed().Skip(1))
-        {
-            string itemCode = GetExcelCellTextPreserveFormatting(row.Cell(1), sheet.Name, row.RowNumber(), "A", "ItemCode");
-            if (string.IsNullOrWhiteSpace(itemCode))
-            {
-                continue;
-            }
-
-            double? price = ToNullableDouble(row.Cell(4), sheet.Name, row.RowNumber(), "D", "PriceNis")
-                ?? ToNullableDouble(row.Cell(2), sheet.Name, row.RowNumber(), "B", "Price");
-
-            itemToPrice[itemCode] = price;
-        }
-
-        return itemToPrice;
     }
 
     private static Dictionary<string, string> BuildItemToSupplierMap(IXLWorksheet sheet)
@@ -688,6 +676,19 @@ public class InventoryItem
         throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{raw}' - invalid decimal value");
     }
 
+    private static double? ToNullableDoubleOrNull(IXLCell cell, string sheetName, int rowNumber, string columnLetter, string fieldName)
+    {
+        try
+        {
+            return ToNullableDouble(cell, sheetName, rowNumber, columnLetter, fieldName);
+        }
+        catch (InvalidDataException ex)
+        {
+            Console.WriteLine($"Inventory import ignored invalid numeric value: {ex.Message}");
+            return null;
+        }
+    }
+
     private static string? NullIfEmpty(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -727,12 +728,31 @@ public class InventoryItem
     {
         try
         {
+            if (cell.HasFormula)
+            {
+                return cell.CachedValue.ToString(CultureInfo.InvariantCulture).Trim();
+            }
+
             return cell.GetString().Trim();
         }
         catch (Exception ex)
         {
-            string rawValue = cell.Value.ToString();
+            string rawValue = GetCellTextSafe(cell);
             throw new InvalidDataException($"Sheet: {sheetName}, Row: {rowNumber}, Column: {columnLetter}, Field: {fieldName}, Value: '{rawValue}' - text conversion failed: {ex.Message}", ex);
+        }
+    }
+
+    private static string GetCellTextSafe(IXLCell cell)
+    {
+        try
+        {
+            return cell.HasFormula
+                ? cell.CachedValue.ToString(CultureInfo.InvariantCulture).Trim()
+                : cell.GetString().Trim();
+        }
+        catch
+        {
+            return "<unavailable>";
         }
     }
 
@@ -750,6 +770,28 @@ public class InventoryItem
 
             return true;
         });
+    }
+
+    private static int? FindHeaderColumnNumber(IXLWorksheet sheet, string headerName)
+    {
+        IXLRow headerRow = sheet.Row(1);
+        IXLCell? headerCell = headerRow.CellsUsed().FirstOrDefault(cell =>
+            string.Equals(cell.GetString().Trim(), headerName, StringComparison.OrdinalIgnoreCase));
+
+        return headerCell?.Address.ColumnNumber;
+    }
+
+    private static string GetExcelColumnLetter(int columnNumber)
+    {
+        string columnName = string.Empty;
+        while (columnNumber > 0)
+        {
+            int modulo = (columnNumber - 1) % 26;
+            columnName = Convert.ToChar('A' + modulo) + columnName;
+            columnNumber = (columnNumber - modulo) / 26;
+        }
+
+        return columnName;
     }
 
     private static int CountDataRows(IXLWorksheet? sheet, int firstDataRow = 2)

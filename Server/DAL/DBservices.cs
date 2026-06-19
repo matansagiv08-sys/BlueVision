@@ -546,6 +546,7 @@ public class DBservices
             bool hasOpenPurchaseOrderQty = ReaderHasColumn(reader, "OpenPurchaseOrderQty");
             bool hasApprovedOrderQty = ReaderHasColumn(reader, "ApprovedOrderQty");
             bool hasUnapprovedOrderQty = ReaderHasColumn(reader, "UnapprovedOrderQty");
+            bool hasPrice = ReaderHasColumn(reader, "Price");
 
             while (reader.Read())
             {
@@ -562,7 +563,7 @@ public class DBservices
                                + (reader["Whse03_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse03_QTY"]))
                                + (reader["Whse90_QTY"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["Whse90_QTY"])),
                     SupplierName = string.Empty,
-                    Price = null,
+                    Price = hasPrice && reader["Price"] != DBNull.Value ? Convert.ToDouble(reader["Price"]) : null,
                     OpenPurchaseRequestQty = hasOpenPurchaseRequestQty && reader["OpenPurchaseRequestQty"] != DBNull.Value ? Convert.ToDecimal(reader["OpenPurchaseRequestQty"]) : 0m,
                     OpenPurchaseOrderQty = hasOpenPurchaseOrderQty && reader["OpenPurchaseOrderQty"] != DBNull.Value ? Convert.ToDecimal(reader["OpenPurchaseOrderQty"]) : 0m,
                     ApprovedOrderQty = hasApprovedOrderQty && reader["ApprovedOrderQty"] != DBNull.Value ? Convert.ToDecimal(reader["ApprovedOrderQty"]) : 0m,
@@ -736,6 +737,12 @@ public class DBservices
                     row.ApprovedOrderQty.HasValue ? (object)row.ApprovedOrderQty.Value : DBNull.Value,
                     row.UnapprovedOrderQty.HasValue ? (object)row.UnapprovedOrderQty.Value : DBNull.Value,
                     row.ExcelRowNumber > 0 ? row.ExcelRowNumber : 0);
+            }
+
+            foreach (DataRow sampleRow in inventoryItemsImportTable.Rows.Cast<DataRow>().Take(5))
+            {
+                object priceValue = sampleRow["Price"] == DBNull.Value ? "NULL" : sampleRow["Price"];
+                Console.WriteLine($"Inventory import table price sample: item={sampleRow["InventoryItemID"]}, excelRow={sampleRow["ExcelRowNumber"]}, price={priceValue}");
             }
 
             if (inventoryItemsImportTable.Rows.Count > 0)
