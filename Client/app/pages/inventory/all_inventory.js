@@ -150,7 +150,7 @@ function renderInventoryTable(data) {
         const openPurchaseOrderQty = item.openPurchaseOrderQty ?? item.OpenPurchaseOrderQty ?? "";
         const approvedOrderQty = item.approvedOrderQty ?? item.ApprovedOrderQty ?? "";
         const unapprovedOrderQty = item.unapprovedOrderQty ?? item.UnapprovedOrderQty ?? "";
-        const bodyPlane = item.bodyPlane ?? item.BodyPlane;
+        const bodyPlane = formatBodyPlane(item.bodyPlane ?? item.BodyPlane);
         const lastPODateRaw = item.lastPODate ?? item.LastPODate;
         const lastPODate = lastPODateRaw ? String(lastPODateRaw).split("T")[0] : "";
 
@@ -305,6 +305,21 @@ function displayOrDash(value) {
     if (value === null || value === undefined) return "-";
     const text = String(value).trim();
     return text === "" ? "-" : text;
+}
+
+function formatBodyPlane(value) {
+    const normalized = (value ?? "").toString().trim().toUpperCase();
+
+    switch (normalized) {
+        case "B":
+            return "גוף";
+        case "P":
+            return "כטב\"מ";
+        case "M":
+            return "משותף";
+        default:
+            return "-";
+    }
 }
 
 function escapeHtml(value) {
@@ -525,7 +540,7 @@ function populateFilterOptions(options) {
         .map(v => String(v ?? "").trim())
         .filter(v => v !== "")
         .forEach(value => {
-            bodyPlaneSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`);
+            bodyPlaneSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(formatBodyPlane(value))}</option>`);
     });
 
     //after user selects options, this is how we set the filter selections

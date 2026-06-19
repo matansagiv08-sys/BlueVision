@@ -314,7 +314,7 @@ function renderBomTreeTable() {
                 <td class="bom-tree-chip-cell bom-col-unit"><span class="bom-tree-chip">${escapeHtml(unit)}</span></td>
                 <td class="bom-tree-chip-cell bom-col-warehouse"><span class="bom-tree-chip">${warehouse}</span></td>
                 <td class="bom-tree-chip-cell bom-col-buy-method"><span class="bom-tree-chip">${buyMethod}</span></td>
-                <td class="bom-tree-chip-cell bom-col-body-plane"><span class="bom-tree-chip">${displayOrDash(readValue(item, "BodyPlane"))}</span></td>
+                <td class="bom-tree-chip-cell bom-col-body-plane"><span class="bom-tree-chip">${formatBodyPlane(readValue(item, "BodyPlane"))}</span></td>
             </tr>`;
     }).join("");
 }
@@ -533,7 +533,7 @@ function renderBomTable(data) {
                 <td class="bom-col-unit">${escapeHtml(formatUnitOfMeasure(readValue(item, "MeasureUnit")))}</td>
                 <td class="bom-col-warehouse">${displayOrDash(readValue(item, "Warehouse"))}</td>
                 <td class="bom-col-buy-method">${displayOrDash(readValue(item, "BuyMethod"))}</td>
-                <td class="bom-col-body-plane">${displayOrDash(readValue(item, "BodyPlane"))}</td>
+                <td class="bom-col-body-plane">${formatBodyPlane(readValue(item, "BodyPlane"))}</td>
             </tr>`;
     }).join("");
 }
@@ -549,15 +549,15 @@ function populateBomFilterOptions(options) {
     populateSelectFromList("bomWarehouseFilter", warehouses, currentBomWarehouse, "מחסן");
     populateSelectFromList("bomLevelFilter", bomLevels.map(v => String(v)), currentBomLevel, "רמת BOM");
     populateSelectFromList("bomBuyMethodFilter", buyMethods, currentBomBuyMethod, "שיטת רכישה");
-    populateSelectFromList("bomBodyPlaneFilter", bodyPlanes, currentBomBodyPlane, "כל גוף/כנף");
+    populateSelectFromList("bomBodyPlaneFilter", bodyPlanes, currentBomBodyPlane, "כל גוף/כנף", formatBodyPlane);
 }
 
-function populateSelectFromList(selectId, values, selectedValue, placeholderText) {
+function populateSelectFromList(selectId, values, selectedValue, placeholderText, formatLabel) {
     const select = document.getElementById(selectId);
     if (!select) return;
     select.innerHTML = `<option value="" disabled>${escapeHtml(placeholderText)}</option><option value="all">הכל</option>`;
     values.map(v => String(v ?? "").trim()).filter(v => v !== "")
-        .forEach(value => select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
+        .forEach(value => select.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(value)}">${escapeHtml(formatLabel ? formatLabel(value) : value)}</option>`));
     const normalizedValues = values.map(v => String(v ?? "").trim());
     select.value = normalizedValues.includes(selectedValue) ? selectedValue : "";
 }
@@ -583,6 +583,21 @@ function displayOrDash(value) {
     if (value === null || value === undefined) return "-";
     const text = String(value).trim();
     return text === "" ? "-" : text;
+}
+
+function formatBodyPlane(value) {
+    const normalized = (value ?? "").toString().trim().toUpperCase();
+
+    switch (normalized) {
+        case "B":
+            return "גוף";
+        case "P":
+            return "כטב\"מ";
+        case "M":
+            return "משותף";
+        default:
+            return "-";
+    }
 }
 
 function escapeHtml(value) {
